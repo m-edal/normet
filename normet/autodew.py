@@ -4,6 +4,7 @@ from datetime import datetime
 from random import sample
 from scipy import stats
 from scipy.stats import mode
+from pandas.api.types import CategoricalDtype
 from flaml import AutoML
 automl = AutoML()
 from joblib import Parallel, delayed
@@ -42,6 +43,7 @@ def add_date_variables(df, replace):
         df['date_unix'] = df['date'].astype(np.int64) // 10**9
         df['day_julian'] = pd.DatetimeIndex(df['date']).dayofyear
         df['weekday'] = pd.DatetimeIndex(df['date']).weekday + 1
+        df['weekday']=df['weekday'].astype("category")
         df['hour'] = pd.DatetimeIndex(df['date']).hour
 
     else:
@@ -55,6 +57,7 @@ def add_date_variables(df, replace):
         # An internal package's function
         if 'weekday' not in df.columns:
             df['weekday'] = df['date'].apply(lambda x: x.weekday() + 1)
+            df['weekday']=df['weekday'].astype("category")
 
         if 'hour' not in df.columns:
             df['hour'] = df['date'].apply(lambda x: x.hour)

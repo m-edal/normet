@@ -1,61 +1,72 @@
 import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed
-from pdpbox import pdp
+from sklearn.inspection import partial_dependence
+import matplotlib.pyplot as plt
+from sklearn.inspection import PartialDependenceDisplay
+from sklearn.base import clone
 
-def partial_dependencies(automl, df, feature_names=None,variable=None, training_only=True, resolution=100):
-    df = check_data(df, prepared=True)
+def pdp_all(automl, df, feature_names=None,variables=None, training_only=True):
     # 使用joblib库进行并行计算
     n_cores = -1  # 使用所有可用CPU核心
-    if variable is None:
-        variable = feature_names
+    if variables is None:
+        variables = feature_names
+    if training_only:
+        df = df[df["set"] == "training"]
+    X_train, y_train = df[feature_names], df['value']
 
-    results = Parallel(n_jobs=n_cores)(delayed(partial_dependencies_worker)(automl,df,feature_names,var) for var in variable)
+    results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(automl,X_train,var) for var in variables)
     df_predict = pd.concat(results)
     df_predict.reset_index(drop=True, inplace=True)
     return df_predict
 
 
-def partial_dependencies_worker(automl, df, model_features,variable,  training_only=True,
-                                    resolution=100, n_cores=-1):
+def pdp_worker(automl, X_train, variable,training_only=True):
     # Filter only to training set
-    if training_only:
-        df = df[df["set"] == "training"]
-
-    # Predict
-    df_predict = pdp.pdp_isolate(model=automl, dataset=df,
-                                 model_features=model_features,
-                                 feature=variable, num_grid_points=10,grid_type='percentile',
-                                 n_jobs=n_cores)
+    results = partial_dependence(estimator=automl, X=X_train,
+                                 features=variable,kind='individual')
 
     # Alter names and add variable
-    df_predict = pd.DataFrame({"value": df_predict.feature_grids,
-                                "partial_dependency": df_predict.pdp})
+    df_predict = pd.DataFrame({"value": results['values'][0],
+                                "pdp_mean": np.mean(results['individual'][0],axis=0),
+                               'pdp_std':np.std(results['individual'][0],axis=0)})
     df_predict["variable"] = variable
-    df_predict = df_predict[["variable", "value", "partial_dependency"]]
-
-    # Catch factors, usually weekday
-    if df_predict["value"].dtype == "object":
-        df_predict["value"] = pd.to_numeric(df_predict["value"])
+    df_predict = df_predict[["variable", "value", "pdp_mean","pdp_std"]]
 
     return df_predict
 
-def check_data(df, prepared):
 
-    if 'date' not in df.columns:
-        raise ValueError("Input must contain a `date` variable.")
-    if not np.issubdtype(df["date"].dtype, np.datetime64):
-        raise ValueError("`date` variable needs to be a parsed date (datetime64).")
-    if df['date'].isnull().any():
-        raise ValueError("`date` must not contain missing (NA) values.")
+def pdp_plot(automl,df,feature_names,variables=None,kind='average',training_only=True,figsize=(8,8),hspace=0.5,n_jobs=-1):
+    if variables is None:
+        variables = feature_names
 
-    if prepared:
-        if 'set' not in df.columns:
-            raise ValueError("Input must contain a `set` variable.")
-        if not set(df['set'].unique()).issubset(set(['training', 'testing'])):
-            raise ValueError("`set` can only take the values `training` and `testing`.")
-        if "value" not in df.columns:
-            raise ValueError("Input must contain a `value` variable.")
-        if "date_unix" not in df.columns:
-            raise ValueError("Input must contain a `date_unix` variable.")
-    return df
+    if training_only:
+        df = df[df["set"] == "training"]
+    X_train, y_train = df[feature_names], df['value']
+    fig, ax = plt.subplots(figsize=figsize)
+    result = PartialDependenceDisplay.from_estimator(automl, X_train, variables,kind=kind,n_jobs=-1,ax=ax)
+    plt.subplots_adjust(hspace=hspace)
+    return result
+
+
+def pdp_interaction(automl,df,variables,kind='average',training_only=True,ncols=3,figsize=(8,4),constrained_layout=True):
+
+    if training_only:
+        df = df[df["set"] == "training"]
+    fig, ax = plt.subplots(ncols=ncols, figsize=figsize, constrained_layout=constrained_layout)
+    result = PartialDependenceDisplay.from_estimator(automl, df, features=variables,kind=kind,ax=ax)
+    return result
+
+
+def pdp_nointeraction(automl,df,feature_names,variables=None,kind='average',training_only=True,ncols=3,figsize=(8,4),constrained_layout=True):
+    if training_only:
+        df = df[df["set"] == "training"]
+    X_train, y_train = df[feature_names], df['value']
+    interaction_cst = [[i] for i in range(X_train.shape[1])]
+    model_without_interactions = (
+        clone(automl.model.estimator)
+        .set_params(interaction_constraints = interaction_cst)
+        .fit(X_train, y_train))
+    fig, ax = plt.subplots(ncols=ncols, figsize=figsize, constrained_layout=constrained_layout)
+    result = PartialDependenceDisplay.from_estimator(model_without_interactions, X_train, features=variables,kind=kind,ax=ax)
+    return result
