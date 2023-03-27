@@ -4,7 +4,6 @@ from datetime import datetime
 from random import sample
 from scipy import stats
 from scipy.stats import mode
-from pandas.api.types import CategoricalDtype
 from flaml import AutoML
 automl = AutoML()
 from joblib import Parallel, delayed
