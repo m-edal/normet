@@ -72,7 +72,7 @@ def impute_values(df, na_rm):
         df[col].fillna(df[col].median(), inplace=True)
     # Character and categorical variables
     for col in df.select_dtypes(include=['object', 'category']).columns:
-        df[col].fillna(mode(df[col])[0][0], inplace=True)
+        df[col].fillna(mode(df[col],keepdims=False)[0][0], inplace=True)
 
     return df
 
@@ -213,7 +213,7 @@ def model_predict(automl, df=None):
 #def modStats(df,value=None,split_method = 'random',set='testing',fraction=0.75):
 def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA"]):
     df=df[df['set']==set]
-    df['value_predict']=automl.predict(df)
+    df.loc[:,'value_predict']=automl.predict(df)
     df=Stats(df, mod="value_predict", obs="value",statistic=statistic)
     return df
 

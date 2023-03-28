@@ -61,8 +61,15 @@ def pdp_interaction(automl,df,variables,kind='average',training_only=True,ncols=
 def pdp_nointeraction(automl,df,feature_names,variables=None,kind='average',training_only=True,ncols=3,figsize=(8,4),constrained_layout=True):
     if training_only:
         df = df[df["set"] == "training"]
+    #factorize category variables
+    category_cols = df.select_dtypes(['category']).columns.tolist()
+    for i,cat_col in enumerate(category_cols):
+        codes, uniques = pd.factorize(df[cat_col])
+        df.loc[:,cat_col]=codes
+
     X_train, y_train = df[feature_names], df['value']
     interaction_cst = [[i] for i in range(X_train.shape[1])]
+
     model_without_interactions = (
         clone(automl.model.estimator)
         .set_params(interaction_constraints = interaction_cst)
