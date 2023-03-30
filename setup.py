@@ -36,6 +36,6 @@ setup(
         'seaborn',
         'os',
         'random',
-        'pdpbox'
+        'ruptures',
     ],
     zip_safe=False)
