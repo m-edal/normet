@@ -2,11 +2,17 @@ import threading
 import cdsapi
 from joblib import Parallel, delayed
 
-def download_era5(lat_list,lon_list,year_range,month_range,day_range,time_range):
+def download_era5(lat_list,lon_list,year_range,month_range,day_range,time_range,
+                 var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind', 
+                                 '2m_dewpoint_temperature','2m_temperature',
+                                 'boundary_layer_height', 'downward_uv_radiation_at_the_surface',
+                                 'sea_surface_temperature', 'surface_pressure', 
+                                 'surface_solar_radiation_downwards','surface_net_solar_radiation',
+                                 'total_cloud_cover','total_precipitation']):
     # 启动多个线程进行并行下载
     threads = []
     for lat, lon in zip(lat_list, lon_list):
-        t = threading.Thread(target=download_era5_worker, args=(lat, lon, year_range, month_range, day_range, time_range, ))
+        t = threading.Thread(target=download_era5_worker, args=(lat, lon, var_list, year_range, month_range, day_range, time_range, ))
         t.start()
         threads.append(t)
     # 等待所有线程完成
@@ -20,9 +26,7 @@ def era5_dataframe(lat_list,lon_list,n_cores=-1):
     return df
 
 
-def download_era5_worker(lat, lon, year_range, month_range, day_range, time_range):
-    # 定义要下载的气象参数
-    variables = ['2m_temperature', '10m_u_component_of_wind', '10m_v_component_of_wind', 'relative_humidity']
+def download_era5_worker(lat, lon, var, year_range, month_range, day_range, time_range):
 
     # 创建一个CDS API客户端对象
     c = cdsapi.Client()
@@ -31,7 +35,7 @@ def download_era5_worker(lat, lon, year_range, month_range, day_range, time_rang
     request = {
         'product_type': 'reanalysis',
         'format': 'netcdf',
-        'variable': variables,
+        'variable': var,
         'year': year_range,
         'month': month_range,
         'day': day_range,
@@ -48,7 +52,7 @@ def download_era5_worker(lat, lon, year_range, month_range, day_range, time_rang
 
 
 
-def era5_dataframe_worker(lat,lon):
+def era5_dataframe_worker(lat,lon,):
     # 从数据集中选择与经纬度最接近的点位
     filename = f"era5_data_{lat}_{lon}.nc"
 
