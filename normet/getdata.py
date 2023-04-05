@@ -61,8 +61,8 @@ def era5_dataframe_worker(lat,lon,path):
     # 读取netcdf文件中的数据
     ds = xr.open_dataset(filename)
 
-    lat_idx = abs(ds.latitude - lat).argmin().item()
-    lon_idx = abs(ds.longitude - lon).argmin().item()
+    #lat_idx = abs(ds.latitude - lat).argmin().item()
+    #lon_idx = abs(ds.longitude - lon).argmin().item()
 
     # 提取指定经纬度点位的各种气象参数数据
     if "u10" in list(ds.data_vars):
