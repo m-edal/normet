@@ -122,6 +122,7 @@ def train_model(df, variables,
     estimator_list= ["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],  # list of ML learners; we tune lightgbm in this example
     task= 'regression',  # task type
     seed= 7654321,    # random seed
+    verbose = True
 ):
     # Check arguments
     if len(set(variables)) != len(variables):
@@ -142,6 +143,7 @@ def train_model(df, variables,
         "estimator_list": estimator_list,  # list of ML learners; we tune lightgbm in this example
         "task": task,  # task type
         "seed": seed,    # random seed
+        "verbose": verbose
     }
 
     automl.fit(X_train=df[variables], y_train=df['value'],**automl_settings)
