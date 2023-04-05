@@ -61,7 +61,7 @@ def era5_dataframe_worker(lat,lon):
     # 提取指定经纬度点位的各种气象参数数据
     u10 = ds.u10.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
     v10 = ds.v10.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    d2m = ds.t2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
+    d2m = ds.d2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
     t2m = ds.t2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
     blh = ds.blh.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
     uvb = ds.uvb.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
