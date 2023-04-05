@@ -26,7 +26,7 @@ def era5_dataframe(lat_list,lon_list,n_cores=-1):
     return df
 
 
-def download_era5_worker(lat, lon, var, year_range, month_range, day_range, time_range):
+def download_era5_worker(lat, lon, var_list, year_range, month_range, day_range, time_range):
 
     # 创建一个CDS API客户端对象
     c = cdsapi.Client()
@@ -35,7 +35,7 @@ def download_era5_worker(lat, lon, var, year_range, month_range, day_range, time
     request = {
         'product_type': 'reanalysis',
         'format': 'netcdf',
-        'variable': var,
+        'variable': var_list,
         'year': year_range,
         'month': month_range,
         'day': day_range,
