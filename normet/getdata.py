@@ -109,13 +109,13 @@ def UK_AURN(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='
     os.makedirs(download_path, exist_ok=True)
     metadata_url = "https://uk-air.defra.gov.uk/openair/R_data/AURN_metadata.RData"
     metadata_file = "AURN_metadata.RData"
-    if os.path.isfile(metadata_file) is True:
+    if metadata_file in os.listdir(download_path):
         print("Metadata file already exists, skipping download.")
     else:
         print("Downloading metadata file...")
-        wget.download(metadata_url)
+        wget.download(metadata_url,download_path+'/'+metadata_file)
 
-    metadata = pyreadr.read_r(metadata_file)
+    metadata = pyreadr.read_r(download_path+'/'+metadata_file)
     years = year_lst
     if isinstance(years, int):
         years = [years]
