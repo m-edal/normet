@@ -46,8 +46,6 @@ def add_date_variables(df, replace):
         df['hour'] = pd.DatetimeIndex(df['date']).hour
 
     else:
-         # Add variables if they do not exist
-         # Add date variables
         if 'date_unix' not in df.columns:
             df['date_unix'] = df['date'].apply(lambda x: x.timestamp())
         if 'day_julian' not in df.columns:
@@ -90,7 +88,6 @@ def split_into_sets(df, split_method, fraction):
 
     # Bind again
     df_split = pd.concat([df_training, df_testing], axis=0, ignore_index=True)
-    #df_split = df_split[['date', 'value',  'date_unix', 'day_julian', 'weekday', 'hour','set']]
     df_split = df_split.sort_values(by='date').reset_index(drop=True)
 
     return df_split
@@ -212,7 +209,6 @@ def model_predict(automl, df=None):
     x = automl.predict(df)
     return x
 
-#def modStats(df,value=None,split_method = 'random',set='testing',fraction=0.75):
 def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA"]):
     df=df[df['set']==set]
     df.loc[:,'value_predict']=automl.predict(df)
@@ -301,11 +297,9 @@ def RMSE(x, mod="mod", obs="obs"):
     return res
 
 ## correlation coefficient
-# when SD=0; will return(NA)
 def r(x, mod="mod", obs="obs"):
     x = x[[mod, obs]].dropna()
     res = stats.pearsonr(x[mod], x[obs])
-    #return pd.DataFrame({"r": [res[0]], "P": [res[1]]})
     return res
 
 ## Coefficient of Efficiency
