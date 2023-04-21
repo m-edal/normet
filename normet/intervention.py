@@ -7,6 +7,15 @@ from typing import List
 from operator import add
 from toolz import reduce, partial
 from scipy.optimize import fmin_slsqp
+from joblib import Parallel, delayed
+
+
+def SCM_parallel(data: pd.DataFrame, pollutant, intervention_date,n_core = -1):
+    control_pool = data["Code"].unique()
+
+    synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(SCM)(data=data, treatment_target=Code,
+    pollutant=pollutant,intervention_date=intervention_date) for Code in control_pool))
+    return synthetic_all
 
 
 def SCM(data: pd.DataFrame, treatment_target, pollutant, intervention_date) -> np.array:
