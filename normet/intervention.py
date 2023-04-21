@@ -35,12 +35,16 @@ def SCM(data: pd.DataFrame, pollutant, intervention_date,treatment_target, contr
     synthetic = (data.query(f"(Code=={control_targets})")
                  .pivot(index='date', columns="Code")[pollutant]
                  .values.dot(weights))
-
-    return (data
+    data = (data
             .query(f"Code=={treatment_target}")[["Code", "date", pollutant]]
             .assign(Synthetic=synthetic))
+    data['Effects']=data[pollutant]-data['Synthetic']
 
+    return data
 
+def pre_treatment_error(df,intervention_date):
+    pre_treat_error = (df.query(f"date<{intervention_date}")["Effects"]) ** 2
+    return pre_treat_error.mean()
 
 def loss_w(W, X, y) -> float:
     return np.sqrt(np.mean((y - X.dot(W))**2))
