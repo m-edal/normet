@@ -2,9 +2,6 @@ import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
 import numpy as np
-import statsmodels.formula.api as smf
-from typing import List
-from operator import add
 from toolz import reduce, partial
 from scipy.optimize import fmin_slsqp
 from joblib import Parallel, delayed
