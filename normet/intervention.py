@@ -10,24 +10,29 @@ from scipy.optimize import fmin_slsqp
 from joblib import Parallel, delayed
 
 
-def SCM_parallel(data: pd.DataFrame, pollutant, intervention_date,n_core = -1):
+def SCM_parallel(data: pd.DataFrame, pollutant, intervention_date, treatment_target, control_targets = None, n_core = -1):
     control_pool = data["Code"].unique()
 
-    synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(SCM)(data=data, treatment_target=Code,
-    pollutant=pollutant,intervention_date=intervention_date) for Code in control_pool))
+    synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(SCM)(
+        data=data, pollutant=pollutant,intervention_date=intervention_date,treatment_target=Code,
+        control_targets=control_targets) for Code in control_pool))
     return synthetic_all
 
 
-def SCM(data: pd.DataFrame, treatment_target, pollutant, intervention_date) -> np.array:
+def SCM(data: pd.DataFrame, pollutant, intervention_date,treatment_target, control_targets = None) -> np.array:
+    if control_targets is None:
+        control_targets=list(data['Code'].unique())
+        control_targets.remove(treatment_target)
+
     inverted = (data.query(f"date<{intervention_date}")
                 .pivot(index='Code', columns="date")[pollutant]
                 .T)
 
     y = inverted[treatment_target].values # treated
-    X = inverted.drop(columns=treatment_target).values # donor pool
+    X = inverted[control_targets].values # donor pool
 
     weights = get_w(X, y)
-    synthetic = (data.query(f"~(Code=={treatment_target})")
+    synthetic = (data.query(f"(Code=={control_targets})")
                  .pivot(index='date', columns="Code")[pollutant]
                  .values.dot(weights))
 
