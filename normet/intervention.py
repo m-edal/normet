@@ -9,40 +9,40 @@ import cvxpy as cp
 from joblib import Parallel, delayed
 
 
-def SCM_parallel(df, poll_col, intervention_date, treatment_target, control_targets = None, n_core = -1):
-    control_pool = df["Code"].unique()
+def SCM_parallel(df, poll_col, date_col, Code_col,intervention_date, treatment_target, control_targets = None, n_core = -1):
+    control_pool = df[Code_col].unique()
 
     synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(SCM)(
-        df=df, poll_col=poll_col,intervention_date=intervention_date,treatment_target=Code,
+        df=df, poll_col=poll_col,date_col=date_col, Code_col=Code_col,intervention_date=intervention_date,treatment_target=Code,
         control_targets=control_targets) for Code in control_pool))
     return synthetic_all
 
 
-def SCM(df, poll_col, intervention_date,treatment_target, control_targets = None) -> np.array:
+def SCM(df, poll_col, date_col, Code_col,intervention_date,treatment_target, control_targets = None) -> np.array:
     if control_targets is None:
-        control_targets=list(df['Code'].unique())
+        control_targets=list(df[Code_col].unique())
         control_targets.remove(treatment_target)
 
-    inverted = (df.query(f"date<{intervention_date}")
-                .pivot(index='Code', columns="date")[poll_col]
+    inverted = (df.query(f"{date_col}<{intervention_date}")
+                .pivot(index=Code_col, columns=date_col)[poll_col]
                 .T)
 
     y = inverted[treatment_target].values # treated
     X = inverted[control_targets].values # donor pool
 
     weights = get_w(X, y)
-    synthetic = (df.query(f"(Code=={control_targets})")
-                 .pivot(index='date', columns="Code")[poll_col]
+    synthetic = (df.query(f"({Code_col}=={control_targets})")
+                 .pivot(index=date_col, columns=Code_col)[poll_col]
                  .values.dot(weights))
     df = (df
-            .query(f"Code=={treatment_target}")[["Code", "date", poll_col]]
+            .query(f"{Code_col}=={treatment_target}")[[Code_col, date_col, poll_col]]
             .assign(Synthetic=synthetic))
     df['Effects']=df[poll_col]-df['Synthetic']
 
     return df
 
-def pre_treatment_error(df,intervention_date):
-    pre_treat_error = (df.query(f"date<{intervention_date}")["Effects"]) ** 2
+def pre_treatment_error(df,date_col,intervention_date):
+    pre_treat_error = (df.query(f"{date_col}<{intervention_date}")["Effects"]) ** 2
     return pre_treat_error.mean()
 
 def loss_w(W, X, y) -> float:
