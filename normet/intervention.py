@@ -210,11 +210,11 @@ def SDID(df, poll_col, date_col, Code_col, intervention_date,treatment_target,co
 
 
 def SDID_effects(df, poll_col, date_col, Code_col, intervention_date,treatment_target,control_targets = None):
-    effects = {year: synthetic_diff_in_diff(df[(df['date']<intervention_date)|(df['date']==year)],
+    effects = {date: SDID(df[(df['date']<intervention_date)|(df['date']==year)],
                                         poll_col=poll_col,
                                         date_col=date_col,
                                         Code_col=Code_col,
                                         intervention_date=intervention_date,
                                         treatment_target=treatment_target)
-           for year in list(df[df[date_col]>=intervention_date][date_col].unique())}
+           for date in list(df[df[date_col]>=intervention_date][date_col].unique())}
     return pd.Series(effects)
