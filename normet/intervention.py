@@ -9,21 +9,21 @@ import cvxpy as cp
 from joblib import Parallel, delayed
 
 
-def SCM_parallel(data: pd.DataFrame, pollutant, intervention_date, treatment_target, control_targets = None, n_core = -1):
-    control_pool = data["Code"].unique()
+def SCM_parallel(df, pollutant, intervention_date, treatment_target, control_targets = None, n_core = -1):
+    control_pool = df["Code"].unique()
 
     synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(SCM)(
-        data=data, pollutant=pollutant,intervention_date=intervention_date,treatment_target=Code,
+        df=df, pollutant=pollutant,intervention_date=intervention_date,treatment_target=Code,
         control_targets=control_targets) for Code in control_pool))
     return synthetic_all
 
 
-def SCM(data: pd.DataFrame, pollutant, intervention_date,treatment_target, control_targets = None) -> np.array:
+def SCM(df, pollutant, intervention_date,treatment_target, control_targets = None) -> np.array:
     if control_targets is None:
-        control_targets=list(data['Code'].unique())
+        control_targets=list(df['Code'].unique())
         control_targets.remove(treatment_target)
 
-    inverted = (data.query(f"date<{intervention_date}")
+    inverted = (df.query(f"date<{intervention_date}")
                 .pivot(index='Code', columns="date")[pollutant]
                 .T)
 
@@ -31,15 +31,15 @@ def SCM(data: pd.DataFrame, pollutant, intervention_date,treatment_target, contr
     X = inverted[control_targets].values # donor pool
 
     weights = get_w(X, y)
-    synthetic = (data.query(f"(Code=={control_targets})")
+    synthetic = (df.query(f"(Code=={control_targets})")
                  .pivot(index='date', columns="Code")[pollutant]
                  .values.dot(weights))
-    data = (data
+    df = (df
             .query(f"Code=={treatment_target}")[["Code", "date", pollutant]]
             .assign(Synthetic=synthetic))
-    data['Effects']=data[pollutant]-data['Synthetic']
+    df['Effects']=df[pollutant]-df['Synthetic']
 
-    return data
+    return df
 
 def pre_treatment_error(df,intervention_date):
     pre_treat_error = (df.query(f"date<{intervention_date}")["Effects"]) ** 2
