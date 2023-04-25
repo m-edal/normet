@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from toolz import reduce, partial
 from scipy.optimize import fmin_slsqp
+import statsmodels.formula.api as smf
+import cvxpy as cp
 from joblib import Parallel, delayed
 
 
