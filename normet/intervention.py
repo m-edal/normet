@@ -9,33 +9,33 @@ import cvxpy as cp
 from joblib import Parallel, delayed
 
 
-def SCM_parallel(df, poll_col, date_col, Code_col,intervention_date, treatment_target, control_targets = None, n_core = -1):
-    control_pool = df[Code_col].unique()
+def scm_parallel(df, poll_col, date_col, code_col,intervention_date, treatment_target, control_targets = None, n_core = -1):
+    control_pool = df[code_col].unique()
 
-    synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(SCM)(
-        df=df, poll_col=poll_col,date_col=date_col, Code_col=Code_col,intervention_date=intervention_date,treatment_target=Code,
+    synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(scm)(
+        df=df, poll_col=poll_col,date_col=date_col, code_col=code_col,intervention_date=intervention_date,treatment_target=Code,
         control_targets=control_targets) for Code in control_pool))
     return synthetic_all
 
 
-def SCM(df, poll_col, date_col, Code_col,intervention_date,treatment_target, control_targets = None) -> np.array:
+def scm(df, poll_col, date_col, code_col,intervention_date,treatment_target, control_targets = None) -> np.array:
     if control_targets is None:
-        control_targets=list(df[Code_col].unique())
+        control_targets=list(df[code_col].unique())
         control_targets.remove(treatment_target)
 
     inverted = (df.query(f"{date_col}<{intervention_date}")
-                .pivot(index=Code_col, columns=date_col)[poll_col]
+                .pivot(index=code_col, columns=date_col)[poll_col]
                 .T)
 
     y = inverted[treatment_target].values # treated
     X = inverted[control_targets].values # donor pool
 
     weights = get_w(X, y)
-    synthetic = (df.query(f"({Code_col}=={control_targets})")
-                 .pivot(index=date_col, columns=Code_col)[poll_col]
+    synthetic = (df.query(f"({code_col}=={control_targets})")
+                 .pivot(index=date_col, columns=code_col)[poll_col]
                  .values.dot(weights))
     df = (df
-            .query(f"{Code_col}=={treatment_target}")[[Code_col, date_col, poll_col]]
+            .query(f"{code_col}=={treatment_target}")[[code_col, date_col, poll_col]]
             .assign(Synthetic=synthetic))
     df['Effects']=df[poll_col]-df['Synthetic']
 
@@ -59,22 +59,22 @@ def get_w(X, y):
                          disp=False)
     return weights
 
-def fit_time_weights(df, poll_col,date_col, Code_col, intervention_date,treatment_target,control_targets = None):
+def fit_time_weights(df, poll_col,date_col, code_col, intervention_date,treatment_target,control_targets = None):
         if control_targets is None:
-            control_targets=list(df[Code_col].unique())
+            control_targets=list(df[code_col].unique())
             control_targets.remove(treatment_target)
 
-        control = df[df[Code_col].isin(control_targets)]
+        control = df[df[code_col].isin(control_targets)]
 
         # pivot the data to the (T_pre, N_co) matrix representation
         y_pre = (control
                  .query(f"{date_col}<{intervention_date}")
-                 .pivot(date_col, Code_col, poll_col))
+                 .pivot(date_col, code_col, poll_col))
 
         # group post-treatment time period by units to have a (1, N_co) vector.
         y_post_mean = (control
                        .query(f"{date_col}>={intervention_date}")
-                       .groupby(Code_col)
+                       .groupby(code_col)
                        [poll_col]
                        .mean()
                        .values)
@@ -95,18 +95,18 @@ def fit_time_weights(df, poll_col,date_col, Code_col, intervention_date,treatmen
                          index=y_pre.index)
 
 
-def calculate_regularization(df, poll_col, date_col,Code_col, intervention_date,treatment_target,control_targets = None):
+def calculate_regularization(df, poll_col, date_col,code_col, intervention_date,treatment_target,control_targets = None):
     if control_targets is None:
-        control_targets=list(df[Code_col].unique())
+        control_targets=list(df[code_col].unique())
         control_targets.remove(treatment_target)
 
-    n_treated_post = df[(df[date_col]>=intervention_date)&(df[Code_col]==treatment_target)].shape[0]
+    n_treated_post = df[(df[date_col]>=intervention_date)&(df[code_col]==treatment_target)].shape[0]
 
     first_diff_std = (df
                       .query(f"{date_col}<{intervention_date}")
-                      .query(f"{Code_col}=={control_targets}")
+                      .query(f"{code_col}=={control_targets}")
                       .sort_values(date_col)
-                      .groupby(Code_col)
+                      .groupby(code_col)
                       [poll_col]
                       .diff()
                       .std())
@@ -114,21 +114,21 @@ def calculate_regularization(df, poll_col, date_col,Code_col, intervention_date,
     return n_treated_post**(1/4) * first_diff_std
 
 
-def fit_unit_weights(df, poll_col, date_col, Code_col, intervention_date,treatment_target,control_targets = None):
+def fit_unit_weights(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
     if control_targets is None:
-        control_targets=list(df[Code_col].unique())
+        control_targets=list(df[code_col].unique())
         control_targets.remove(treatment_target)
 
-    zeta = calculate_regularization(df, poll_col, date_col, Code_col, intervention_date,treatment_target,control_targets)
+    zeta = calculate_regularization(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets)
     pre_data = df.query(f"{date_col}<{intervention_date}")
 
     # pivot the data to the (T_pre, N_co) matrix representation
     y_pre_control = (pre_data
-                     .query(f"{Code_col}=={control_targets}")
-                     .pivot(date_col, Code_col, poll_col))
+                     .query(f"{code_col}=={control_targets}")
+                     .pivot(date_col, code_col, poll_col))
 
     # group treated units by time periods to have a (T_pre, 1) vector.
-    y_pre_treat_mean = (pre_data[pre_data[Code_col]==treatment_target]
+    y_pre_treat_mean = (pre_data[pre_data[code_col]==treatment_target]
                         .groupby(date_col)
                         [poll_col]
                         .mean())
@@ -151,13 +151,13 @@ def fit_unit_weights(df, poll_col, date_col, Code_col, intervention_date,treatme
                      index=y_pre_control.columns)
 
 
-def join_weights(df, unit_w, time_w, date_col, Code_col, intervention_date,treatment_target,control_targets = None):
-    df['treated']=df[Code_col]==treatment_target
+def join_weights(df, unit_w, time_w, date_col, code_col, intervention_date,treatment_target,control_targets = None):
+    df['treated']=df[code_col]==treatment_target
     df['after_treatment']=df[date_col]>=intervention_date
 
     return (
         df
-        .set_index([date_col, Code_col])
+        .set_index([date_col, code_col])
         .join(time_w)
         .join(unit_w)
         .reset_index()
@@ -168,16 +168,16 @@ def join_weights(df, unit_w, time_w, date_col, Code_col, intervention_date,treat
 
 
 
-def SDID(df, poll_col, date_col, Code_col, intervention_date,treatment_target,control_targets = None):
+def SDID(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
     if control_targets is None:
-        control_targets=list(df[Code_col].unique())
+        control_targets=list(df[code_col].unique())
         control_targets.remove(treatment_target)
 
     # find the unit weights
     unit_weights = fit_unit_weights(df=df,
                                     poll_col=poll_col,
                                     date_col=date_col,
-                                    Code_col=Code_col,
+                                    code_col=code_col,
                                     intervention_date=intervention_date,
                                     treatment_target=treatment_target,
                                     control_targets=control_targets)
@@ -186,7 +186,7 @@ def SDID(df, poll_col, date_col, Code_col, intervention_date,treatment_target,co
     time_weights = fit_time_weights(df=df,
                                     poll_col=poll_col,
                                     date_col=date_col,
-                                    Code_col=Code_col,
+                                    code_col=code_col,
                                     intervention_date=intervention_date,
                                     treatment_target=treatment_target,
                                     control_targets=control_targets)
@@ -194,12 +194,12 @@ def SDID(df, poll_col, date_col, Code_col, intervention_date,treatment_target,co
     # join weights into DiD Data
     did_data = join_weights(df, unit_weights, time_weights,
                             date_col=date_col,
-                            Code_col=Code_col,
+                            code_col=code_col,
                             intervention_date=intervention_date,
                             treatment_target=treatment_target,
                             control_targets=control_targets)
 
-    df['treated']=df[Code_col]==treatment_target
+    df['treated']=df[code_col]==treatment_target
     df['after_treatment']=df[date_col]>=intervention_date
 
     # run DiD
@@ -209,11 +209,11 @@ def SDID(df, poll_col, date_col, Code_col, intervention_date,treatment_target,co
     return did_model.params[f"after_treatment:treated"]
 
 
-def SDID_effects(df, poll_col, date_col, Code_col, intervention_date,treatment_target,control_targets = None):
+def SDID_effects(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
     effects = {date: SDID(df[(df['date']<intervention_date)|(df['date']==year)],
                                         poll_col=poll_col,
                                         date_col=date_col,
-                                        Code_col=Code_col,
+                                        code_col=code_col,
                                         intervention_date=intervention_date,
                                         treatment_target=treatment_target)
            for date in list(df[df[date_col]>=intervention_date][date_col].unique())}
