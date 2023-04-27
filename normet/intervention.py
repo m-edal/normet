@@ -10,11 +10,15 @@ from joblib import Parallel, delayed
 
 
 def scm_parallel(df, poll_col, date_col, code_col,intervention_date, treatment_target, control_targets = None, n_core = -1):
-    control_pool = df[code_col].unique()
+    if control_targets is None:
+        control_targets=list(df[code_col].unique())
+        control_targets.remove(treatment_target)
+
+    treatment_pool = df[code_col].unique()
 
     synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(scm)(
-        df=df, poll_col=poll_col,date_col=date_col, code_col=code_col,intervention_date=intervention_date,treatment_target=Code,
-        control_targets=control_targets) for Code in control_pool))
+        df=df, poll_col=poll_col,date_col=date_col, code_col=code_col,intervention_date=intervention_date,treatment_target=code,
+        control_targets=control_targets) for code in treatment_pool))
     return synthetic_all
 
 
@@ -168,7 +172,7 @@ def join_weights(df, unit_w, time_w, date_col, code_col, intervention_date,treat
 
 
 
-def SDID(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
+def sdid(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
     if control_targets is None:
         control_targets=list(df[code_col].unique())
         control_targets.remove(treatment_target)
@@ -203,18 +207,36 @@ def SDID(df, poll_col, date_col, code_col, intervention_date,treatment_target,co
     df['after_treatment']=df[date_col]>=intervention_date
 
     # run DiD
-    formula = f"{poll_col} ~ after_treatment * treated "
+    formula = f"{poll_col} ~ after_treatment * treated"
     did_model = smf.wls(formula, data=did_data, weights=did_data["weights"]+1e-10).fit()
 
     return did_model.params[f"after_treatment:treated"]
 
 
-def SDID_effects(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
-    effects = {date: SDID(df[(df['date']<intervention_date)|(df['date']==year)],
+def sdid_effects(df, poll_col, date_col, code_col, intervention_date,treatment_target,control_targets = None):
+    effects = {date: sdid(df[(df['date']<intervention_date)|(df['date']==date)],
                                         poll_col=poll_col,
                                         date_col=date_col,
                                         code_col=code_col,
                                         intervention_date=intervention_date,
                                         treatment_target=treatment_target)
            for date in list(df[df[date_col]>=intervention_date][date_col].unique())}
-    return pd.Series(effects)
+    effects=pd.DataFrame(pd.Series(effects))
+    effects['treatment_target']=treatment_target
+    return effects
+
+
+
+def sdid_parallel(df, poll_col, date_col, code_col, intervention_date,treatment_target, control_targets = None,n_core = -1):
+    if control_targets is None:
+        control_targets=list(df[code_col].unique())
+        control_targets.remove(treatment_target)
+
+    treatment_pool = df[code_col].unique()
+
+    sdid_all = pd.concat(Parallel(n_jobs=n_core)(delayed(sdid_effects)(
+        df=df, poll_col=poll_col,date_col=date_col, code_col=code_col,intervention_date=intervention_date,treatment_target=Code,
+        control_targets=control_targets) for Code in treatment_pool))
+    sdid_all.index.name=date_col
+    sdid_all.rename(columns={0:'Effects'},inplace=True)
+    return sdid_all
