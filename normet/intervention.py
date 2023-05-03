@@ -8,7 +8,6 @@ import statsmodels.formula.api as smf
 import cvxpy as cp
 from joblib import Parallel, delayed
 
-
 def scm_parallel(df, poll_col, date_col, code_col,intervention_date, treatment_target, control_targets = None, n_core = -1):
     if control_targets is None:
         control_targets=list(df[code_col].unique())
