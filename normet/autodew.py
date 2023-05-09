@@ -7,6 +7,8 @@ from scipy.stats import mode
 from flaml import AutoML
 automl = AutoML()
 from joblib import Parallel, delayed
+import warnings
+warnings.filterwarnings('ignore')
 
 def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
@@ -14,11 +16,14 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
     df=prepare_data(df, value=value, split_method = split_method,fraction=fraction)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
+    mod_stats=modStats(df, set='testing')
+
     df=normalise(automl, df,
                            feature_names = feature_names,
                           variables= variables_sample,
                           n_samples=n_samples)
-    return df
+
+    return df, mod_stats
 
 def prepare_data(df, value='value', na_rm=False,split_method = 'random' ,replace=False, fraction=0.75):
 
