@@ -5,13 +5,19 @@ import numpy as np
 import statsmodels.formula.api as smf
 import cvxpy as cp
 from joblib import Parallel, delayed
+from sklearn.linear_model import Ridge
 
 def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_core = -1):
 
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(scm)(
-        df=df, poll_col=poll_col,date_col=date_col, code_col=code_col,treat_target=code,
-        control_pool=control_pool, post_col=post_col) for code in treatment_pool))
+                    df=df,
+                    poll_col=poll_col,
+                    date_col=date_col,
+                    code_col=code_col,
+                    treat_target=code,
+                    control_pool=control_pool,
+                    post_col=post_col) for code in treatment_pool))
     return synthetic_all
 
 
@@ -27,16 +33,26 @@ def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
                         [poll_col]
                         .mean())
 
-    w = cp.Variable(x_pre_control.shape[1])
-    objective = cp.Minimize(cp.sum_squares(x_pre_control@w - y_pre_treat_mean.values))
-    constraints = [cp.sum(w) == 1, w >= 0]
+    #w = cp.Variable(x_pre_control.shape[1])
+    #objective = cp.Minimize(cp.sum_squares(x_pre_control@w - y_pre_treat_mean.values))
+    #constraints = [cp.sum(w) == 1, w >= 0]
 
-    problem = cp.Problem(objective, constraints)
-    problem.solve(verbose=False)
+    #problem = cp.Problem(objective, constraints)
+    #problem.solve(verbose=False)
 
+    alpha = 1.0  # 岭回归的正则化参数
+
+    # 使用岭回归拟合合成对照组权重
+    ridge = Ridge(alpha=alpha, fit_intercept=False)
+    ridge.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
+    w = ridge.coef_.flatten()
+
+    #sc = (df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
+    #      .pivot(date_col, code_col, poll_col)
+    #      .values) @ w.value
     sc = (df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
-          .pivot(date_col, code_col, poll_col)
-          .values) @ w.value
+      .pivot(date_col, code_col, poll_col)
+      .values) @ w
 
     data=(df
             [df[code_col]==treat_target][[date_col, code_col, poll_col]]
@@ -146,11 +162,19 @@ def fit_unit_weights(df, poll_col, date_col, code_col, treat_target,control_pool
 
     problem = cp.Problem(objective, constraints)
     problem.solve(verbose=False)
+    #alpha = T_pre * zeta**2  # 岭回归的正则化参数
+
+    # 使用岭回归拟合单位权重
+    #ridge = Ridge(alpha=alpha, fit_intercept=False)
+    #ridge.fit(X, y_pre_treat_mean.values)
+    #w = ridge.coef_
 
     # print("Intercept:", w.value[0])
     return pd.Series(w.value[1:], # remove intercept
                      name="unit_weights",
                      index=y_pre_control.columns)
+    #return pd.Series(w[1:], name="unit_weights", index=y_pre_control.columns)
+
 
 
 def fit_time_weights(df, poll_col, date_col, code_col, treat_target,control_pool, post_col):
