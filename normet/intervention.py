@@ -7,10 +7,10 @@ import cvxpy as cp
 from joblib import Parallel, delayed
 from sklearn.linear_model import Ridge
 
-def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_core = -1):
+def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores = -1):
 
     treatment_pool = df[code_col].unique()
-    synthetic_all = pd.concat(Parallel(n_jobs=n_core)(delayed(scm)(
+    synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(scm)(
                     df=df,
                     poll_col=poll_col,
                     date_col=date_col,
@@ -109,11 +109,11 @@ def sdid_effects(df, poll_col, date_col, code_col, treat_target,control_pool, po
     effects[code_col]=treat_target
     return effects
 
-def sdid_parallel(df, poll_col, date_col, code_col, control_pool, post_col,n_core = -1):
+def sdid_parallel(df, poll_col, date_col, code_col, control_pool, post_col,n_cores = -1):
 
     treatment_pool = df[code_col].unique()
 
-    sdid_all = pd.concat(Parallel(n_jobs=n_core)(delayed(sdid_effects)(
+    sdid_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(sdid_effects)(
         df=df, poll_col=poll_col,date_col=date_col, code_col=code_col,treat_target=Code,
         control_pool=control_pool, post_col=post_col) for Code in treatment_pool))
     sdid_all.index.name=date_col
