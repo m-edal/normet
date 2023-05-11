@@ -6,9 +6,8 @@ import matplotlib.pyplot as plt
 from sklearn.inspection import PartialDependenceDisplay
 from sklearn.base import clone
 
-def pdp_all(automl, df, feature_names=None,variables=None, training_only=True):
+def pdp_all(automl, df, feature_names=None,variables=None, training_only=True,n_cores = -1):
     # 使用joblib库进行并行计算
-    n_cores = -1  # 使用所有可用CPU核心
     if variables is None:
         variables = feature_names
     if training_only:
@@ -36,7 +35,7 @@ def pdp_worker(automl, X_train, variable,training_only=True):
     return df_predict
 
 
-def pdp_plot(automl,df,feature_names,variables=None,kind='average',training_only=True,figsize=(8,8),hspace=0.5,n_jobs=-1):
+def pdp_plot(automl,df,feature_names,variables=None,kind='average',n_cores=-1,training_only=True,figsize=(8,8),hspace=0.5):
     if variables is None:
         variables = feature_names
 
@@ -44,7 +43,7 @@ def pdp_plot(automl,df,feature_names,variables=None,kind='average',training_only
         df = df[df["set"] == "training"]
     X_train, y_train = df[feature_names], df['value']
     fig, ax = plt.subplots(figsize=figsize)
-    result = PartialDependenceDisplay.from_estimator(automl, X_train, variables,kind=kind,n_jobs=-1,ax=ax)
+    result = PartialDependenceDisplay.from_estimator(automl, X_train, variables,kind=kind,n_jobs=n_cores,ax=ax)
     plt.subplots_adjust(hspace=hspace)
     return result
 
