@@ -31,10 +31,12 @@ setup(
         'joblib',
         'flaml',
         'matplotlib',
-        'pylab',
         'seaborn',
         'os',
         'random',
         'ruptures',
+        'cvxpy',
+        'sklearn',
+        'statsmodels',
     ],
     zip_safe=False)
