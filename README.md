@@ -35,7 +35,7 @@ Here are a few of the functions that normet implemented:
       |------ Case1_autodeweather       # Automl-based weather normalisation
       |------ Case2_changepoint         # Change-point detection
       |------ Case3_getdata function    # Download AQ and ERA5 data
-      |------ Case4_Intervention        # Air quality supersite data
+      |------ Case4_Intervention        # Causal analysis of air quality interventions
       ├── docs                          # Documentation of the package
       |------ figs                      # Figures for the demonstration
       |---------- NORmet_Framework.webp # framework for the package             
