@@ -2,7 +2,7 @@
 
 **normet** is a Python package to conduct automated data curation, automated machine learning-based meteorology/weather normalisation and causal analysis on air quality interventions for atmospheric science, air pollution and policy analysis. The main aim of this package is to provide a Swiss army knife enabling rapid automated-air quality intervention studies, and contributing to cross-disciplinary studies with public health, economics, policy, etc. The framework below shows the modules included in the package and how different modules are linked to each other.
 
-<img src="docs/figs/NORmet_Framework.webp" alt="Image" width="800">
+<img src="docs/figs/Framework.jpg" alt="Image" width="800">
 
 ## Installation
 Install from source:
