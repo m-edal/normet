@@ -1,11 +1,16 @@
-# **normet**:
+# **normet**
 
-**normet** is a Python package to conduct automated data curation, automated machine learning-based meteorological/weather normalisation and causal analysis on air quality interventions for atmospheric science, air pollution and policy analysis. The main aim of this package is to provide a Swiss army knife enabling rapid automated-air quality intervention studies, and contributing to cross-disciplinary studies with public health, economics, policy, etc. The framework below shows the modules included in the package and how different modules link to each other.
+**normet** is a Python package to conduct automated data curation, automated machine learning-based meteorology/weather normalisation and causal analysis on air quality interventions for atmospheric science, air pollution and policy analysis. The main aim of this package is to provide a Swiss army knife enabling rapid automated-air quality intervention studies, and contributing to cross-disciplinary studies with public health, economics, policy, etc. The framework below shows the modules included in the package and how different modules are linked to each other.
 
 <img src="docs/figs/NORmet_Framework.webp" alt="Image" width="800">
 
 # Installation
-
+Install from source:
+```
+git clone https://github.com/m-edal/NORmet.git
+cd NORmet
+python setup.py install
+```
 
 # Main Features
 Here are a few of the functions that normet implemented:
@@ -16,3 +21,28 @@ Here are a few of the functions that normet implemented:
   - Weather normalisation. Decoupling emission-related air pollutant concentrations from meteorological effects.
   - Change point detection. Detect the change points caused by policy interventions.
   - Causal inference for air quality interventions. Attribution of changes in air pollutant concentrations to air quality policy interventions.
+
+# Repository structure
+
+      .                                 # Root folder of our repository
+      ├── normet                        # Contains datasets and function modules
+      |------ getdata                   # Functions of downloading AQ and ERA5 datasets
+      |------ autodew                   # Functions of automl-based weather normalisation
+      |------ pdp                       # Functions of partial dependency
+      |------ cpd                       # Functions of change-point detection
+      |------ intervention              # Functions of causal inference
+      ├── tutorials                     # Contains demos and tutorials
+      |------ Case1_autodeweather       # Automl-based weather normalisation
+      |------ Case2_changepoint         # Change-point detection
+      |------ Case3_getdata function    # Download AQ and ERA5 data
+      |------ Case4_Intervention        # Air quality supersite data
+      ├── docs                          # Documentation of the package
+      |------ figs                      # Figures for the demonstration
+      |---------- NORmet_Framework.webp # framework for the package             
+      ├── setup.py                      
+      ├── LICENSE
+      └── README.md
+
+
+# Documentation
+You can find Demo and tutorials of the functions [here](https://github.com/m-edal/NORmet/tree/main/tutorials).
