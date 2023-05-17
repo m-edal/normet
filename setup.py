@@ -18,7 +18,7 @@ setup(
     version="0.0.0",
     author="Dr. Congbo Song and other MEDAL group members",
     url='https://github.com/m-edal/normet',
-    description='Weather normalisation using automated machine learning',
+    description='Normet for automated air quality intervention studies',
     long_description=long_description,
     license='MIT',
     packages=find_packages(),
