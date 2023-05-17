@@ -4,7 +4,7 @@
 
 <img src="docs/figs/NORmet_Framework.webp" alt="Image" width="800">
 
-# Installation
+## Installation
 Install from source:
 ```
 git clone https://github.com/m-edal/NORmet.git
@@ -12,7 +12,7 @@ cd NORmet
 python setup.py install
 ```
 
-# Main Features
+## Main Features
 Here are a few of the functions that normet implemented:
 
   - Automated data curation. Download air quality data and re-analysis data at any time in any area.
@@ -22,15 +22,18 @@ Here are a few of the functions that normet implemented:
   - Change point detection. Detect the change points caused by policy interventions.
   - Causal inference for air quality interventions. Attribution of changes in air pollutant concentrations to air quality policy interventions.
 
-# Repository structure
+## Repository structure
 
       .                                 # Root folder of our repository
       ├── normet                        # Contains datasets and function modules
-      |------ getdata                   # Functions of downloading AQ and ERA5 datasets
-      |------ autodew                   # Functions of automl-based weather normalisation
-      |------ pdp                       # Functions of partial dependency
-      |------ cpd                       # Functions of change-point detection
-      |------ intervention              # Functions of causal inference
+      |------__init__.py
+      |------ getdata.py                # Functions of downloading AQ and ERA5 datasets
+      |------ autodew.py                # Functions of automl-based weather normalisation
+      |------ pdp.py                    # Functions of partial dependency
+      |------ cpd.py                    # Functions of change-point detection
+      |------ intervention.py           # Functions of causal inference
+      |------ datasets                  # Datasets used for demonstration
+      |---------- ...
       ├── tutorials                     # Contains demos and tutorials
       |------ Case1_autodeweather       # Automl-based weather normalisation
       |------ Case2_changepoint         # Change-point detection
@@ -44,5 +47,5 @@ Here are a few of the functions that normet implemented:
       └── README.md
 
 
-# Documentation
+## Documentation
 You can find Demo and tutorials of the functions [here](https://github.com/m-edal/NORmet/tree/main/tutorials).
