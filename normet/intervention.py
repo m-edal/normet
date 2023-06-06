@@ -6,6 +6,7 @@ import statsmodels.formula.api as smf
 import cvxpy as cp
 from joblib import Parallel, delayed
 from sklearn.linear_model import Ridge
+from sklearn.model_selection import GridSearchCV
 
 def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores = -1):
 
