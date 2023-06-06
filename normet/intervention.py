@@ -40,12 +40,20 @@ def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
     #problem = cp.Problem(objective, constraints)
     #problem.solve(verbose=False)
 
-    alpha = 1.0  # 岭回归的正则化参数
+    #alpha = 1.0  # 岭回归的正则化参数
+    param_grid = {'alpha': [i/10 for i in range(1, 101)]}  # 可以根据需要设置不同的 alpha 值
+    ridge = Ridge()
+    grid_search = GridSearchCV(ridge, param_grid, cv=5)  # cv 表示交叉验证的折数
+    grid_search.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))  # 在训练集上拟合模型
+    best_alpha = grid_search.best_params_['alpha']
+    ridge_final = Ridge(alpha=best_alpha,fit_intercept=False)
+    ridge_final.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))  # 在训练集上拟合模型
+
 
     # 使用岭回归拟合合成对照组权重
-    ridge = Ridge(alpha=alpha, fit_intercept=False)
-    ridge.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
-    w = ridge.coef_.flatten()
+    #ridge = Ridge(alpha=alpha, fit_intercept=False)
+    #ridge.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
+    w = ridge_final.coef_.flatten()
 
     #sc = (df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
     #      .pivot(date_col, code_col, poll_col)
