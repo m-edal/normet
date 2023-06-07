@@ -188,11 +188,11 @@ def UK_AURN(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='
                     final_dataframe['datetime'] = pd.to_datetime(final_dataframe['date'])
                     final_dataframe = final_dataframe.sort_values(by='datetime', ascending=True).set_index('datetime')
                     try:
-                        final_dataframe['Ox'] = final_dataframe['NO2'] * 22.4 / 46 + final_dataframe['O3'] * 22.4 / 48
+                        final_dataframe['Ox'] = final_dataframe['NO2'] * 23.235 / 46 + final_dataframe['O3'] * 23.235 / 48
                     except:
                         print("Could not create Ox entry for ", site)
                     try:
-                        final_dataframe['NOx'] = final_dataframe['NO2'] * 22.4 / 46 + final_dataframe['NO'] * 22.4 / 30
+                        final_dataframe['NOx'] = final_dataframe['NO2'] * 23.235 / 46 + final_dataframe['NO'] * 23.235 / 30
                     except:
                         print("Could not create NOx entry for ", site)
                     if clean_site_data is True:
