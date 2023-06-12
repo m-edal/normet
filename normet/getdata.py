@@ -7,7 +7,6 @@ import pyreadr
 import os
 import numpy as np
 import datetime
-import wget
 
 #install the CDS API key, https://cds.climate.copernicus.eu/api-how-to
 def download_era5(lat_list,lon_list,year_range,month_range,day_range,time_range,path='./',
@@ -183,6 +182,7 @@ def era5_area_dataframe_worker(lat,lon,filepath):
     return df
 
 def UK_AURN(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='./'):
+    import wget
     download_path = path+"AURN_data_download"
     os.makedirs(download_path, exist_ok=True)
     metadata_url = "https://uk-air.defra.gov.uk/openair/R_data/AURN_metadata.RData"
