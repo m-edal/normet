@@ -209,8 +209,8 @@ def UK_AURN_download(year_lst,authorities_lst=['Manchester'],manual_selection=Tr
         years = [years]
     years = sorted(years)
     current_year = datetime.datetime.now().year
-    list_authorities = authorities_lst if manual_selection else UK_AURN_metadata()[1]
-    metadata=UK_AURN_metadata()[0]
+    list_authorities = authorities_lst if manual_selection else UK_AURN_metadata(path=path)[1]
+    metadata=UK_AURN_metadata(path=path)[0]
 
     for local_authority in list_authorities:
         data_path = download_path+"/"+str(local_authority)+"/"
