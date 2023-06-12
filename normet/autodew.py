@@ -7,6 +7,7 @@ from scipy.stats import mode
 from flaml import AutoML
 automl = AutoML()
 from joblib import Parallel, delayed
+from sklearn.metrics import r2_score
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -214,7 +215,7 @@ def model_predict(automl, df=None):
     x = automl.predict(df)
     return x
 
-def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA"]):
+def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA","R2"]):
     df=df[df['set']==set]
     df.loc[:,'value_predict']=automl.predict(df)
     df=Stats(df, mod="value_predict", obs="value",statistic=statistic)
@@ -244,10 +245,12 @@ def Stats(df, mod="mod", obs="obs",
         res["COE"] = COE(df, mod, obs)
     if "IOA" in statistic:
         res["IOA"] = IOA(df, mod, obs)
+    if "R2" in statistic:
+        res["R2"] = R2(df, mod, obs)
 
     results = {'n':res['n'], 'FAC2':res['FAC2'], 'MB':res['MB'], 'MGE':res['MGE'], 'NMB':res['NMB'],
-               'NMGE':res['NMGE'],
-               'RMSE':res['RMSE'], 'r':res['r'],'p_Value':res['p_Value'], 'COE':res['COE'], 'IOA':res['IOA']}
+               'NMGE':res['NMGE'],'RMSE':res['RMSE'], 'r':res['r'],'p_Value':res['p_Value'],
+               'COE':res['COE'], 'IOA':res['IOA'], 'R2':res['R2']}
 
     results = pd.DataFrame([results])
 
@@ -322,4 +325,10 @@ def IOA(x, mod="mod", obs="obs"):
         res = 1 - LHS / RHS
     else:
         res = RHS / LHS - 1
+    return res
+
+#determination of coefficient
+def R2(x, mod="mod", obs="obs"):
+    x = x[[mod, obs]].dropna()
+    res = r2_score(x[mod], x[obs])
     return res
