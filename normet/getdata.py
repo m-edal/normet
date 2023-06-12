@@ -7,6 +7,7 @@ import pyreadr
 import os
 import numpy as np
 import datetime
+import wget
 
 #install the CDS API key, https://cds.climate.copernicus.eu/api-how-to
 def download_era5(lat_list,lon_list,year_range,
@@ -186,8 +187,7 @@ def era5_area_dataframe_worker(lat,lon,filepath):
     df['lon']=lon
     return df
 
-def UK_AURN(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='./'):
-    import wget
+def UK_AURN_metadata(path='./'):
     download_path = path+"AURN_data_download"
     os.makedirs(download_path, exist_ok=True)
     metadata_url = "https://uk-air.defra.gov.uk/openair/R_data/AURN_metadata.RData"
@@ -197,14 +197,20 @@ def UK_AURN(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='
     else:
         print("Downloading metadata file...")
         wget.download(metadata_url,download_path+'/'+metadata_file)
-
     metadata = pyreadr.read_r(download_path+'/'+metadata_file)
+    list_authorities = list(metadata['AURN_metadata'].local_authority.unique())
+    return metadata,list_authorities
+
+def UK_AURN_download(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='./'):
+    download_path = path+"AURN_data_download"
+    os.makedirs(download_path, exist_ok=True)
     years = year_lst
     if isinstance(years, int):
         years = [years]
     years = sorted(years)
     current_year = datetime.datetime.now().year
-    list_authorities = authorities_lst if manual_selection else metadata['AURN_metadata'].local_authority.unique().tolist()
+    list_authorities = authorities_lst if manual_selection else UK_AURN_metadata()[1]
+    metadata=UK_AURN_metadata()[0]
 
     for local_authority in list_authorities:
         data_path = download_path+"/"+str(local_authority)+"/"
