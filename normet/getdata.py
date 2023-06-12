@@ -201,7 +201,7 @@ def UK_AURN_metadata(path='./'):
     list_authorities = list(metadata['AURN_metadata'].local_authority.unique())
     return metadata,list_authorities
 
-def UK_AURN_download(year_lst,authorities_lst=['Manchester'],manual_selection=True,path='./'):
+def UK_AURN_download(year_lst,list_authorities=None,path='./'):
     download_path = path+"AURN_data_download"
     os.makedirs(download_path, exist_ok=True)
     years = year_lst
@@ -209,84 +209,88 @@ def UK_AURN_download(year_lst,authorities_lst=['Manchester'],manual_selection=Tr
         years = [years]
     years = sorted(years)
     current_year = datetime.datetime.now().year
-    list_authorities = authorities_lst if manual_selection else UK_AURN_metadata(path=path)[1]
+    if list_authorities is None:
+        list_authorities = UK_AURN_metadata(path=path)[1]
     metadata=UK_AURN_metadata(path=path)[0]
 
     for local_authority in list_authorities:
-        data_path = download_path+"/"+str(local_authority)+"/"
-        subset_df = metadata['AURN_metadata'][metadata['AURN_metadata'].local_authority == local_authority]
-        datetime_start = pd.to_datetime(subset_df['start_date'].values, format='%Y/%m/%d').year
-        datetime_end_temp = subset_df['end_date'].values
-        now = datetime.datetime.now()
-        datetime_end = [now.year]*len(datetime_end_temp) if 'ongoing' in datetime_end_temp else pd.to_datetime(datetime_end_temp).year
-        earliest_year = np.min(datetime_start)
-        latest_year = np.max(datetime_end)
-        proceed = True
-        if latest_year < np.min(years):
-            print("Invalid end year, out of range for ", local_authority)
-            proceed = False
-        if earliest_year > np.max(years):
-            print("Invalid start year, out of range for ", local_authority)
-            proceed = False
-        years_temp = years
-        if np.min(years) < earliest_year:
-            print("Invalid start year. The earliest you can select for ", local_authority ," is ", str(earliest_year))
-            try:
-                years_temp = years_temp[np.where(np.array(years_temp)==earliest_year)[0][0]::]
-            except:
-                pass
-        if np.max(years) > latest_year:
-            print("Invalid end year. The latest you can select for ", local_authority ," is ", str(latest_year))
-            try:
-                years_temp = years_temp[0:np.where(np.array(years_temp)==latest_year)[0][0]]
-            except:
-                pass
-        if not years_temp:
-            print("No valid year range")
-            proceed = False
-        clean_site_data=True
-        if proceed:
-            os.makedirs(data_path, exist_ok=True)
-            for site in subset_df['site_id'].unique():
-                site_type = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site]['location_type'].unique()[0]
-                station_name = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site]['site_name'].values[0]
-                downloaded_site_data = []
-                for year in years_temp:
-                    try:
-                        downloaded_file = site + "_" + str(year) + ".RData"
-                        filename_path = download_path + "/" + local_authority + "/" + downloaded_file
-                        if os.path.isfile(filename_path) and year != current_year:
-                            print("Data file already exists", station_name, " in ", str(year))
-                        elif os.path.isfile(filename_path) and year == current_year:
-                            os.remove(filename_path)
-                            print("Updating file for ", station_name, " in ", str(year))
-                        else:
-                            print("Downloading data file for ", station_name, " in ", str(year))
-                            wget.download("https://uk-air.defra.gov.uk/openair/R_data/" + site + "_" + str(year) + ".RData", out=download_path + "/" + local_authority + "/")
-                        downloaded_data = pyreadr.read_r(filename_path)
-                        downloaded_data[site + "_" + str(year)]['latitude'] = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site].latitude.values[0]
-                        downloaded_data[site + "_" + str(year)]['longitude'] = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site].longitude.values[0]
-                        downloaded_data[site + "_" + str(year)]['location_type'] = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site].location_type.values[0]
-                        downloaded_site_data.append(downloaded_data[site + "_" + str(year)])
-                    except:
-                        print("Could not download data from ", year, " for ", station_name)
-                if not downloaded_site_data:
-                    print("No data could be downloaded for ", station_name)
-                else:
-                    final_dataframe = pd.concat(downloaded_site_data, axis=0, ignore_index=True)
-                    final_dataframe['datetime'] = pd.to_datetime(final_dataframe['date'])
-                    final_dataframe = final_dataframe.sort_values(by='datetime', ascending=True).set_index('datetime')
-                    try:
-                        final_dataframe['Ox'] = final_dataframe['NO2'] * 23.235 / 46 + final_dataframe['O3'] * 23.235 / 48
-                    except:
-                        print("Could not create Ox entry for ", site)
-                    try:
-                        final_dataframe['NOx'] = final_dataframe['NO2'] * 23.235 / 46 + final_dataframe['NO'] * 23.235 / 30
-                    except:
-                        print("Could not create NOx entry for ", site)
-                    if clean_site_data is True:
-                        for entry in ['O3', 'NO2', 'NO', 'PM2.5', 'Ox', 'NOx','temp', 'ws', 'wd']:
-                            if entry in final_dataframe.columns.values:
-                                final_dataframe=final_dataframe.dropna(subset=[entry])
-                        print("Creating .csv file for ", station_name)
-                        final_dataframe.to_csv(download_path + "/" + local_authority + "/" + site + '.csv', index=False, header=True)
+        if local_authority not in UK_AURN_metadata(path=path)[1]:
+            print("Please select the authorities in the below list",UK_AURN_metadata(path=path)[1])
+        else:
+            data_path = download_path+"/"+str(local_authority)+"/"
+            subset_df = metadata['AURN_metadata'][metadata['AURN_metadata'].local_authority == local_authority]
+            datetime_start = pd.to_datetime(subset_df['start_date'].values, format='%Y/%m/%d').year
+            datetime_end_temp = subset_df['end_date'].values
+            now = datetime.datetime.now()
+            datetime_end = [now.year]*len(datetime_end_temp) if 'ongoing' in datetime_end_temp else pd.to_datetime(datetime_end_temp).year
+            earliest_year = np.min(datetime_start)
+            latest_year = np.max(datetime_end)
+            proceed = True
+            if latest_year < np.min(years):
+                print("Invalid end year, out of range for ", local_authority)
+                proceed = False
+            if earliest_year > np.max(years):
+                print("Invalid start year, out of range for ", local_authority)
+                proceed = False
+            years_temp = years
+            if np.min(years) < earliest_year:
+                print("Invalid start year. The earliest you can select for ", local_authority ," is ", str(earliest_year))
+                try:
+                    years_temp = years_temp[np.where(np.array(years_temp)==earliest_year)[0][0]::]
+                except:
+                    pass
+            if np.max(years) > latest_year:
+                print("Invalid end year. The latest you can select for ", local_authority ," is ", str(latest_year))
+                try:
+                    years_temp = years_temp[0:np.where(np.array(years_temp)==latest_year)[0][0]]
+                except:
+                    pass
+            if not years_temp:
+                print("No valid year range")
+                proceed = False
+            clean_site_data=True
+            if proceed:
+                os.makedirs(data_path, exist_ok=True)
+                for site in subset_df['site_id'].unique():
+                    site_type = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site]['location_type'].unique()[0]
+                    station_name = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site]['site_name'].values[0]
+                    downloaded_site_data = []
+                    for year in years_temp:
+                        try:
+                            downloaded_file = site + "_" + str(year) + ".RData"
+                            filename_path = download_path + "/" + local_authority + "/" + downloaded_file
+                            if os.path.isfile(filename_path) and year != current_year:
+                                print("Data file already exists", station_name, " in ", str(year))
+                            elif os.path.isfile(filename_path) and year == current_year:
+                                os.remove(filename_path)
+                                print("Updating file for ", station_name, " in ", str(year))
+                            else:
+                                print("Downloading data file for ", station_name, " in ", str(year))
+                                wget.download("https://uk-air.defra.gov.uk/openair/R_data/" + site + "_" + str(year) + ".RData", out=download_path + "/" + local_authority + "/")
+                            downloaded_data = pyreadr.read_r(filename_path)
+                            downloaded_data[site + "_" + str(year)]['latitude'] = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site].latitude.values[0]
+                            downloaded_data[site + "_" + str(year)]['longitude'] = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site].longitude.values[0]
+                            downloaded_data[site + "_" + str(year)]['location_type'] = metadata['AURN_metadata'][metadata['AURN_metadata'].site_id == site].location_type.values[0]
+                            downloaded_site_data.append(downloaded_data[site + "_" + str(year)])
+                        except:
+                            print("Could not download data from ", year, " for ", station_name)
+                    if not downloaded_site_data:
+                        print("No data could be downloaded for ", station_name)
+                    else:
+                        final_dataframe = pd.concat(downloaded_site_data, axis=0, ignore_index=True)
+                        final_dataframe['datetime'] = pd.to_datetime(final_dataframe['date'])
+                        final_dataframe = final_dataframe.sort_values(by='datetime', ascending=True).set_index('datetime')
+                        try:
+                            final_dataframe['Ox'] = final_dataframe['NO2'] * 23.235 / 46 + final_dataframe['O3'] * 23.235 / 48
+                        except:
+                            print("Could not create Ox entry for ", site)
+                        try:
+                            final_dataframe['NOx'] = final_dataframe['NO2'] * 23.235 / 46 + final_dataframe['NO'] * 23.235 / 30
+                        except:
+                            print("Could not create NOx entry for ", site)
+                        if clean_site_data is True:
+                            for entry in ['O3', 'NO2', 'NO', 'PM2.5', 'Ox', 'NOx','temp', 'ws', 'wd']:
+                                if entry in final_dataframe.columns.values:
+                                    final_dataframe=final_dataframe.dropna(subset=[entry])
+                            print("Creating .csv file for ", station_name)
+                            final_dataframe.to_csv(download_path + "/" + local_authority + "/" + site + '.csv', index=False, header=True)
