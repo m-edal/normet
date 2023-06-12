@@ -9,12 +9,15 @@ import numpy as np
 import datetime
 
 #install the CDS API key, https://cds.climate.copernicus.eu/api-how-to
-def download_era5(lat_list,lon_list,year_range,month_range,day_range,time_range,path='./',
-                 var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
-                                 '2m_dewpoint_temperature','2m_temperature',
-                                 'boundary_layer_height', 'downward_uv_radiation_at_the_surface',
-                                  'surface_pressure','surface_solar_radiation_downwards',
-                                  'surface_net_solar_radiation','total_cloud_cover','total_precipitation']):
+def download_era5(lat_list,lon_list,year_range,
+    month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
+    day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)],
+    time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
+    var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
+        '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
+        'downward_uv_radiation_at_the_surface','surface_pressure',
+        'surface_solar_radiation_downwards','surface_net_solar_radiation',
+        'total_cloud_cover','total_precipitation'],path='./'):
     # 启动多个线程进行并行下载
     threads = []
     for lat, lon in zip(lat_list, lon_list):
@@ -101,13 +104,15 @@ def era5_dataframe_worker(lat,lon,path):
     return df
 
 
-def download_era5_area(lat_lim, lon_lim, year_range, month_range, day_range,
-                time_range,path='./',var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
-                '2m_dewpoint_temperature','2m_temperature',
-                'boundary_layer_height', 'downward_uv_radiation_at_the_surface',
-                 'surface_pressure','surface_solar_radiation_downwards',
-                 'surface_net_solar_radiation','total_cloud_cover','total_precipitation']
-                 ):
+def download_era5_area(lat_lim, lon_lim, year_range,
+    month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
+    day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)],
+    time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
+    var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
+        '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
+        'downward_uv_radiation_at_the_surface','surface_pressure',
+        'surface_solar_radiation_downwards','surface_net_solar_radiation',
+        'total_cloud_cover','total_precipitation'],path='./'):
 
     # 创建一个CDS API客户端对象
     c = cdsapi.Client()
