@@ -215,7 +215,7 @@ def UK_AURN_download(year_lst,list_authorities=None,path='./'):
 
     for local_authority in list_authorities:
         if local_authority not in UK_AURN_metadata(path=path)[1]:
-            print("Please select the authorities in the below list",UK_AURN_metadata(path=path)[1])
+            print("Please select the authorities in the below list: ",UK_AURN_metadata(path=path)[1])
         else:
             data_path = download_path+"/"+str(local_authority)+"/"
             subset_df = metadata['AURN_metadata'][metadata['AURN_metadata'].local_authority == local_authority]
