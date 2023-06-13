@@ -62,48 +62,8 @@ def era5_dataframe(lat_list,lon_list,path,n_cores=-1):
 def era5_dataframe_worker(lat,lon,path):
     # 从数据集中选择与经纬度最接近的点位
     filename = path+f"era5_data_{lat}_{lon}.nc"
-
-    # 读取netcdf文件中的数据
-    ds = xr.open_dataset(filename)
-
-    # 提取指定经纬度点位的各种气象参数数据
-    if "u10" in list(ds.data_vars):
-        u10 = ds.u10.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "v10" in list(ds.data_vars):
-        v10 = ds.v10.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "d2m" in list(ds.data_vars):
-        d2m = ds.d2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "t2m" in list(ds.data_vars):
-        t2m = ds.t2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "blh" in list(ds.data_vars):
-        blh = ds.blh.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "uvb" in list(ds.data_vars):
-        uvb = ds.uvb.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "sp" in list(ds.data_vars):
-        sp = ds.sp.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "ssrd" in list(ds.data_vars):
-        ssrd = ds.ssrd.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "ssr" in list(ds.data_vars):
-        ssr = ds.ssr.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "tcc" in list(ds.data_vars):
-        tcc = ds.tcc.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "tp" in list(ds.data_vars):
-        tp = ds.tp.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-
-    # 获取时间坐标数组
-    time_arr = ds.time.values
-
-    # 将时间坐标数组转换为Pandas DatetimeIndex对象
-    time_index = pd.to_datetime(time_arr)
-    results = {'u10':u10, 'v10':v10,'d2m':d2m, 't2m':t2m, 'blh':blh, 'uvb':uvb,
-        'sp':sp,'ssrd':ssrd, 'ssr':ssr, 'tcc':tcc,'tp':tp}
-
-    # 将气象参数数据存储到Pandas DataFrame中
-    df = pd.DataFrame(results, index=time_index)
-    df['lat']=lat
-    df['lon']=lon
+    df=era5_nc_worker(filename,lat,lon)
     return df
-
 
 def download_era5_area(lat_lim, lon_lim, year_range,
     month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
@@ -143,11 +103,12 @@ def era5_area_dataframe(lat_list,lon_list,filepath,n_cores=-1):
     return df
 
 def era5_area_dataframe_worker(lat,lon,filepath):
-    # 从数据集中选择与经纬度最接近的点位
-    #filename = path+f"era5_data_{lat}_{lon}.nc"
+    df=era5_nc_worker(filepath,lat,lon)
+    return df
 
+def era5_nc_worker(nc_filepath,lat,lon):
     # 读取netcdf文件中的数据
-    ds = xr.open_dataset(filepath)
+    ds = xr.open_dataset(nc_filepath)
 
     # 提取指定经纬度点位的各种气象参数数据
     if "u10" in list(ds.data_vars):
