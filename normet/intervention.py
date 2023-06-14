@@ -231,13 +231,13 @@ def join_weights(df, unit_w, time_w, date_col, code_col, treat_target,control_po
         .astype({'treated':int, 'after_treatment':int}))
 
 
-def ml_synthetic(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date,training_time):
+def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date,training_time=60):
     from flaml import AutoML
     automl = AutoML()
     from sklearn.metrics import r2_score
-    df=(df[df[code_col].isin(control_pool+[treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
-    pre_dataset=df[df.index<cutoff_date]
-    post_dataset=df[df.index>=cutoff_date]
+    dfp=(df[df[code_col].isin(control_pool+[treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
+    pre_dataset=dfp[dfp.index<cutoff_date]
+    post_dataset=dfp[dfp.index>=cutoff_date]
     settings = {
     "time_budget": training_time,  # total running time in seconds
     "metric": "r2",  # primary metric
@@ -246,7 +246,24 @@ def ml_synthetic(df, poll_col, date_col, code_col, treat_target, control_pool, c
     'seed':987654321}
     automl.fit(dataframe=pre_dataset, label=treat_target,**settings)
     pre_pred=automl.predict(pre_dataset)
-    r2 = r2_score(pre_dataset[treat_target].values, pre_pred)
-    df['synthetic']=automl.predict(df)
-    df['effects']=df[treat_target]-df['synthetic']
-    return df,r2
+
+    data=(df
+        [df[code_col]==treat_target][[date_col, code_col, poll_col]]
+        .assign(synthetic=automl.predict(dfp))).set_index(date_col)
+    data['effects']=data[poll_col]-data['synthetic']
+    return data
+
+
+def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,training_time=60, n_cores = -1):
+
+    treatment_pool = df[code_col].unique()
+    synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
+                    df=df,
+                    poll_col=poll_col,
+                    date_col=date_col,
+                    code_col=code_col,
+                    treat_target=code,
+                    control_pool=control_pool,
+                    cutoff_date=cutoff_date,
+                    training_time=training_time) for code in treatment_pool))
+    return synthetic_all
