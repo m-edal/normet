@@ -188,35 +188,32 @@ def fit_unit_weights(df, poll_col, date_col, code_col, treat_target,control_pool
 
 def fit_time_weights(df, poll_col, date_col, code_col, treat_target,control_pool, post_col):
 
-        control = df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
+    control = df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
 
-        # pivot the data to the (T_pre, N_co) matrix representation
-        y_pre = (control
-                 .query(f"~{post_col}")
-                 .pivot(date_col, code_col, poll_col))
+    # pivot the data to the (T_pre, N_co) matrix representation
+    y_pre = (control
+                .query(f"~{post_col}")
+                .pivot(date_col, code_col, poll_col))
 
-        # group post-treatment time period by units to have a (1, N_co) vector.
-        y_post_mean = (control
-                       .query(f"{post_col}")
-                       .groupby(code_col)
-                       [poll_col]
-                       .mean()
-                       .values)
+    # group post-treatment time period by units to have a (1, N_co) vector.
+    y_post_mean = (control
+                .query(f"{post_col}")
+                .groupby(code_col)[poll_col].mean().values)
 
-        # add a (1, N_co) vector of 1 to the top of the matrix, to serve as the intercept.
-        X = np.concatenate([np.ones((1, y_pre.shape[1])), y_pre.values], axis=0)
+    # add a (1, N_co) vector of 1 to the top of the matrix, to serve as the intercept.
+    X = np.concatenate([np.ones((1, y_pre.shape[1])), y_pre.values], axis=0)
 
-        # estimate time weights
-        w = cp.Variable(X.shape[0])
-        objective = cp.Minimize(cp.sum_squares(w@X - y_post_mean))
-        constraints = [cp.sum(w[1:]) == 1, w[1:] >= 0]
-        problem = cp.Problem(objective, constraints)
-        problem.solve(verbose=False)
+    # estimate time weights
+    w = cp.Variable(X.shape[0])
+    objective = cp.Minimize(cp.sum_squares(w@X - y_post_mean))
+    constraints = [cp.sum(w[1:]) == 1, w[1:] >= 0]
+    problem = cp.Problem(objective, constraints)
+    problem.solve(verbose=False)
 
-        # print("Intercept: ", w.value[0])
-        return pd.Series(w.value[1:], # remove intercept
-                         name="time_weights",
-                         index=y_pre.index)
+    # print("Intercept: ", w.value[0])
+    return pd.Series(w.value[1:], # remove intercept
+                    name="time_weights",
+                    index=y_pre.index)
 
 
 def join_weights(df, unit_w, time_w, date_col, code_col, treat_target,control_pool, post_col):
@@ -232,3 +229,24 @@ def join_weights(df, unit_w, time_w, date_col, code_col, treat_target,control_po
                  unit_w.name: df['treated'].mean()})
         .assign(**{"weights": lambda d: (d[time_w.name]*d[unit_w.name]).round(10)})
         .astype({'treated':int, 'after_treatment':int}))
+
+
+def ml_synthetic(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date,training_time):
+    from flaml import AutoML
+    automl = AutoML()
+    from sklearn.metrics import r2_score
+    df=(df[df[code_col].isin(control_pool+[treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
+    pre_dataset=df[df.index<cutoff_date]
+    post_dataset=df[df.index>=cutoff_date]
+    settings = {
+    "time_budget": training_time,  # total running time in seconds
+    "metric": "r2",  # primary metric
+    "task": "regression",  # task type
+    "eval_method": "cv",
+    'seed':987654321}
+    automl.fit(dataframe=pre_dataset, label=treat_target,**settings)
+    pre_pred=automl.predict(pre_dataset)
+    r2 = r2_score(pre_dataset[treat_target].values, pre_pred)
+    df['synthetic']=automl.predict(df)
+    df['effects']=df[treat_target]-df['synthetic']
+    return df,r2
