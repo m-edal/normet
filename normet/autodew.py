@@ -7,7 +7,7 @@ from scipy.stats import mode
 from flaml import AutoML
 automl = AutoML()
 from joblib import Parallel, delayed
-from sklearn.metrics import r2_score
+import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -333,5 +333,8 @@ def IOA(x, mod="mod", obs="obs"):
 #determination of coefficient
 def R2(x, mod="mod", obs="obs"):
     x = x[[mod, obs]].dropna()
-    res = r2_score(x[mod], x[obs])
+    X = sm.add_constant(x[obs])
+    y=x[mod]
+    model = sm.OLS(y, X).fit()
+    r_squared = model.rsquared
     return res
