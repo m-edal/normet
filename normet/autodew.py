@@ -17,7 +17,9 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
     df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
-    mod_stats=modStats(df, set='testing')
+    mod_stats=(pd.concat([modStats(df,set='testing'),
+                modStats(df,set='training'),
+                modStats(df.assign(set="all"),set='all')]))
 
     df=normalise(automl, df,
                            feature_names = feature_names,
@@ -219,7 +221,7 @@ def model_predict(automl, df=None):
 def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA","R2"]):
     df=df[df['set']==set]
     df.loc[:,'value_predict']=automl.predict(df)
-    df=Stats(df, mod="value_predict", obs="value",statistic=statistic)
+    df=Stats(df, mod="value_predict", obs="value",statistic=statistic).assign(set=set)
     return df
 
 def Stats(df, mod="mod", obs="obs",
