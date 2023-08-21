@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   seed=7654321, variables_sample=None, n_samples=300,fraction=0.75):
-    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction)
+    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
     mod_stats=modStats(df, set='testing')
@@ -26,7 +26,7 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
 
     return df, mod_stats
 
-def prepare_data(df, value='value', na_rm=False,split_method = 'random' ,replace=False, fraction=0.75):
+def prepare_data(df, value='value', na_rm=False,split_method = 'random' ,replace=False, fraction=0.75,seed=7654321):
 
     # Check
     if value not in df.columns:
@@ -36,7 +36,7 @@ def prepare_data(df, value='value', na_rm=False,split_method = 'random' ,replace
         .pipe(check_data, prepared=False)
         .pipe(impute_values, na_rm=na_rm)
         .pipe(add_date_variables, replace=replace)
-        .pipe(split_into_sets, split_method = split_method,fraction=fraction)
+        .pipe(split_into_sets, split_method = split_method,fraction=fraction,seed=seed)
         .reset_index(drop=True))
 
     return df
@@ -80,12 +80,12 @@ def impute_values(df, na_rm):
 
     return df
 
-def split_into_sets(df, split_method, fraction):
+def split_into_sets(df, split_method, fraction,seed):
     # Add row number
     df = df.reset_index().rename(columns={'index': 'rowid'})
     if (split_method == 'random'):
         # Sample to get training set
-        df_training = df.sample(frac=fraction, random_state=42).reset_index(drop=True).assign(set="training")
+        df_training = df.sample(frac=fraction, random_state=seed).reset_index(drop=True).assign(set="training")
         # Remove training set from input to get testing set
         df_testing = df[~df['rowid'].isin(df_training['rowid'])].assign(set="testing")
     if (split_method == 'time_series'):
