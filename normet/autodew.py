@@ -336,5 +336,5 @@ def R2(x, mod="mod", obs="obs"):
     X = sm.add_constant(x[obs])
     y=x[mod]
     model = sm.OLS(y, X).fit()
-    r_squared = model.rsquared
+    res = model.rsquared
     return res
