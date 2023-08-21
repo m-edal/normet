@@ -22,7 +22,7 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
     df=normalise(automl, df,
                            feature_names = feature_names,
                           variables= variables_sample,
-                          n_samples=n_samples)
+                          n_samples=n_samples, seed=seed)
 
     return df, mod_stats
 
@@ -153,7 +153,7 @@ def train_model(df, variables,
 
     return automl
 
-def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, verbose):
+def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, seed, verbose):
     # Only every fifth prediction message
     if verbose and index % 5 == 0:
         # Calculate percent
@@ -165,6 +165,7 @@ def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, v
               ": Predicting", index, "of", n_samples, "times (", message_precent, ")...")
     # Randomly sample observations
     n_rows = df.shape[0]
+    np.random.seed(seed)
     index_rows = np.random.choice(range(n_rows), size=n_rows, replace=replace)
 
     # Transform data frame to include sampled variables
@@ -182,7 +183,7 @@ def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, v
     return predictions
 
 def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=True,
-                  aggregate=True, n_cores=None, verbose=False):
+                  aggregate=True, n_cores=None, seed=7654321, verbose=False):
 
     df = check_data(df, prepared=True)
     # Default logic for cpu cores
@@ -206,7 +207,7 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
         df = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
             index=i,automl=automl,df=df,
             variables=variables,replace=replace,n_cores=n_cores,
-            n_samples=n_samples,
+            n_samples=n_samples,seed=seed,
             verbose=verbose) for i in range(n_samples)), axis=0).pivot_table(index='date',aggfunc='mean')
     df=df[['Observed','Deweathered']]
     return df
