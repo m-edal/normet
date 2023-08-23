@@ -11,6 +11,31 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
+
+def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+                estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
+                n_seeds=10, variables_sample=None, n_samples=300,fraction=0.75,seed=7654321):
+    np.random.seed(seed)
+    random_seeds = np.random.choice(np.arange(1000001), size=n_seeds, replace=False)
+    modstat0=pd.DataFrame(columns=['n','FAC2','MB','MGE','NMB','NMGE','RMSE','r','p_Value','COE',
+                                   'IOA','R2','set','seed'])
+    df_dew0=df.set_index('date')[[value]].rename(columns={value:'Observed'})
+    for i in random_seeds:
+        df_dew,modstat=do_all(df=df, value=value,
+                                 feature_names=feature_names,
+                                 split_method = split_method,time_budget=time_budget,
+                                 variables_sample=variables_sample,
+                                 n_samples=n_samples,fraction=fraction,seed=i)
+        df_dew0=pd.concat([df_dew0,df_dew[['Deweathered']].rename(columns={'Deweathered':'Deweathered_'+np.str(i)})],axis=1)
+        modstat['seed']=i
+        modstat0=pd.concat([modstat0,modstat])
+    df_dew0['mean']=df_dew0.iloc[:,1:n_seeds+1].mean(axis=1)
+    df_dew0['median']=df_dew0.iloc[:,1:n_seeds+1].median(axis=1)
+    df_dew0['std']=df_dew0.iloc[:,1:n_seeds+1].std(axis=1)
+    return df_dew0, modstat0
+
+
+
 def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   seed=7654321, variables_sample=None, n_samples=300,fraction=0.75):
@@ -185,7 +210,7 @@ def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, s
     return predictions
 
 def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=True,
-                  aggregate=True, n_cores=None, seed=7654321, verbose=False):
+                  aggregate=True, n_cores=None,  seed=7654321, verbose=False):
 
     df = check_data(df, prepared=True)
     # Default logic for cpu cores
@@ -203,13 +228,16 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
               n_samples, "times...")
 
     # If no samples are passed
+    np.random.seed(seed)
+    random_seeds = np.random.choice(np.arange(1000001), size=n_samples, replace=False)
+
     if n_samples == 0:
         df = pd.DataFrame()
     else:
         df = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
             index=i,automl=automl,df=df,
             variables=variables,replace=replace,n_cores=n_cores,
-            n_samples=n_samples,seed=seed,
+            n_samples=n_samples,seed=random_seeds[i],
             verbose=verbose) for i in range(n_samples)), axis=0).pivot_table(index='date',aggfunc='mean')
     df=df[['Observed','Deweathered']]
     return df
