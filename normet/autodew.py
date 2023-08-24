@@ -3,7 +3,6 @@ import numpy as np
 from datetime import datetime
 from random import sample
 from scipy import stats
-from scipy.stats import mode
 from flaml import AutoML
 automl = AutoML()
 from joblib import Parallel, delayed
@@ -11,30 +10,27 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
-
 def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                 estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                 n_models=10, variables_sample=None, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
     np.random.seed(seed)
     random_seeds = np.random.choice(np.arange(1000001), size=n_models, replace=False)
-    modstat0=pd.DataFrame(columns=['n','FAC2','MB','MGE','NMB','NMGE','RMSE','r','p_Value','COE',
+    mod_stats=pd.DataFrame(columns=['n','FAC2','MB','MGE','NMB','NMGE','RMSE','r','p_value','COE',
                                    'IOA','R2','set','seed'])
-    df_dew0=df.set_index('date')[[value]].rename(columns={value:'Observed'})
+    df_dew=df.set_index('date')[[value]].rename(columns={value:'Observed'})
     for i in random_seeds:
-        df_dew,modstat=do_all(df=df, value=value,
+        df_dew0,mod_stats0=do_all(df=df, value=value,
                                  feature_names=feature_names,
                                  split_method = split_method,time_budget=time_budget,
                                  variables_sample=variables_sample,
                                  n_samples=n_samples,fraction=fraction,seed=i, n_cores=n_cores)
-        df_dew0=pd.concat([df_dew0,df_dew[['Deweathered']].rename(columns={'Deweathered':'Deweathered_'+np.str(i)})],axis=1)
-        modstat['seed']=i
-        modstat0=pd.concat([modstat0,modstat])
-    df_dew0['mean']=df_dew0.iloc[:,1:n_models+1].mean(axis=1)
-    df_dew0['median']=df_dew0.iloc[:,1:n_models+1].median(axis=1)
-    df_dew0['std']=df_dew0.iloc[:,1:n_models+1].std(axis=1)
-    return df_dew0, modstat0
-
-
+        df_dew=pd.concat([df_dew,df_dew0.iloc[:,1]],axis=1)
+        mod_stats0['seed']=i
+        mod_stats=pd.concat([mod_stats,mod_stats0])
+    df_dew['mean']=df_dew.iloc[:,1:n_models+1].mean(axis=1)
+    df_dew['median']=df_dew.iloc[:,1:n_models+1].median(axis=1)
+    df_dew['std']=df_dew.iloc[:,1:n_models+1].std(axis=1)
+    return df_dew, mod_stats
 
 def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
@@ -46,12 +42,11 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
                 modStats(df,set='training'),
                 modStats(df.assign(set="all"),set='all')]))
 
-    df=normalise(automl, df,
+    df_dew=normalise(automl, df,
                            feature_names = feature_names,
                           variables= variables_sample,
                           n_samples=n_samples, n_cores=n_cores, seed=seed)
-
-    return df, mod_stats
+    return df_dew, mod_stats
 
 def prepare_data(df, value='value', na_rm=False,split_method = 'random' ,replace=False, fraction=0.75,seed=7654321):
 
@@ -103,7 +98,7 @@ def impute_values(df, na_rm):
         df[col].fillna(df[col].median(), inplace=True)
     # Character and categorical variables
     for col in df.select_dtypes(include=['object', 'category']).columns:
-        df[col].fillna(mode(df[col],keepdims=False)[0][0], inplace=True)
+        df[col].fillna(df[col].mode()[0],inplace=True)
 
     return df
 
@@ -239,7 +234,7 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
             variables=variables,replace=replace,n_cores=n_cores,
             n_samples=n_samples,seed=random_seeds[i],
             verbose=verbose) for i in range(n_samples)), axis=0).pivot_table(index='date',aggfunc='mean')
-    df=df[['Observed','Deweathered']]
+    df=df[['Observed','Deweathered']].rename(columns={'Deweathered':'Deweathered_'+str(seed)})
     return df
 
 def model_predict(automl, df=None):
@@ -271,7 +266,7 @@ def Stats(df, mod="mod", obs="obs",
         res["RMSE"] = RMSE(df, mod, obs)
     if "r" in statistic:
         res["r"] = r(df, mod, obs)[0]
-        res["p_Value"] = r(df, mod, obs)[1]
+        res["p_value"] = r(df, mod, obs)[1]
     if "COE" in statistic:
         res["COE"] = COE(df, mod, obs)
     if "IOA" in statistic:
@@ -280,7 +275,7 @@ def Stats(df, mod="mod", obs="obs",
         res["R2"] = R2(df, mod, obs)
 
     results = {'n':res['n'], 'FAC2':res['FAC2'], 'MB':res['MB'], 'MGE':res['MGE'], 'NMB':res['NMB'],
-               'NMGE':res['NMGE'],'RMSE':res['RMSE'], 'r':res['r'],'p_Value':res['p_Value'],
+               'NMGE':res['NMGE'],'RMSE':res['RMSE'], 'r':res['r'],'p_value':res['p_value'],
                'COE':res['COE'], 'IOA':res['IOA'], 'R2':res['R2']}
 
     results = pd.DataFrame([results])
