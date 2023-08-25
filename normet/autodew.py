@@ -30,6 +30,13 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
     df_dew['mean']=df_dew.iloc[:,1:n_models+1].mean(axis=1)
     df_dew['median']=df_dew.iloc[:,1:n_models+1].median(axis=1)
     df_dew['std']=df_dew.iloc[:,1:n_models+1].std(axis=1)
+    test_stats = mod_stats[mod_stats['set'] == 'testing']
+    normalized_R2 = (test_stats['R2'] - test_stats['R2'].min()) / (test_stats['R2'].max() - test_stats['R2'].min())
+    weighted_R2 = normalized_R2 / normalized_R2.sum()
+
+    df_dew1 = df_dew.copy()
+    df_dew1.iloc[:, 1:n_models+1] = df_dew.iloc[:, 1:n_models+1].values * weighted_R2.values
+    df_dew['weighted'] = df_dew1.iloc[:, 1:n_models+1].sum(axis=1)
     return df_dew, mod_stats
 
 def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
