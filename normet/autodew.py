@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                 estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                n_models=10, variables_sample=None, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
+                n_models=10, confidence_level=0.95, variables_sample=None, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
     np.random.seed(seed)
     random_seeds = np.random.choice(np.arange(1000001), size=n_models, replace=False)
     mod_stats=pd.DataFrame(columns=['n','FAC2','MB','MGE','NMB','NMGE','RMSE','r','p_value','COE',
@@ -28,8 +28,11 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
         mod_stats0['seed']=i
         mod_stats=pd.concat([mod_stats,mod_stats0])
     df_dew['mean']=df_dew.iloc[:,1:n_models+1].mean(axis=1)
-    df_dew['median']=df_dew.iloc[:,1:n_models+1].median(axis=1)
     df_dew['std']=df_dew.iloc[:,1:n_models+1].std(axis=1)
+    df_dew['median']=df_dew.iloc[:,1:n_models+1].median(axis=1)
+    df_dew['lower_bound'] = df_dew.iloc[:,1:n_models+1].quantile((1 - confidence_level) / 2,axis=1)
+    df_dew['upper_bound'] = df_dew.iloc[:,1:n_models+1].quantile(1 - (1 - confidence_level) / 2,axis=1)
+
     test_stats = mod_stats[mod_stats['set'] == 'testing']
     test_stats['R2']=test_stats['R2'].replace([np.inf, -np.inf], np.nan)
     normalized_R2 = (test_stats['R2'] - test_stats['R2'].min()) / (test_stats['R2'].max() - test_stats['R2'].min())
