@@ -31,6 +31,7 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
     df_dew['median']=df_dew.iloc[:,1:n_models+1].median(axis=1)
     df_dew['std']=df_dew.iloc[:,1:n_models+1].std(axis=1)
     test_stats = mod_stats[mod_stats['set'] == 'testing']
+    test_stats['R2']=test_stats['R2'].replace([np.inf, -np.inf], np.nan)
     normalized_R2 = (test_stats['R2'] - test_stats['R2'].min()) / (test_stats['R2'].max() - test_stats['R2'].min())
     weighted_R2 = normalized_R2 / normalized_R2.sum()
 
