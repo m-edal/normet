@@ -106,47 +106,38 @@ def era5_area_dataframe_worker(lat,lon,filepath):
     df=era5_nc_worker(filepath,lat,lon)
     return df
 
-def era5_nc_worker(nc_filepath,lat,lon):
-    # 读取netcdf文件中的数据
-    ds = xr.open_dataset(nc_filepath)
+def era5_extract_data(ds, lat, lon):
+    data_vars = ['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']
+    data = {}
 
-    # 提取指定经纬度点位的各种气象参数数据
-    if "u10" in list(ds.data_vars):
-        u10 = ds.u10.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "v10" in list(ds.data_vars):
-        v10 = ds.v10.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "d2m" in list(ds.data_vars):
-        d2m = ds.d2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "t2m" in list(ds.data_vars):
-        t2m = ds.t2m.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "blh" in list(ds.data_vars):
-        blh = ds.blh.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "uvb" in list(ds.data_vars):
-        uvb = ds.uvb.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "sp" in list(ds.data_vars):
-        sp = ds.sp.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "ssrd" in list(ds.data_vars):
-        ssrd = ds.ssrd.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "ssr" in list(ds.data_vars):
-        ssr = ds.ssr.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "tcc" in list(ds.data_vars):
-        tcc = ds.tcc.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
-    if "tp" in list(ds.data_vars):
-        tp = ds.tp.sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
+    for var in data_vars:
+        if var in ds.data_vars:
+            data[var] = ds[var].sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
+    return data
 
-    # 获取时间坐标数组
-    time_arr = ds.time.values
+def era5_nc_worker(nc_filepath, lat, lon):
+    ds_raw = xr.open_dataset(nc_filepath)
+    if 'expver' in ds_raw.coords:
+        ds1 = ds_raw.sel(expver=1)
+        data1 = era5_extract_data(ds1, lat, lon)
 
-    # 将时间坐标数组转换为Pandas DatetimeIndex对象
-    time_index = pd.to_datetime(time_arr)
-    results = {'u10':u10, 'v10':v10,'d2m':d2m, 't2m':t2m, 'blh':blh, 'uvb':uvb,
-        'sp':sp,'ssrd':ssrd, 'ssr':ssr, 'tcc':tcc,'tp':tp}
+        last_valid_time = pd.to_datetime(ds1.time.max().values)
 
-    # 将气象参数数据存储到Pandas DataFrame中
-    df = pd.DataFrame(results, index=time_index)
-    df['lat']=lat
-    df['lon']=lon
-    return df
+        ds5 = ds_raw.sel(expver=5)
+        data5 = era5_extract_data(ds5, lat, lon)
+
+        df = pd.DataFrame(data1, index=ds1.time.values)
+        df5 = pd.DataFrame(data5, index=ds5.time.values)
+        df_final = pd.concat([df[df.index > last_valid_time], df5], axis=0)
+    else:
+        data_raw = era5_extract_data(ds_raw, lat, lon)
+        df_final = pd.DataFrame(data_raw, index=ds_raw.time.values)
+
+    df_final['lat'] = lat
+    df_final['lon'] = lon
+
+    return df_final.dropna()
+
 
 def UK_AURN_metadata(path='./'):
     download_path = path+"AURN_data_download"

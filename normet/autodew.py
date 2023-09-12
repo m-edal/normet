@@ -259,7 +259,7 @@ def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMS
     return df
 
 def Stats(df, mod="mod", obs="obs",
-             statistic = None):
+             statistic = ["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA","R2"]):
     res = {}
     if "n" in statistic:
         res["n"] = n(df, mod, obs)
