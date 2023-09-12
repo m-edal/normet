@@ -131,7 +131,7 @@ def era5_nc_worker(lat, lon, filepath):
 
         df = pd.DataFrame(data1, index=ds1.time.values)
         df5 = pd.DataFrame(data5, index=ds5.time.values)
-        df_final = pd.concat([df[df.index > last_valid_time], df5], axis=0)
+        df_final =  df.combine_first(df5)
     else:
         data_raw = era5_extract_data(ds_raw, lat, lon)
         df_final = pd.DataFrame(data_raw, index=ds_raw.time.values)
@@ -139,7 +139,7 @@ def era5_nc_worker(lat, lon, filepath):
     df_final['lat'] = lat
     df_final['lon'] = lon
 
-    return df_final.dropna()
+    return df_final
 
 
 def UK_AURN_metadata(path='./'):
