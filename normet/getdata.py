@@ -56,7 +56,7 @@ def download_era5_worker(lat, lon, var_list, year_range, month_range,
         filename = path+f"era5_data_{lat}_{lon}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
-        print("CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to.")
+        print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
         print(f"Error message: {str(e)}")
 
 def era5_dataframe(lat_list,lon_list,path,n_cores=-1):
@@ -101,7 +101,7 @@ def download_era5_area(lat_lim, lon_lim, year_range,
         filename = path+f"era5_data_{lat_lim}_{lon_lim}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
-        print("CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to.")
+        print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
         print(f"Error message: {str(e)}")
 
 def era5_area_dataframe(lat_list,lon_list,filepath,n_cores=-1):
