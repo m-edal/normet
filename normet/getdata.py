@@ -21,7 +21,9 @@ def download_era5(lat_list,lon_list,year_range,
     # 启动多个线程进行并行下载
     threads = []
     for lat, lon in zip(lat_list, lon_list):
-        t = threading.Thread(target=download_era5_worker, args=(lat, lon, var_list, year_range, month_range, day_range, time_range,path ))
+        t = threading.Thread(target=download_era5_worker,
+            args=(lat, lon, var_list, year_range, month_range,
+            day_range, time_range,path ))
         t.start()
         threads.append(t)
     # 等待所有线程完成
@@ -29,29 +31,33 @@ def download_era5(lat_list,lon_list,year_range,
         t.join()
     return t
 
-def download_era5_worker(lat, lon, var_list, year_range, month_range, day_range, time_range,path='./'):
+def download_era5_worker(lat, lon, var_list, year_range, month_range,
+    day_range, time_range,path='./'):
+    try:
+        # 创建一个CDS API客户端对象
+        c = cdsapi.Client()
 
-    # 创建一个CDS API客户端对象
-    c = cdsapi.Client()
+        # 定义下载请求的参数
+        request = {
+            'product_type': 'reanalysis',
+            'format': 'netcdf',
+            'variable': var_list,
+            'year': year_range,
+            'month': month_range,
+            'day': day_range,
+            'time': time_range,
+            'area': [
+                lat+0.25, lon-0.25, lat-0.25,
+                lon+0.25,
+            ],
+        }
 
-    # 定义下载请求的参数
-    request = {
-        'product_type': 'reanalysis',
-        'format': 'netcdf',
-        'variable': var_list,
-        'year': year_range,
-        'month': month_range,
-        'day': day_range,
-        'time': time_range,
-        'area': [
-            lat+0.25, lon-0.25, lat-0.25,
-            lon+0.25,
-        ],
-    }
-
-    # 执行下载请求，并将数据保存到本地文件
-    filename = path+f"era5_data_{lat}_{lon}.nc"
-    c.retrieve('reanalysis-era5-single-levels', request, filename)
+        # 执行下载请求，并将数据保存到本地文件
+        filename = path+f"era5_data_{lat}_{lon}.nc"
+        c.retrieve('reanalysis-era5-single-levels', request, filename)
+    except Exception as e:
+        print("CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to.")
+        print(f"Error message: {str(e)}")
 
 def era5_dataframe(lat_list,lon_list,path,n_cores=-1):
     results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,path) for (lat,lon) in zip(lat_list,lon_list))
@@ -72,28 +78,31 @@ def download_era5_area(lat_lim, lon_lim, year_range,
         '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
         'surface_pressure','surface_solar_radiation_downwards',
         'total_cloud_cover','total_precipitation'],path='./'):
+    try:
+        # 创建一个CDS API客户端对象
+        c = cdsapi.Client()
 
-    # 创建一个CDS API客户端对象
-    c = cdsapi.Client()
+        # 定义下载请求的参数
+        request = {
+            'product_type': 'reanalysis',
+            'format': 'netcdf',
+            'variable': var_list,
+            'year': year_range,
+            'month': month_range,
+            'day': day_range,
+            'time': time_range,
+            'area': [
+                lat_lim[1], lon_lim[0], lat_lim[0],
+                lon_lim[1],
+            ],
+        }
 
-    # 定义下载请求的参数
-    request = {
-        'product_type': 'reanalysis',
-        'format': 'netcdf',
-        'variable': var_list,
-        'year': year_range,
-        'month': month_range,
-        'day': day_range,
-        'time': time_range,
-        'area': [
-            lat_lim[1], lon_lim[0], lat_lim[0],
-            lon_lim[1],
-        ],
-    }
-
-    # 执行下载请求，并将数据保存到本地文件
-    filename = path+f"era5_data_{lat_lim}_{lon_lim}.nc"
-    c.retrieve('reanalysis-era5-single-levels', request, filename)
+        # 执行下载请求，并将数据保存到本地文件
+        filename = path+f"era5_data_{lat_lim}_{lon_lim}.nc"
+        c.retrieve('reanalysis-era5-single-levels', request, filename)
+    except Exception as e:
+        print("CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to.")
+        print(f"Error message: {str(e)}")
 
 def era5_area_dataframe(lat_list,lon_list,filepath,n_cores=-1):
     results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,filepath) for (lat,lon) in zip(lat_list,lon_list))
