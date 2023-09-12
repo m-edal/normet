@@ -105,25 +105,21 @@ def download_era5_area(lat_lim, lon_lim, year_range,
         print(f"Error message: {str(e)}")
 
 def era5_area_dataframe(lat_list,lon_list,filepath,n_cores=-1):
-    results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,filepath) for (lat,lon) in zip(lat_list,lon_list))
+    results = Parallel(n_jobs=n_cores)(delayed(era5_nc_worker)(lat,lon,filepath) for (lat,lon) in zip(lat_list,lon_list))
     df = pd.concat(results)
     return df
 
-def era5_area_dataframe_worker(lat,lon,filepath):
-    df=era5_nc_worker(filepath,lat,lon)
-    return df
-
-def era5_extract_data(ds, lat, lon):
-    data_vars = ['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']
+def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']):
     data = {}
-
     for var in data_vars:
         if var in ds.data_vars:
-            data[var] = ds[var].sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
+            SliceData = ds.sel(**{'latitude': slice(lat+0.25, lat-0.25),
+                        'longitude': slice(lon-0.25, lon+0.25)})
+            data[var] = SliceData[var].sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
     return data
 
-def era5_nc_worker(nc_filepath, lat, lon):
-    ds_raw = xr.open_dataset(nc_filepath)
+def era5_nc_worker(lat, lon, filepath):
+    ds_raw = xr.open_dataset(filepath)
     if 'expver' in ds_raw.coords:
         ds1 = ds_raw.sel(expver=1)
         data1 = era5_extract_data(ds1, lat, lon)
