@@ -66,8 +66,8 @@ def era5_dataframe(lat_list,lon_list,path,n_cores=-1):
 
 def era5_dataframe_worker(lat,lon,path):
     # 从数据集中选择与经纬度最接近的点位
-    filename = path+f"era5_data_{lat}_{lon}.nc"
-    df=era5_nc_worker(filename,lat,lon)
+    filepath = path+f"era5_data_{lat}_{lon}.nc"
+    df=era5_nc_worker(lat,lon,filepath)
     return df
 
 def download_era5_area(lat_lim, lon_lim, year_range,
@@ -113,13 +113,13 @@ def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh'
     data = {}
     for var in data_vars:
         if var in ds.data_vars:
-            SliceData = ds.sel(**{'latitude': slice(lat+0.25, lat-0.25),
-                        'longitude': slice(lon-0.25, lon+0.25)})
-            data[var] = SliceData[var].sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
+            data[var] = ds[var].sel(latitude=lat, longitude=lon, method='nearest').values.tolist()
     return data
 
 def era5_nc_worker(lat, lon, filepath):
     ds_raw = xr.open_dataset(filepath)
+    ds_raw = ds_raw.sel(**{'latitude': slice(lat+0.25, lat-0.25),
+                'longitude': slice(lon-0.25, lon+0.25)})
     if 'expver' in ds_raw.coords:
         ds1 = ds_raw.sel(expver=1)
         data1 = era5_extract_data(ds1, lat, lon)
