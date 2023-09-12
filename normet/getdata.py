@@ -16,8 +16,7 @@ def download_era5(lat_list,lon_list,year_range,
     time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
     var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
         '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
-        'downward_uv_radiation_at_the_surface','surface_pressure',
-        'surface_solar_radiation_downwards','surface_net_solar_radiation',
+        'surface_pressure','surface_solar_radiation_downwards',
         'total_cloud_cover','total_precipitation'],path='./'):
     # 启动多个线程进行并行下载
     threads = []
@@ -71,8 +70,7 @@ def download_era5_area(lat_lim, lon_lim, year_range,
     time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
     var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
         '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
-        'downward_uv_radiation_at_the_surface','surface_pressure',
-        'surface_solar_radiation_downwards','surface_net_solar_radiation',
+        'surface_pressure','surface_solar_radiation_downwards',
         'total_cloud_cover','total_precipitation'],path='./'):
 
     # 创建一个CDS API客户端对象
