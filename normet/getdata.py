@@ -123,9 +123,6 @@ def era5_nc_worker(lat, lon, filepath):
     if 'expver' in ds_raw.coords:
         ds1 = ds_raw.sel(expver=1)
         data1 = era5_extract_data(ds1, lat, lon)
-
-        last_valid_time = pd.to_datetime(ds1.time.max().values)
-
         ds5 = ds_raw.sel(expver=5)
         data5 = era5_extract_data(ds5, lat, lon)
 
