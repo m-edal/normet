@@ -10,6 +10,24 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
+def rolling_dew(df,value=None, window=30, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
+                  variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
+    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
+    automl=train_model(df,variables=feature_names,
+                time_budget= time_budget,  metric= metric, task= task, seed= seed);
+    mod_stats=(pd.concat([modStats(df,set='testing'),
+                modStats(df,set='training'),
+                modStats(df.assign(set="all"),set='all')]))
+    dfr=pd.DataFrame(index=df['date'],data={'Observed':list(df['value'])})
+    for i in range(len(df[(df['date']>=df['date'].min())&(df['date']<=df['date'].max()-timedelta(days=window))])):
+        dfa=df[(df['date']>=list(df['date'])[i])&(df['date']<=list(df['date'])[i+1] + timedelta(days=window))]
+        dfar=normalise(automl=automl,df=dfa,
+            feature_names=feature_names, variables= variables_sample,
+        n_samples=n_samples, n_cores=n_cores, seed=seed)
+        dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
+    return dfr, mod_stats
+
 def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                 estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                 n_models=10, confidence_level=0.95, variables_sample=None, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
