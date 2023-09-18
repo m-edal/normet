@@ -20,8 +20,8 @@ def rolling_dew(df,value=None, window_days=30, feature_names=None, split_method 
                 modStats(df,set='training'),
                 modStats(df.assign(set="all"),set='all')]))
     dfr=pd.DataFrame(index=df['date'],data={'Observed':list(df['value'])})
-    for i in range(len(df[(df['date']>=df['date'].min())&(df['date']<=df['date'].max()-timedelta(days=window))])):
-        dfa=df[(df['date']>=list(df['date'])[i])&(df['date']<=list(df['date'])[i+1] + timedelta(days=window))]
+    for i in range(len(df[(df['date']>=df['date'].min())&(df['date']<=df['date'].max()-timedelta(days=window_days))])):
+        dfa=df[(df['date']>=list(df['date'])[i])&(df['date']<=list(df['date'])[i+1] + timedelta(days=window_days))]
         dfar=normalise(automl=automl,df=dfa,
             feature_names=feature_names, variables= variables_sample,
         n_samples=n_samples, n_cores=n_cores, seed=seed)
