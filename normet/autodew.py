@@ -10,7 +10,7 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
-def rolling_dew(df,value=None, window=30, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+def rolling_dew(df,value=None, window_days=30, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
     df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
