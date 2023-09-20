@@ -21,11 +21,15 @@ def rolling_dew(df,value=None, window_days=30, feature_names=None, split_method 
                 modStats(df,set='training'),
                 modStats(df.assign(set="all"),set='all')]))
     dfr=pd.DataFrame(index=df['date'],data={'Observed':list(df['value'])})
-    for i in range(len(df[(df['date']>=df['date'].min())&(df['date']<=df['date'].max()-timedelta(days=window_days))])):
-        dfa=df[(df['date']>=list(df['date'])[i])&(df['date']<=list(df['date'])[i+1] + timedelta(days=window_days))]
+    df['date_d']=df['date'].dt.date
+    date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
+    date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
+    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()):
+        dfa=df[df['date_d']>=ds]
+        dfa=dfa[dfa['date']<=dfa['date'].min()+pd.DateOffset(days=window_days)]
         dfar=normalise(automl=automl,df=dfa,
             feature_names=feature_names, variables= variables_sample,
-        n_samples=n_samples, n_cores=n_cores, seed=seed)
+            n_samples=n_samples, n_cores=n_cores, seed=seed)
         dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
     return dfr, mod_stats
 
