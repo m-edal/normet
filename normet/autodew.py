@@ -10,6 +10,55 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
+
+def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
+                  variables_sample=None, n_samples=300,window_days=15,fraction=0.75, seed=7654321, n_cores=-1):
+    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
+    automl=train_model(df,variables=feature_names,
+                time_budget= time_budget,  metric= metric, task= task, seed= seed);
+    mod_stats=(pd.concat([modStats(df,set='testing'),
+                modStats(df,set='training'),
+                modStats(df.assign(set="all"),set='all')]))
+    df_dew=normalise(automl, df,
+                           feature_names = feature_names,
+                          variables= None,
+                          n_samples=n_samples, n_cores=n_cores, seed=seed)
+    df_dew.columns=['Observed','date_unix']
+    var_names=feature_names
+    for var_to_exclude in ['day_julian', 'weekday', 'hour']:
+        var_names = list(set(var_names) - set([var_to_exclude]))
+        df_dew_temp = normalise(automl, df,
+            feature_names=feature_names,
+            variables=var_names,
+            n_samples=n_samples,
+            n_cores=n_cores,
+            seed=seed)
+        df_dew[var_to_exclude] = df_dew_temp.iloc[:, 1]
+
+    df_dewc=df_dew.copy()
+    df_dewc['hour']=df_dew['hour']-df_dew['weekday']
+    df_dewc['weekday']=df_dew['weekday']-df_dew['day_julian']
+    df_dewc['day_julian']=df_dew['day_julian']-df_dew['date_unix']
+    df_dewc['Deweathered']=df_dew['hour']
+
+    dfr=pd.DataFrame(index=df_dewc.index)
+    df['date_d']=df['date'].dt.date
+    date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
+    date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
+    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()):
+        dfa=df[df['date_d']>=ds]
+        dfa=dfa[dfa['date']<=dfa['date'].min()+pd.DateOffset(days=window_days)]
+        dfar=normalise(automl=automl,df=dfa,
+            feature_names=feature_names, variables= variables_sample,
+            n_samples=n_samples, n_cores=n_cores, seed=seed)
+        dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
+    df_dewc['MET_mean_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
+    df_dewc['MET_std_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
+    df_dewc['MET_short']=df_dewc['Observed']-df_dewc['MET_mean_'+str(window_days)]
+    df_dewc['MET_season']=df_dewc['MET_mean_'+str(window_days)]-df_dewc['Deweathered']
+    return df_dewc, mod_stats
+
 def rolling_dew(df,value=None, window_days=30, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
