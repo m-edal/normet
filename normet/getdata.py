@@ -54,7 +54,7 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
         }
 
         # 执行下载请求，并将数据保存到本地文件
-        filename = path+f"era5_data_{lat}_{lon}.nc"
+        filename = path+f"era5_data_{lat}_{lon}_{year}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
         print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
