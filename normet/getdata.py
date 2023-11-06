@@ -21,17 +21,18 @@ def download_era5(lat_list,lon_list,year_range,
     # 启动多个线程进行并行下载
     threads = []
     for lat, lon in zip(lat_list, lon_list):
-        t = threading.Thread(target=download_era5_worker,
-            args=(lat, lon, var_list, year_range, month_range,
-            day_range, time_range,path ))
-        t.start()
-        threads.append(t)
+        for year in year_range:
+            t = threading.Thread(target=download_era5_worker,
+            args=(lat, lon, var_list, year, month_range,
+            day_range, time_range,path))
+            t.start()
+            threads.append(t)
     # 等待所有线程完成
     for t in threads:
         t.join()
     return t
 
-def download_era5_worker(lat, lon, var_list, year_range, month_range,
+def download_era5_worker(lat, lon, var_list, year, month_range,
     day_range, time_range,path='./'):
     try:
         # 创建一个CDS API客户端对象
@@ -42,7 +43,7 @@ def download_era5_worker(lat, lon, var_list, year_range, month_range,
             'product_type': 'reanalysis',
             'format': 'netcdf',
             'variable': var_list,
-            'year': year_range,
+            'year': year,
             'month': month_range,
             'day': day_range,
             'time': time_range,
@@ -59,25 +60,9 @@ def download_era5_worker(lat, lon, var_list, year_range, month_range,
         print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
         print(f"Error message: {str(e)}")
 
-def era5_dataframe(lat_list,lon_list,path,n_cores=-1):
-    results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,path) for (lat,lon) in zip(lat_list,lon_list))
-    df = pd.concat(results)
-    return df
-
-def era5_dataframe_worker(lat,lon,path):
-    # 从数据集中选择与经纬度最接近的点位
-    filepath = path+f"era5_data_{lat}_{lon}.nc"
-    df=era5_nc_worker(lat,lon,filepath)
-    return df
-
-def download_era5_area(lat_lim, lon_lim, year_range,
-    month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
-    day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)],
-    time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
-    var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
-        '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
-        'surface_pressure','surface_solar_radiation_downwards',
-        'total_cloud_cover','total_precipitation'],path='./'):
+def download_era5_area_worker(lat_lim, lon_lim,
+    var_list, year, month_range,
+    day_range, time_range,path='./'):
     try:
         # 创建一个CDS API客户端对象
         c = cdsapi.Client()
@@ -87,26 +72,86 @@ def download_era5_area(lat_lim, lon_lim, year_range,
             'product_type': 'reanalysis',
             'format': 'netcdf',
             'variable': var_list,
-            'year': year_range,
+            'year': year,
             'month': month_range,
             'day': day_range,
             'time': time_range,
-            'area': [
-                lat_lim[1], lon_lim[0], lat_lim[0],
-                lon_lim[1],
-            ],
+            'area': [lat_lim[1], lon_lim[0],
+                    lat_lim[0],lon_lim[1],],
         }
 
         # 执行下载请求，并将数据保存到本地文件
-        filename = path+f"era5_data_{lat_lim}_{lon_lim}.nc"
+        filename = path+f"era5_data_{lat_lim}_{lon_lim}_{year}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
         print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
         print(f"Error message: {str(e)}")
 
-def era5_area_dataframe(lat_list,lon_list,filepath,n_cores=-1):
-    results = Parallel(n_jobs=n_cores)(delayed(era5_nc_worker)(lat,lon,filepath) for (lat,lon) in zip(lat_list,lon_list))
+
+def download_era5_area(lat_lim, lon_lim, year_range,
+    month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
+    day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)],
+    time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
+    var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
+        '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
+        'surface_pressure','surface_solar_radiation_downwards',
+        'total_cloud_cover','total_precipitation'],path='./'):
+    # 启动多个线程进行并行下载
+    threads = []
+    for year in year_range:
+        t = threading.Thread(target=download_era5_area_worker,
+        args=(lat_lim, lon_lim, var_list, year, month_range,
+        day_range, time_range,path))
+        t.start()
+        threads.append(t)
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
+    return t
+
+def era5_dataframe(lat_list,lon_list,year_range,path,n_cores=-1):
+    results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,year_range,path) for (lat,lon) in zip(lat_list,lon_list))
     df = pd.concat(results)
+    return df
+
+def era5_dataframe_worker(lat,lon,year_range,path):
+    results = []
+
+    for year in year_range:
+        # 构建带有年份信息的文件名
+        filename = f"era5_data_{lat}_{lon}_{year}.nc"
+        filepath = path + filename
+
+        # 调用 era5_nc_worker 函数以读取数据，并将结果添加到列表中
+        result = era5_nc_worker(lat, lon, filepath)
+        results.append(result)
+
+    # 使用 pd.concat 将结果连接在一起
+    df = pd.concat(results)
+
+    return df
+
+
+def era5_area_dataframe(lat_list,lon_list,lat_lim, lon_lim,year_range,path,n_cores=-1):
+    results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,lat_lim, lon_lim,year_range,path) for (lat,lon) in zip(lat_list,lon_list))
+    df = pd.concat(results)
+    return df
+
+def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, path):
+    results = []
+
+    for year in year_range:
+        # 构建带有年份信息的文件名
+        filename = f"era5_data_{lat_lim}_{lon_lim}_{year}.nc"
+        filepath = path + filename
+
+        # 调用 era5_nc_worker 函数以读取数据，并将结果添加到列表中
+        result = era5_nc_worker(lat, lon, filepath)
+        results.append(result)
+
+    # 使用 pd.concat 将结果连接在一起
+    df = pd.concat(results)
+
     return df
 
 def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']):
