@@ -13,7 +13,7 @@ warnings.filterwarnings('ignore')
 
 def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  variables_sample=None, n_samples=300,window_days=15,fraction=0.75, seed=7654321, n_cores=-1):
+                  variables_sample=None, n_samples=300,window_days=15,rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
     df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
@@ -46,22 +46,22 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
     df['date_d']=df['date'].dt.date
     date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
     date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
-    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()):
+    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()[::rollingevery]):
         dfa=df[df['date_d']>=ds]
         dfa=dfa[dfa['date']<=dfa['date'].min()+pd.DateOffset(days=window_days)]
         dfar=normalise(automl=automl,df=dfa,
             feature_names=feature_names, variables= variables_sample,
             n_samples=n_samples, n_cores=n_cores, seed=seed)
         dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
-    df_dewc['MET_mean_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
-    df_dewc['MET_std_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
-    df_dewc['MET_short']=df_dewc['Observed']-df_dewc['MET_mean_'+str(window_days)]
-    df_dewc['MET_season']=df_dewc['MET_mean_'+str(window_days)]-df_dewc['Deweathered']
+    df_dewc['EMI_mean_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
+    df_dewc['EMI_std_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
+    df_dewc['MET_short']=df_dewc['Observed']-df_dewc['EMI_mean_'+str(window_days)]
+    df_dewc['MET_season']=df_dewc['EMI_mean_'+str(window_days)]-df_dewc['Deweathered']
     return df_dewc, mod_stats
 
-def rolling_dew(df,value=None, window_days=30, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
+                  variables_sample=None, n_samples=300,window_days=15, rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
     df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
@@ -72,7 +72,7 @@ def rolling_dew(df,value=None, window_days=30, feature_names=None, split_method 
     df['date_d']=df['date'].dt.date
     date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
     date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
-    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()):
+    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()[::rollingevery]):
         dfa=df[df['date_d']>=ds]
         dfa=dfa[dfa['date']<=dfa['date'].min()+pd.DateOffset(days=window_days)]
         dfar=normalise(automl=automl,df=dfa,
