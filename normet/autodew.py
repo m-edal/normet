@@ -14,19 +14,15 @@ warnings.filterwarnings('ignore')
 def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,window_days=15,rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
-    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
+    df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
     mod_stats=(pd.concat([modStats(df,set='testing'),
                 modStats(df,set='training'),
                 modStats(df.assign(set="all"),set='all')]))
-    df_dew=normalise(automl, df,
-                           feature_names = feature_names,
-                          variables= None,
-                          n_samples=n_samples, n_cores=n_cores, seed=seed)
-    df_dew.columns=['Observed','date_unix']
     var_names=feature_names
-    for var_to_exclude in ['day_julian', 'weekday', 'hour']:
+    df_dew=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
+    for var_to_exclude in ['hour','weekday','day_julian','date_unix']:
         var_names = list(set(var_names) - set([var_to_exclude]))
         df_dew_temp = normalise(automl, df,
             feature_names=feature_names,
@@ -37,10 +33,11 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
         df_dew[var_to_exclude] = df_dew_temp.iloc[:, 1]
 
     df_dewc=df_dew.copy()
-    df_dewc['hour']=df_dew['hour']-df_dew['weekday']
-    df_dewc['weekday']=df_dew['weekday']-df_dew['day_julian']
-    df_dewc['day_julian']=df_dew['day_julian']-df_dew['date_unix']
-    df_dewc['Deweathered']=df_dew['hour']
+    df_dewc['hour']=df_dew['hour']-df_dew['Observed'].mean()
+    df_dewc['weekday']=df_dew['weekday']-df_dew['hour']
+    df_dewc['day_julian']=df_dew['day_julian']-df_dew['weekday']
+    df_dewc['date_unix']=df_dew['date_unix']-df_dew['day_julian']+df_dew['Observed'].mean()
+    df_dewc['Deweathered']=df_dew['date_unix']
 
     dfr=pd.DataFrame(index=df_dewc.index)
     df['date_d']=df['date'].dt.date
@@ -62,7 +59,7 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
 def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,window_days=15, rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
-    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
+    df=prepare_data(df, value=value, feature_names=feature_names,split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
     mod_stats=(pd.concat([modStats(df,set='testing'),
@@ -117,7 +114,7 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
 def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
-    df=prepare_data(df, value=value, split_method = split_method,fraction=fraction,seed=seed)
+    df=prepare_data(df, value=value, feature_names=feature_names,split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
     mod_stats=(pd.concat([modStats(df,set='testing'),
@@ -130,12 +127,13 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
                           n_samples=n_samples, n_cores=n_cores, seed=seed)
     return df_dew, mod_stats
 
-def prepare_data(df, value='value', na_rm=False,split_method = 'random' ,replace=False, fraction=0.75,seed=7654321):
+def prepare_data(df, value='value', feature_names=None, na_rm=True,split_method = 'random' ,replace=False, fraction=0.75,seed=7654321):
 
     # Check
     if value not in df.columns:
         raise ValueError("`value` is not within input data frame.")
 
+    df=df[list(set(feature_names) & set(list(df.columns)))+['date',value]]
     df = (df.rename(columns={value: "value"})
         .pipe(check_data, prepared=False)
         .pipe(impute_values, na_rm=na_rm)
@@ -174,7 +172,7 @@ def add_date_variables(df, replace):
 def impute_values(df, na_rm):
     # Remove missing values
     if na_rm:
-        df = df.dropna(subset=['value'])
+        df = df.dropna(subset=['value']).reset_index(drop=True)
     # Numeric variables
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col].fillna(df[col].median(), inplace=True)
