@@ -56,6 +56,39 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
     df_dewc['MET_season']=df_dewc['EMI_mean_'+str(window_days)]-df_dewc['Deweathered']
     return df_dewc, mod_stats
 
+def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
+                  variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
+    df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
+    automl=train_model(df,variables=feature_names,
+                time_budget= time_budget,  metric= metric, task= task, seed= seed);
+    mod_stats=(pd.concat([modStats(df,set='testing'),
+                modStats(df,set='training'),
+                modStats(df.assign(set="all"),set='all')]))
+    var_names=feature_names
+    automlfi=pd.DataFrame(automl.feature_importances_)
+    automlfi.index=feature_names
+    automlfi=automlfi.sort_values(0,ascending=False)
+    df_deww=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
+    MET_list=[item for item in automlfi.index if item not in ['hour','weekday','day_julian','date_unix']]
+    for var_to_exclude in MET_list:
+        var_names = list(set(var_names) - set([var_to_exclude]))
+        df_dew_temp = normalise(automl, df,
+            feature_names=feature_names,
+            variables=var_names,
+            n_samples=n_samples,
+            n_cores=n_cores,
+            seed=seed)
+        df_deww[var_to_exclude] = df_dew_temp.iloc[:, 1]
+    n_MET=len(MET_list)
+    df_dewwc=df_deww.copy()
+    for i in np.arange(n_MET):
+        if i ==0:
+            df_dewwc[MET_list[0]]=df_deww[MET_list[0]]-df_deww['Observed'].mean()
+        else:
+            df_dewwc[MET_list[i]]=df_deww[MET_list[i]]-df_deww[MET_list[i-1]]
+    return df_dewwc, mod_stats
+
 def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,window_days=15, rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
