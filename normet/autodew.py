@@ -58,17 +58,16 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
 
 def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
+                  n_samples=300,fraction=0.75, seed=7654321, importance_ascending=False, n_cores=-1):
     df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
-                time_budget= time_budget,  metric= metric, task= task, seed= seed);
+                time_budget= time_budget,metric= metric, task= task, seed= seed);
     mod_stats=(pd.concat([modStats(df,set='testing'),
                 modStats(df,set='training'),
                 modStats(df.assign(set="all"),set='all')]))
     var_names=feature_names
-    automlfi=pd.DataFrame(automl.feature_importances_)
-    automlfi.index=feature_names
-    automlfi=automlfi.sort_values(0,ascending=False)
+    automlfi=pd.DataFrame(data={'feature_importances':automl.feature_importances_},
+                      index=automl.feature_names_in_).sort_values('feature_importances',ascending=importance_ascending)
     df_deww=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
     MET_list=[item for item in automlfi.index if item not in ['hour','weekday','day_julian','date_unix']]
     for var_to_exclude in MET_list:
