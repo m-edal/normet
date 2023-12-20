@@ -69,7 +69,7 @@ def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_bud
     automlfi=pd.DataFrame(data={'feature_importances':automl.feature_importances_},
                       index=automl.feature_names_in_).sort_values('feature_importances',ascending=importance_ascending)
     df_deww=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
-    MET_list=[item for item in automlfi.index if item not in ['hour','weekday','day_julian','date_unix']]
+    MET_list=['all']+[item for item in automlfi.index if item not in ['hour','weekday','day_julian','date_unix']]
     for var_to_exclude in MET_list:
         var_names = list(set(var_names) - set([var_to_exclude]))
         df_dew_temp = normalise(automl, df,
@@ -79,13 +79,11 @@ def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_bud
             n_cores=n_cores,
             seed=seed)
         df_deww[var_to_exclude] = df_dew_temp.iloc[:, 1]
-    n_MET=len(MET_list)
     df_dewwc=df_deww.copy()
-    for i in np.arange(n_MET):
-        if i ==0:
-            df_dewwc[MET_list[0]]=df_deww[MET_list[0]]-df_deww['Observed'].mean()
-        else:
-            df_dewwc[MET_list[i]]=df_deww[MET_list[i]]-df_deww[MET_list[i-1]]
+    for i,param in enumerate(MET_list):
+        if (i>0)&(i<len(MET_list)):
+            df_dewwc[param]=df_deww[param]-df_deww[MET_list[i-1]]
+
     return df_dewwc, mod_stats
 
 def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
@@ -312,7 +310,7 @@ def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, s
     value_predict = model_predict(automl, df)
 
     # Build data frame of predictions
-    predictions = pd.DataFrame({'date': df['date'], 'Observed':df['value'],'Deweathered': value_predict})
+    predictions = pd.DataFrame({'date': df['date'], 'Observed':df['value'],'Normalised': value_predict})
 
     return predictions
 
@@ -346,7 +344,7 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
             variables=variables,replace=replace,n_cores=n_cores,
             n_samples=n_samples,seed=random_seeds[i],
             verbose=verbose) for i in range(n_samples)), axis=0).pivot_table(index='date',aggfunc='mean')
-    df=df[['Observed','Deweathered']].rename(columns={'Deweathered':'Deweathered_'+str(seed)})
+    df=df[['Observed','Normalised']].rename(columns={'Normalised':'Normalised_'+str(seed)})
     return df
 
 def model_predict(automl, df=None):
