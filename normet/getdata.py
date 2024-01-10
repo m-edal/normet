@@ -180,6 +180,7 @@ def era5_nc_worker(lat, lon, filepath):
 
     df_final['lat'] = lat
     df_final['lon'] = lon
+    df_final.index.name='date'
 
     return df_final
 
