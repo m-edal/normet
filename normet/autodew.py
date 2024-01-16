@@ -13,7 +13,7 @@ warnings.filterwarnings('ignore')
 
 def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  n_samples=300,window_days=15,rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
+                  n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
     df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
                 time_budget= time_budget,  metric= metric, task= task, seed= seed);
@@ -22,7 +22,7 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
                 modStats(df.assign(set="all"),set='all')]))
     var_names=feature_names
     df_dew=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
-    for var_to_exclude in ['hour','weekday','day_julian','date_unix']:
+    for var_to_exclude in ['all','date_unix','day_julian','weekday','hour']:
         var_names = list(set(var_names) - set([var_to_exclude]))
         df_dew_temp = normalise(automl, df,
             feature_names=feature_names,
@@ -33,13 +33,30 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
         df_dew[var_to_exclude] = df_dew_temp.iloc[:, 1]
 
     df_dewc=df_dew.copy()
-    df_dewc['hour']=df_dew['hour']-df_dew['Observed'].mean()
-    df_dewc['weekday']=df_dew['weekday']-df_dew['hour']
-    df_dewc['day_julian']=df_dew['day_julian']-df_dew['weekday']
-    df_dewc['date_unix']=df_dew['date_unix']-df_dew['day_julian']+df_dew['Observed'].mean()
-    df_dewc['Deweathered']=df_dew['date_unix']
+    df_dewc['hour']=df_dew['hour']-df_dew['weekday']
+    df_dewc['weekday']=df_dew['weekday']-df_dew['day_julian']
+    df_dewc['day_julian']=df_dew['day_julian']-df_dew['date_unix']
+    df_dewc['date_unix']=df_dew['date_unix']-df_dew['all']+df_dew['hour'].mean()
+    df_dewc['Deweathered']=df_dew['hour']
+    return df_dewc, mod_stats
 
-    dfr=pd.DataFrame(index=df_dewc.index)
+
+def MET_rolling(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
+                  n_samples=300,window_days=15,rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
+    df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
+    automl=train_model(df,variables=feature_names,
+                time_budget= time_budget,  metric= metric, task= task, seed= seed);
+    mod_stats=(pd.concat([modStats(df,set='testing'),
+                modStats(df,set='training'),
+                modStats(df.assign(set="all"),set='all')]))
+    variables_sample=[item for item in feature_names if item not in ['hour','weekday','day_julian','date_unix']]
+    df_dew=normalise(automl, df,
+                           feature_names = feature_names,
+                          variables= variables_sample,
+                          n_samples=n_samples, n_cores=n_cores, seed=seed)
+
+    dfr=pd.DataFrame(index=df_dew.index)
     df['date_d']=df['date'].dt.date
     date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
     date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
@@ -50,11 +67,11 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
             feature_names=feature_names, variables= variables_sample,
             n_samples=n_samples, n_cores=n_cores, seed=seed)
         dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
-    df_dewc['EMI_mean_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
-    df_dewc['EMI_std_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
-    df_dewc['MET_short']=df_dewc['Observed']-df_dewc['EMI_mean_'+str(window_days)]
-    df_dewc['MET_season']=df_dewc['EMI_mean_'+str(window_days)]-df_dewc['Deweathered']
-    return df_dewc, mod_stats
+    df_dew['EMI_mean_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
+    df_dew['EMI_std_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
+    df_dew['MET_short']=df_dew['Observed']-df_dew['EMI_mean_'+str(window_days)]
+    df_dew['MET_season']=df_dew['EMI_mean_'+str(window_days)]-df_dew['Normalised_'+str(seed)]
+    return df_dew, mod_stats
 
 def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
