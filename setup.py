@@ -38,5 +38,8 @@ setup(
         'cvxpy',
         'sklearn',
         'statsmodels',
+        'cdsapi',
+        'pyreadr',
+        'wget',
     ],
     zip_safe=False)
