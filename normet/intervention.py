@@ -3,7 +3,7 @@ warnings.filterwarnings('ignore')
 import pandas as pd
 import numpy as np
 import statsmodels.formula.api as smf
-import cvxpy as cp
+#import cvxpy as cp
 from joblib import Parallel, delayed
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
