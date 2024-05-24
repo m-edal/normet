@@ -10,7 +10,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Atmospheric Science"
     ]
 
-with open("README.rst", "r") as fp:
+with open("README.md", "r") as fp:
     long_description = fp.read()
 
 setup(
@@ -32,14 +32,12 @@ setup(
         'flaml',
         'matplotlib',
         'seaborn',
-        'os',
-        'random',
         'ruptures',
-        'cvxpy',
-        'sklearn',
+        'scikit-learn',
         'statsmodels',
         'cdsapi',
         'pyreadr',
         'wget',
+        'xarray'
     ],
     zip_safe=False)
