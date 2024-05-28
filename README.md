@@ -7,9 +7,7 @@
 ## Installation
 Install from source:
 ```
-git clone https://github.com/m-edal/NORmet.git
-cd NORmet
-python setup.py install
+pip install git+https://github.com/m-edal/NORmet
 ```
 
 ## Main Features
