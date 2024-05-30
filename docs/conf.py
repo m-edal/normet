@@ -4,20 +4,29 @@
 
 project = 'NORmet'
 author = 'Dr. Congbo Song and other MEDAL group members'
-release = '0.1.0'
+release = 'v0.1'
 
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
+    # 'recommonmark',
+    # 'sphinx_markdown_tables',
+    # 'sphinx.ext.githubpages',
+    'nbsphinx',
+    # 'IPython.sphinxext.ipython_console_highlighting',
+    # 'sphinx.ext.autodoc',
+    # 'numpydoc',
+    # 'sphinx.ext.autosummary',
+    # 'sphinx.ext.mathjax',
+    # 'sphinx.ext.autodoc',
+    # 'sphinx.ext.napoleon'
 ]
 
+
 templates_path = ['_templates']
-exclude_patterns = []
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
