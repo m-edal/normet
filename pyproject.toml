@@ -37,9 +37,6 @@ dependencies = [
     "pyreadr",
     "wget",
     "xarray",
-    "nbsphinx",
-    "sphinx_rtd_theme",
-    "sphinx-markdown-tables",
 ]
 
 [project.urls]
