@@ -1,3 +1,7 @@
+sphinx
+sphinx-autobuild
+sphinx-rtd-theme
+nbsphinx
 pandas
 numpy
 scipy
@@ -12,6 +16,3 @@ cdsapi
 pyreadr
 wget
 xarray
-nbsphinx
-sphinx_rtd_theme
-sphinx-markdown-tables
