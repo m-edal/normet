@@ -36,7 +36,10 @@ dependencies = [
     "cdsapi",
     "pyreadr",
     "wget",
-    "xarray"
+    "xarray",
+    "nbsphinx",
+    "sphinx_rtd_theme",
+    "sphinx-markdown-tables",
 ]
 
 [project.urls]
