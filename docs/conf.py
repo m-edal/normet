@@ -12,6 +12,9 @@ extensions = [
     # 'recommonmark',
     # 'sphinx_markdown_tables',
     # 'sphinx.ext.githubpages',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
     'nbsphinx',
     # 'IPython.sphinxext.ipython_console_highlighting',
     # 'sphinx.ext.autodoc',
@@ -29,6 +32,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = 'sphinx_rtd_theme'
+html_static_path = ['_static']
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
