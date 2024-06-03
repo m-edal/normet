@@ -1,27 +1,61 @@
-Template for the Read the Docs tutorial
-=======================================
+normet
+======
 
-Project Introduction:
+**normet** is a Python package to conduct automated data curation, automated machine learning-based meteorology/weather normalisation and causal analysis on air quality interventions for atmospheric science, air pollution and policy analysis. The main aim of this package is to provide a Swiss army knife enabling rapid automated-air quality intervention studies, and contributing to cross-disciplinary studies with public health, economics, policy, etc. The framework below shows the modules included in the package and how different modules are linked to each other.
 
-normet is a Python package for air quality interventions using automated data curation, machine learning, and causal analysis.
-Features:
+.. image:: docs/figs/Framework.jpg
+   :alt: Image
+   :width: 800
 
-Automated data curation
-Automated machine learning
-Partial dependency analysis
-Weather normalization
-Change point detection
-Causal inference for air quality interventions
-Installation Instructions:
+Installation
+============
 
-Install from source using pip: pip install git+https://github.com/m-edal/NORmet
-Repository Structure:
+Install from source:
 
-The repository contains various directories and files, including modules for data handling, machine learning, partial dependency analysis, change point detection, and causal inference, along with datasets and tutorials.
-Documentation:
+.. code-block:: bash
 
-Demos and tutorials can be found on the GitHub repository.
+   pip install git+https://github.com/m-edal/NORmet
 
-Read the tutorial here:
+Main Features
+=============
 
-https://docs.readthedocs.io/en/stable/tutorial/
+Here are a few of the functions that normet implemented:
+
+  - Automated data curation. Download air quality data and re-analysis data at any time in any area.
+  - Automated machine learning. Help to select the 'best' ML model for the dataset and model training.
+  - Partial dependency. Look at the drivers (both interactive and noninteractive) of changes in air pollutant concentrations and feature importance.
+  - Weather normalisation. Decoupling emission-related air pollutant concentrations from meteorological effects.
+  - Change point detection. Detect the change points caused by policy interventions.
+  - Causal inference for air quality interventions. Attribution of changes in air pollutant concentrations to air quality policy interventions.
+
+Repository structure
+====================
+
+.. code-block:: none
+
+      .                                 # Root folder of our repository
+      ├── normet                        # Contains datasets and function modules
+      |------__init__.py
+      |------ getdata.py                # Functions of downloading AQ and ERA5 datasets
+      |------ autodew.py                # Functions of automl-based weather normalisation
+      |------ pdp.py                    # Functions of partial dependency
+      |------ cpd.py                    # Functions of change-point detection
+      |------ intervention.py           # Functions of causal inference
+      |------ datasets                  # Datasets used for demonstration
+      |---------- ...
+      ├── docs                          # Documentation of the package
+      |------ figs                      # Figures for the demonstration
+      |---------- NORmet_Framework.webp # framework for the package
+      ├------ tutorials                     # Contains demos and tutorials
+      |---------- Case1_autodeweather       # Automl-based weather normalisation
+      |---------- Case2_changepoint         # Change-point detection
+      |---------- Case3_getdata function    # Download AQ and ERA5 data
+      |---------- Case4_Intervention        # Causal analysis of air quality interventions         
+      ├── setup.py
+      ├── LICENSE
+      └── README.md
+
+Documentation
+=============
+
+You can find Demo and tutorials of the functions `here <https://github.com/m-edal/NORmet/tree/main/tutorials>`_.
