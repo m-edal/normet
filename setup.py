@@ -36,7 +36,7 @@ setup(
     ],
     install_requires=required_packages,
     packages=find_packages(),
-    package_data={"normet": ["datasets/*/*"]},
+    package_data={"normet": ["data/*/*"]},
     zip_safe=False,
     project_urls={"homepage": "https://github.com/dsncas/NORmet"}
 )
