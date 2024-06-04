@@ -14,7 +14,9 @@ Install from source:
 
 .. code-block:: bash
 
-   pip install git+https://github.com/m-edal/NORmet
+   git clone https://github.com/dsncas/normet
+   cd normet
+   python setup.py install
 
 Main Features
 =============
@@ -33,25 +35,27 @@ Repository structure
 
 .. code-block:: none
 
-      .                                 # Root folder of our repository
-      ├── normet                        # Contains datasets and function modules
+      .                                  # Root folder of our repository
+      ├── normet                         # Contains datasets and function modules
       |------__init__.py
-      |------ getdata.py                # Functions of downloading AQ and ERA5 datasets
-      |------ autodew.py                # Functions of automl-based weather normalisation
-      |------ pdp.py                    # Functions of partial dependency
-      |------ cpd.py                    # Functions of change-point detection
-      |------ intervention.py           # Functions of causal inference
-      |------ datasets                  # Datasets used for demonstration
+      |------ getdata.py                 # Functions of downloading AQ and ERA5 datasets
+      |------ autodew.py                 # Functions of automl-based weather normalisation
+      |------ pdp.py                     # Functions of partial dependency
+      |------ cpd.py                     # Functions of change-point detection
+      |------ intervention.py            # Functions of causal inference
       |---------- ...
-      ├── docs                          # Documentation of the package
-      |------ figs                      # Figures for the demonstration
-      |---------- NORmet_Framework.webp # framework for the package
-      ├------ tutorials                     # Contains demos and tutorials
-      |---------- Case1_autodeweather       # Automl-based weather normalisation
-      |---------- Case2_changepoint         # Change-point detection
-      |---------- Case3_getdata function    # Download AQ and ERA5 data
-      |---------- Case4_Intervention        # Causal analysis of air quality interventions         
+      |── datasets                       # Datasets used for demonstration
+      ├── docs                           # Documentation of the package
+      |------ figs                       # Figures for the demonstration
+      |---------- NORmet_Framework.webp  # framework for the package
+      ├------ tutorials                  # Contains demos and tutorials
+      |---------- Case1_autodeweather    # Automl-based weather normalisation
+      |---------- Case2_changepoint      # Change-point detection
+      |---------- Case3_getdata function # Download AQ and ERA5 data
+      |---------- Case4_Intervention     # Causal analysis of air quality interventions
+      |------ ...
       ├── setup.py
+      ├── pyproject.toml
       ├── LICENSE
       └── README.md
 
