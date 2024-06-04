@@ -1,38 +1,23 @@
 import subprocess
 import sys
+from setuptools import setup, find_packages
 
 def install_with_pip(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 required_packages = [
-    "pandas",
-    "numpy",
-    "scipy",
-    "joblib",
-    "flaml",
-    "matplotlib",
-    "seaborn",
-    "ruptures",
-    "scikit-learn",
-    "statsmodels",
-    "cdsapi",
-    "pyreadr",
-    "wget",
-    "xarray"
+    "pandas", "numpy", "scipy", "joblib", "flaml", "matplotlib", "seaborn",
+    "ruptures", "scikit-learn", "statsmodels", "cdsapi", "pyreadr", "wget", "xarray"
 ]
 
 for package in required_packages:
     install_with_pip(package)
 
-
-
-from setuptools import setup, find_packages
-
 setup(
     name="normet",
     version="0.1.0",
     description="Normet for automated air quality intervention studies",
-    long_description=open("README.rst","r",encoding="utf-8").read(),
+    long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",
     author="Dr. Congbo Song and other MEDAL group members",
     license="MIT",
@@ -49,28 +34,9 @@ setup(
     keywords=[
         "Atmospheric Science", "Air Quality", "Machine Learning", "Causal Analysis"
     ],
-    install_requires=[
-        "pandas",
-        "numpy",
-        "scipy",
-        "joblib",
-        "flaml",
-        "matplotlib",
-        "seaborn",
-        "ruptures",
-        "scikit-learn",
-        "statsmodels",
-        "cdsapi",
-        "pyreadr",
-        "wget",
-        "xarray"
-    ],
+    install_requires=required_packages,
     packages=find_packages(),
-    package_data={
-        "normet": ["datasets/*/*"]
-    },
+    package_data={"normet": ["data/*/*"]},
     zip_safe=False,
-    project_urls={
-        "homepage": "https://github.com/dsncas/NORmet"
-    },
+    project_urls={"homepage": "https://github.com/dsncas/NORmet"}
 )
