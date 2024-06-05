@@ -10,7 +10,7 @@ def pdp_all(automl, df, feature_names=None,variables=None, training_only=True,n_
     """
     Computes partial dependence plots for all specified features.
 
-    Args:
+    Parameters:
         automl: AutoML model object.
         df (DataFrame): Input DataFrame containing the dataset.
         feature_names (list): List of feature names to compute partial dependence plots for.
@@ -37,7 +37,7 @@ def pdp_worker(automl, X_train, variable,training_only=True):
     """
     Worker function for computing partial dependence plots for a single feature.
 
-    Args:
+    Parameters:
         automl: AutoML model object.
         X_train (DataFrame): Input DataFrame containing the training data.
         variable (str): Name of the feature to compute partial dependence plot for.
@@ -64,7 +64,7 @@ def pdp_plot(automl,df,feature_names,variables=None,kind='average',n_cores=-1,tr
     """
     Plots partial dependence plots for specified features.
 
-    Args:
+    Parameters:
         automl: AutoML model object.
         df (DataFrame): Input DataFrame containing the dataset.
         feature_names (list): List of feature names to plot partial dependence plots for.
@@ -94,7 +94,7 @@ def pdp_interaction(automl,df,variables,kind='average',training_only=True,ncols=
     """
     Plots interaction partial dependence plots for specified features.
 
-    Args:
+    Parameters:
         automl: AutoML model object.
         df (DataFrame): Input DataFrame containing the dataset.
         variables (list): List of feature names to plot interaction partial dependence plots for.
@@ -118,7 +118,7 @@ def pdp_nointeraction(automl,df,feature_names,variables=None,kind='average',trai
     """
     Plots partial dependence plots without interaction effects for specified features.
 
-    Args:
+    Parameters:
         automl: AutoML model object.
         df (DataFrame): Input DataFrame containing the dataset.
         feature_names (list): List of feature names to plot partial dependence plots for.

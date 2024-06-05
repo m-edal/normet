@@ -12,7 +12,7 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
     """
     Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
         date_col (str): Name of the column containing the date data.
@@ -40,7 +40,7 @@ def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
     """
     Performs Synthetic Control Method (SCM) for a single treatment target.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
         date_col (str): Name of the column containing the date data.
@@ -255,7 +255,7 @@ def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_
     """
     Performs synthetic control using machine learning regression models.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
         date_col (str): Name of the column containing the date data.
@@ -294,7 +294,7 @@ def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,
     """
     Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
         date_col (str): Name of the column containing the date data.

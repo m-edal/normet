@@ -21,7 +21,7 @@ def download_era5(lat_list,lon_list,year_range,
     """
     Download ERA5 weather data in parallel.
 
-    Args:
+    Parameters:
         lat_list (list): List of latitudes.
         lon_list (list): List of longitudes.
         year_range (list): Range of years.
@@ -51,7 +51,7 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
     """
     Download ERA5 weather data for a single coordinate point.
 
-    Args:
+    Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
         var_list (list): List of variables to download.
@@ -88,7 +88,7 @@ def download_era5_area_worker(lat_lim, lon_lim,
     """
     Download ERA5 weather data for a specified area.
 
-    Args:
+    Parameters:
         lat_lim (list): Latitude range [min_lat, max_lat].
         lon_lim (list): Longitude range [min_lon, max_lon].
         var_list (list): List of variables to download.
@@ -130,7 +130,7 @@ def download_era5_area(lat_lim, lon_lim, year_range,
     """
     Download ERA5 weather data for a specified area in parallel.
 
-    Args:
+    Parameters:
         lat_lim (list): Latitude range [min_lat, max_lat].
         lon_lim (list): Longitude range [min_lon, max_lon].
         year_range (list): Range of years.
@@ -158,7 +158,7 @@ def era5_dataframe(lat_list,lon_list,year_range,path,n_cores=-1):
     """
     Read ERA5 weather data in parallel and convert to DataFrame.
 
-    Args:
+    Parameters:
         lat_list (list): List of latitudes.
         lon_list (list): List of longitudes.
         year_range (list): Range of years.
@@ -176,7 +176,7 @@ def era5_dataframe_worker(lat,lon,year_range,path):
     """
     Read ERA5 weather data for a single coordinate and range of years and convert to DataFrame.
 
-    Args:
+    Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
         year_range (list): Range of years.
@@ -200,7 +200,7 @@ def era5_area_dataframe(lat_list,lon_list,lat_lim, lon_lim,year_range,path,n_cor
     """
     Read ERA5 weather data for a specified area in parallel and convert to DataFrame.
 
-    Args:
+    Parameters:
         lat_list (list): List of latitudes.
         lon_list (list): List of longitudes.
         lat_lim (list): Latitude range [min_lat, max_lat].
@@ -220,7 +220,7 @@ def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, path):
     """
     Read ERA5 weather data for a specified area and range of years and convert to DataFrame.
 
-    Args:
+    Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
         lat_lim (list): Latitude range [min_lat, max_lat].
@@ -247,7 +247,7 @@ def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh'
     """
     Extract specified variables from an ERA5 dataset for a given latitude and longitude.
 
-    Args:
+    Parameters:
         ds (xarray.Dataset): The dataset from which to extract data.
         lat (float): Latitude.
         lon (float): Longitude.
@@ -266,7 +266,7 @@ def era5_nc_worker(lat, lon, filepath):
     """
     Read ERA5 netCDF file and convert to DataFrame.
 
-    Args:
+    Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
         filepath (str): Path to the netCDF file.
@@ -299,7 +299,7 @@ def UK_AURN_metadata(path='./'):
     """
     Download and read the metadata for UK AURN data.
 
-    Args:
+    Parameters:
         path (str): Path to the directory where the metadata file will be saved.
 
     Returns:
@@ -324,7 +324,7 @@ def UK_AURN_download(year_lst,list_authorities=None,path='./'):
     """
     Download and process UK AURN data for specified years and local authorities.
 
-    Args:
+    Parameters:
         year_lst (list or int): List of years or a single year for which the data is to be downloaded.
         list_authorities (list): List of local authorities for which the data is to be downloaded.
                                  If None, data for all authorities will be downloaded.

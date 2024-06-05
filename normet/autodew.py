@@ -17,7 +17,7 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
     """
     Decomposes a time series into different components using machine learning models.
 
-    Args:
+    Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
@@ -68,7 +68,7 @@ def MET_rolling(df, value=None,feature_names=None, split_method = 'random',time_
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
-    Args:
+    Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
@@ -123,7 +123,7 @@ def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_bud
     """
     Decomposes a time series into different components using machine learning models with feature importance ranking.
 
-    Args:
+    Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
@@ -175,7 +175,7 @@ def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
-    Args:
+    Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
@@ -237,7 +237,7 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
     """
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
 
-    Args:
+    Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
@@ -294,7 +294,7 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
     """
     Conducts data preparation, model training, and normalization, returning the transformed dataset and model statistics.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         value (str, optional): Name of the target variable. Default is None.
         feature_names (list, optional): List of feature names. Default is None.
@@ -329,7 +329,7 @@ def prepare_data(df, value='value', feature_names=None, na_rm=True,split_method 
     """
     Prepares the input DataFrame by performing data cleaning, imputation, and splitting.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         value (str, optional): Name of the target variable. Default is 'value'.
         feature_names (list, optional): List of feature names. Default is None.
@@ -360,7 +360,7 @@ def add_date_variables(df, replace):
     """
     Adds date-related variables to the DataFrame.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         replace (bool): Whether to replace existing date variables.
 
@@ -395,7 +395,7 @@ def impute_values(df, na_rm):
     """
     Imputes missing values in the DataFrame.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         na_rm (bool): Whether to remove missing values.
 
@@ -418,7 +418,7 @@ def split_into_sets(df, split_method, fraction,seed):
     """
     Splits the DataFrame into training and testing sets.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         split_method (str): Method for splitting data ('random' or 'time_series').
         fraction (float): Fraction of the dataset to be used for training.
@@ -448,7 +448,7 @@ def check_data(df, prepared):
     """
     Checks the integrity of the input DataFrame.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         prepared (bool): Whether the DataFrame is already prepared.
 
@@ -485,11 +485,11 @@ def train_model(df, variables,
     """
     Trains a model using the provided dataset and Args.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         variables (list): List of feature variables.
 
-    Keyword Args:
+    Keyword Parameters:
         time_budget (int, optional): Total running time in seconds. Default is 60.
         metric (str, optional): Primary metric for regression. Default is 'r2'.
         estimator_list (list, optional): List of ML learners. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
@@ -530,7 +530,7 @@ def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, s
     """
     Worker function for parallel normalization of data.
 
-    Args:
+    Parameters:
         index (int): Index of the worker.
         automl (object): Trained AutoML model.
         df (DataFrame): Input DataFrame containing the dataset.
@@ -577,12 +577,12 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
     """
     Normalizes the dataset using the trained model.
 
-    Args:
+    Parameters:
         automl (object): Trained AutoML model.
         df (DataFrame): Input DataFrame containing the dataset.
         feature_names (list): List of feature names.
 
-    Keyword Args:
+    Keyword Parameters:
         variables (list, optional): List of feature variables. Default is None.
         n_samples (int, optional): Number of samples to normalize. Default is 300.
         replace (bool, optional): Whether to replace existing data. Default is True.
@@ -628,7 +628,7 @@ def model_predict(automl, df=None):
     """
     Predicts values using the trained model.
 
-    Args:
+    Parameters:
         automl (object): Trained AutoML model.
         df (DataFrame, optional): DataFrame containing data to predict. Default is None.
 
@@ -642,7 +642,7 @@ def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMS
     """
     Calculates statistics for model evaluation based on provided data.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         set (str): Set type for which statistics are calculated ('training', 'testing', or 'all').
         statistic (list): List of statistics to calculate.
@@ -660,7 +660,7 @@ def Stats(df, mod="mod", obs="obs",
     """
     Calculates specified statistics based on provided data.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -707,7 +707,7 @@ def n(x, mod="mod", obs="obs"):
     """
     Calculates the number of valid readings.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -724,7 +724,7 @@ def FAC2(x, mod="mod", obs="obs"):
     """
     Calculates the fraction of values within a factor of two.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -747,7 +747,7 @@ def MB(x, mod="mod", obs="obs"):
     """
     Calculates the mean bias.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -764,7 +764,7 @@ def MGE(x, mod="mod", obs="obs"):
     """
     Calculates the mean gross error.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -781,7 +781,7 @@ def NMB(x, mod="mod", obs="obs"):
     """
     Calculates the normalised mean bias.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -798,7 +798,7 @@ def NMGE(x, mod="mod", obs="obs"):
     """
     Calculates the normalised mean gross error.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -815,7 +815,7 @@ def RMSE(x, mod="mod", obs="obs"):
     """
     Calculates the root mean square error.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -832,7 +832,7 @@ def r(x, mod="mod", obs="obs"):
     """
     Calculates the correlation coefficient.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -849,7 +849,7 @@ def COE(x, mod="mod", obs="obs"):
     """
     Calculates the Coefficient of Efficiency.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -866,7 +866,7 @@ def IOA(x, mod="mod", obs="obs"):
     """
     Calculates the Index of Agreement.
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.
@@ -888,7 +888,7 @@ def R2(x, mod="mod", obs="obs"):
     """
     Calculates the determination coefficient (R-squared).
 
-    Args:
+    Parameters:
         x (DataFrame): Input DataFrame containing the dataset.
         mod (str): Column name of the model predictions.
         obs (str): Column name of the observed values.

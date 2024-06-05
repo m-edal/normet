@@ -5,7 +5,7 @@ def cpt_rupture(df,col_name='Deweathered',window=12, n=5,model="l2"):
     """
     Detects change points in a time series using the ruptures package.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the time series data.
         col_name (str, optional): Name of the column containing the time series data. Default is 'Deweathered'.
         window (int, optional): Width of the sliding window. Default is 12.
@@ -35,7 +35,7 @@ def cpt_cumsum(df,col_name='Deweathered',threshold_mean= 10, threshold_std=3000)
     """
     Detects change points in a time series using cumulative sums method.
 
-    Args:
+    Parameters:
         df (DataFrame): Input DataFrame containing the time series data.
         col_name (str, optional): Name of the column containing the time series data. Default is 'Deweathered'.
         threshold_mean (float, optional): Threshold for mean change detection. Default is 10.
