@@ -9,7 +9,21 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
 
 def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores = -1):
+    """
+    Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
 
+    Args:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        control_pool (list): List of control pool codes.
+        post_col (str): Name of the column indicating the post-treatment period.
+        n_cores (int, optional): Number of CPU cores to use. Default is -1 (uses all available cores).
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for all treatment targets.
+    """
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(scm)(
                     df=df,
@@ -23,7 +37,21 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
 
 
 def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
+    """
+    Performs Synthetic Control Method (SCM) for a single treatment target.
 
+    Args:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        treat_target (str): Code of the treatment target.
+        control_pool (list): List of control pool codes.
+        post_col (str): Name of the column indicating the post-treatment period.
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for the specified treatment target.
+    """
     x_pre_control = (df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
                      .query(f"~{post_col}")
                      .pivot_table(index=date_col, columns=code_col, values=poll_col)
@@ -224,6 +252,22 @@ def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
 
 
 def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date,training_time=60):
+    """
+    Performs synthetic control using machine learning regression models.
+
+    Args:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        treat_target (str): Code of the treatment target.
+        control_pool (list): List of control pool codes.
+        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
+        training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for the specified treatment target.
+    """
     from flaml import AutoML
     automl = AutoML()
     from sklearn.metrics import r2_score
@@ -247,7 +291,22 @@ def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_
 
 
 def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,training_time=60, n_cores = -1):
+    """
+    Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
+    Args:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        control_pool (list): List of control pool codes.
+        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
+        training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
+        n_cores (int, optional): Number of CPU cores to use. Default is -1 (uses all available cores).
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for all treatment targets.
+    """
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
                     df=df,

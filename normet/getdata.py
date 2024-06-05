@@ -18,7 +18,22 @@ def download_era5(lat_list,lon_list,year_range,
         '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
         'surface_pressure','surface_solar_radiation_downwards',
         'total_cloud_cover','total_precipitation'],path='./'):
-    # 启动多个线程进行并行下载
+    """
+    Download ERA5 weather data in parallel.
+
+    Parameters:
+        lat_list (list): List of latitudes.
+        lon_list (list): List of longitudes.
+        year_range (list): Range of years.
+        month_range (list): Range of months (default is January to December).
+        day_range (list): Range of days (default is 1 to 31).
+        time_range (list): Range of times (default is 00:00 to 23:00).
+        var_list (list): List of variables to download (default includes 10 common variables).
+        path (str): Path to save downloaded files (default is current directory).
+
+    Returns:
+        threading.Thread: The last started thread object.
+    """
     threads = []
     for lat, lon in zip(lat_list, lon_list):
         for year in year_range:
@@ -27,18 +42,27 @@ def download_era5(lat_list,lon_list,year_range,
             day_range, time_range,path))
             t.start()
             threads.append(t)
-    # 等待所有线程完成
     for t in threads:
         t.join()
     return t
 
 def download_era5_worker(lat, lon, var_list, year, month_range,
     day_range, time_range,path='./'):
-    try:
-        # 创建一个CDS API客户端对象
-        c = cdsapi.Client()
+    """
+    Download ERA5 weather data for a single coordinate point.
 
-        # 定义下载请求的参数
+    Parameters:
+        lat (float): Latitude.
+        lon (float): Longitude.
+        var_list (list): List of variables to download.
+        year (int): Year.
+        month_range (list): Range of months.
+        day_range (list): Range of days.
+        time_range (list): Range of times.
+        path (str): Path to save downloaded files (default is current directory).
+    """
+    try:
+        c = cdsapi.Client()
         request = {
             'product_type': 'reanalysis',
             'format': 'netcdf',
@@ -52,8 +76,6 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
                 lon+0.25,
             ],
         }
-
-        # 执行下载请求，并将数据保存到本地文件
         filename = path+f"era5_data_{lat}_{lon}_{year}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
@@ -63,11 +85,21 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
 def download_era5_area_worker(lat_lim, lon_lim,
     var_list, year, month_range,
     day_range, time_range,path='./'):
-    try:
-        # 创建一个CDS API客户端对象
-        c = cdsapi.Client()
+    """
+    Download ERA5 weather data for a specified area.
 
-        # 定义下载请求的参数
+    Parameters:
+        lat_lim (list): Latitude range [min_lat, max_lat].
+        lon_lim (list): Longitude range [min_lon, max_lon].
+        var_list (list): List of variables to download.
+        year (int): Year.
+        month_range (list): Range of months.
+        day_range (list): Range of days.
+        time_range (list): Range of times.
+        path (str): Path to save downloaded files (default is current directory).
+    """
+    try:
+        c = cdsapi.Client()
         request = {
             'product_type': 'reanalysis',
             'format': 'netcdf',
@@ -80,7 +112,6 @@ def download_era5_area_worker(lat_lim, lon_lim,
                     lat_lim[0],lon_lim[1],],
         }
 
-        # 执行下载请求，并将数据保存到本地文件
         filename = path+f"era5_data_{lat_lim}_{lon_lim}_{year}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
@@ -96,7 +127,22 @@ def download_era5_area(lat_lim, lon_lim, year_range,
         '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
         'surface_pressure','surface_solar_radiation_downwards',
         'total_cloud_cover','total_precipitation'],path='./'):
-    # 启动多个线程进行并行下载
+    """
+    Download ERA5 weather data for a specified area in parallel.
+
+    Parameters:
+        lat_lim (list): Latitude range [min_lat, max_lat].
+        lon_lim (list): Longitude range [min_lon, max_lon].
+        year_range (list): Range of years.
+        month_range (list): Range of months (default is January to December).
+        day_range (list): Range of days (default is 1 to 31).
+        time_range (list): Range of times (default is 00:00 to 23:00).
+        var_list (list): List of variables to download (default includes 10 common variables).
+        path (str): Path to save downloaded files (default is current directory).
+
+    Returns:
+        threading.Thread: The last started thread object.
+    """
     threads = []
     for year in year_range:
         t = threading.Thread(target=download_era5_area_worker,
@@ -104,57 +150,112 @@ def download_era5_area(lat_lim, lon_lim, year_range,
         day_range, time_range,path))
         t.start()
         threads.append(t)
-    # 等待所有线程完成
     for t in threads:
         t.join()
     return t
 
 def era5_dataframe(lat_list,lon_list,year_range,path,n_cores=-1):
+    """
+    Read ERA5 weather data in parallel and convert to DataFrame.
+
+    Parameters:
+        lat_list (list): List of latitudes.
+        lon_list (list): List of longitudes.
+        year_range (list): Range of years.
+        path (str): Path to save downloaded files.
+        n_cores (int): Number of cores to use (default is all available cores).
+
+    Returns:
+        pd.DataFrame: DataFrame containing data for all specified coordinates and years.
+    """
     results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,year_range,path) for (lat,lon) in zip(lat_list,lon_list))
     df = pd.concat(results)
     return df
 
 def era5_dataframe_worker(lat,lon,year_range,path):
-    results = []
+    """
+    Read ERA5 weather data for a single coordinate and range of years and convert to DataFrame.
 
+    Parameters:
+        lat (float): Latitude.
+        lon (float): Longitude.
+        year_range (list): Range of years.
+        path (str): Path to save downloaded files.
+
+    Returns:
+        pd.DataFrame: DataFrame containing data for the specified coordinate and years.
+    """
+    results = []
     for year in year_range:
-        # 构建带有年份信息的文件名
         filename = f"era5_data_{lat}_{lon}_{year}.nc"
         filepath = path + filename
-
-        # 调用 era5_nc_worker 函数以读取数据，并将结果添加到列表中
         result = era5_nc_worker(lat, lon, filepath)
         results.append(result)
-
-    # 使用 pd.concat 将结果连接在一起
     df = pd.concat(results)
 
     return df
 
 
 def era5_area_dataframe(lat_list,lon_list,lat_lim, lon_lim,year_range,path,n_cores=-1):
+    """
+    Read ERA5 weather data for a specified area in parallel and convert to DataFrame.
+
+    Parameters:
+        lat_list (list): List of latitudes.
+        lon_list (list): List of longitudes.
+        lat_lim (list): Latitude range [min_lat, max_lat].
+        lon_lim (list): Longitude range [min_lon, max_lon].
+        year_range (list): Range of years.
+        path (str): Path to save downloaded files.
+        n_cores (int): Number of cores to use (default is all available cores).
+
+    Returns:
+        pd.DataFrame: DataFrame containing data for the specified area and years.
+    """
     results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,lat_lim, lon_lim,year_range,path) for (lat,lon) in zip(lat_list,lon_list))
     df = pd.concat(results)
     return df
 
 def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, path):
-    results = []
+    """
+    Read ERA5 weather data for a specified area and range of years and convert to DataFrame.
 
+    Parameters:
+        lat (float): Latitude.
+        lon (float): Longitude.
+        lat_lim (list): Latitude range [min_lat, max_lat].
+        lon_lim (list): Longitude range [min_lon, max_lon].
+        year_range (list): Range of years.
+        path (str): Path to save downloaded files.
+
+    Returns:
+        pd.DataFrame: DataFrame containing data for the specified area and years.
+    """
+    results = []
     for year in year_range:
-        # 构建带有年份信息的文件名
+        # Construct the filename with year information
         filename = f"era5_data_{lat_lim}_{lon_lim}_{year}.nc"
         filepath = path + filename
-
-        # 调用 era5_nc_worker 函数以读取数据，并将结果添加到列表中
+        # Call the era5_nc_worker function to read the data and append the result to the list
         result = era5_nc_worker(lat, lon, filepath)
         results.append(result)
-
-    # 使用 pd.concat 将结果连接在一起
+    # Concatenate the results using pd.concat
     df = pd.concat(results)
-
     return df
 
 def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']):
+    """
+    Extract specified variables from an ERA5 dataset for a given latitude and longitude.
+
+    Parameters:
+        ds (xarray.Dataset): The dataset from which to extract data.
+        lat (float): Latitude.
+        lon (float): Longitude.
+        data_vars (list): List of variable names to extract (default includes 9 common variables).
+
+    Returns:
+        dict: Dictionary containing extracted data for the specified variables, latitude, and longitude.
+    """
     data = {}
     for var in data_vars:
         if var in ds.data_vars:
@@ -162,6 +263,17 @@ def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh'
     return data
 
 def era5_nc_worker(lat, lon, filepath):
+    """
+    Read ERA5 netCDF file and convert to DataFrame.
+
+    Parameters:
+        lat (float): Latitude.
+        lon (float): Longitude.
+        filepath (str): Path to the netCDF file.
+
+    Returns:
+        pd.DataFrame: DataFrame containing data for the specified coordinate.
+    """
     ds_raw = xr.open_dataset(filepath)
     ds_raw = ds_raw.sel(**{'latitude': slice(lat+0.25, lat-0.25),
                 'longitude': slice(lon-0.25, lon+0.25)})
@@ -177,15 +289,24 @@ def era5_nc_worker(lat, lon, filepath):
     else:
         data_raw = era5_extract_data(ds_raw, lat, lon)
         df_final = pd.DataFrame(data_raw, index=ds_raw.time.values)
-
     df_final['lat'] = lat
     df_final['lon'] = lon
     df_final.index.name='date'
-
     return df_final
 
 
 def UK_AURN_metadata(path='./'):
+    """
+    Download and read the metadata for UK AURN data.
+
+    Parameters:
+        path (str): Path to the directory where the metadata file will be saved.
+
+    Returns:
+        tuple:
+            - metadata (dict): Dictionary containing the metadata read from the RData file.
+            - list_authorities (list): List of local authorities present in the metadata.
+    """
     download_path = path+"AURN_data_download"
     os.makedirs(download_path, exist_ok=True)
     metadata_url = "https://uk-air.defra.gov.uk/openair/R_data/AURN_metadata.RData"
@@ -200,6 +321,18 @@ def UK_AURN_metadata(path='./'):
     return metadata,list_authorities
 
 def UK_AURN_download(year_lst,list_authorities=None,path='./'):
+    """
+    Download and process UK AURN data for specified years and local authorities.
+
+    Parameters:
+        year_lst (list or int): List of years or a single year for which the data is to be downloaded.
+        list_authorities (list): List of local authorities for which the data is to be downloaded.
+                                 If None, data for all authorities will be downloaded.
+        path (str): Path to the directory where the data files will be saved.
+
+    Returns:
+        None
+    """
     download_path = path+"AURN_data_download"
     os.makedirs(download_path, exist_ok=True)
     years = year_lst
