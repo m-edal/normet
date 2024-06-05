@@ -17,7 +17,7 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
     """
     Decomposes a time series into different components using machine learning models.
 
-    Parameters:
+    Args:
     - df (pd.DataFrame): Input dataframe containing the time series data.
     - value (str): Column name of the target variable.
     - feature_names (list of str): List of feature column names.
@@ -68,7 +68,7 @@ def MET_rolling(df, value=None,feature_names=None, split_method = 'random',time_
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
-    Parameters:
+    Args:
     - df (pd.DataFrame): Input dataframe containing the time series data.
     - value (str): Column name of the target variable.
     - feature_names (list of str): List of feature column names.
@@ -123,7 +123,7 @@ def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_bud
     """
     Decomposes a time series into different components using machine learning models with feature importance ranking.
 
-    Parameters:
+    Args:
     - df (pd.DataFrame): Input dataframe containing the time series data.
     - value (str): Column name of the target variable.
     - feature_names (list of str): List of feature column names.
@@ -175,7 +175,7 @@ def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
-    Parameters:
+    Args:
     - df (pd.DataFrame): Input dataframe containing the time series data.
     - value (str): Column name of the target variable.
     - feature_names (list of str): List of feature column names.
@@ -237,7 +237,7 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
     """
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
 
-    Parameters:
+    Args:
     - df (pd.DataFrame): Input dataframe containing the time series data.
     - value (str): Column name of the target variable.
     - feature_names (list of str): List of feature column names.
@@ -483,7 +483,7 @@ def train_model(df, variables,
     verbose = True
 ):
     """
-    Trains a model using the provided dataset and parameters.
+    Trains a model using the provided dataset and Args.
 
     Args:
         df (DataFrame): Input DataFrame containing the dataset.
