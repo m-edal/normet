@@ -18,22 +18,22 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
     Decomposes a time series into different components using machine learning models.
 
     Args:
-    - df (pd.DataFrame): Input dataframe containing the time series data.
-    - value (str): Column name of the target variable.
-    - feature_names (list of str): List of feature column names.
-    - split_method (str): Method to split the data ('random' or other methods).
-    - time_budget (int): Time budget for the AutoML training.
-    - metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-    - estimator_list (list of str): List of estimators to be used in AutoML.
-    - task (str): Task type ('regression' or 'classification').
-    - n_samples (int): Number of samples for normalization.
-    - fraction (float): Fraction of data to be used for training.
-    - seed (int): Random seed for reproducibility.
-    - n_cores (int): Number of cores to be used (-1 for all available cores).
+        df (pd.DataFrame): Input dataframe containing the time series data.
+        value (str): Column name of the target variable.
+        feature_names (list of str): List of feature column names.
+        split_method (str): Method to split the data ('random' or other methods).
+        time_budget (int): Time budget for the AutoML training.
+        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
+        estimator_list (list of str): List of estimators to be used in AutoML.
+        task (str): Task type ('regression' or 'classification').
+        n_samples (int): Number of samples for normalization.
+        fraction (float): Fraction of data to be used for training.
+        seed (int): Random seed for reproducibility.
+        n_cores (int): Number of cores to be used (-1 for all available cores).
 
     Returns:
-    - df_dewc (pd.DataFrame): Dataframe with decomposed components.
-    - mod_stats (pd.DataFrame): Dataframe with model statistics.
+        df_dewc (pd.DataFrame): Dataframe with decomposed components.
+        mod_stats (pd.DataFrame): Dataframe with model statistics.
     """
     df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
@@ -69,24 +69,24 @@ def MET_rolling(df, value=None,feature_names=None, split_method = 'random',time_
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
     Args:
-    - df (pd.DataFrame): Input dataframe containing the time series data.
-    - value (str): Column name of the target variable.
-    - feature_names (list of str): List of feature column names.
-    - split_method (str): Method to split the data ('random' or other methods).
-    - time_budget (int): Time budget for the AutoML training.
-    - metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-    - estimator_list (list of str): List of estimators to be used in AutoML.
-    - task (str): Task type ('regression' or 'classification').
-    - n_samples (int): Number of samples for normalization.
-    - window_days (int): Number of days for the rolling window.
-    - rollingevery (int): Rolling interval.
-    - fraction (float): Fraction of data to be used for training.
-    - seed (int): Random seed for reproducibility.
-    - n_cores (int): Number of cores to be used (-1 for all available cores).
+        df (pd.DataFrame): Input dataframe containing the time series data.
+        value (str): Column name of the target variable.
+        feature_names (list of str): List of feature column names.
+        split_method (str): Method to split the data ('random' or other methods).
+        time_budget (int): Time budget for the AutoML training.
+        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
+        estimator_list (list of str): List of estimators to be used in AutoML.
+        task (str): Task type ('regression' or 'classification').
+        n_samples (int): Number of samples for normalization.
+        window_days (int): Number of days for the rolling window.
+        rollingevery (int): Rolling interval.
+        fraction (float): Fraction of data to be used for training.
+        seed (int): Random seed for reproducibility.
+        n_cores (int): Number of cores to be used (-1 for all available cores).
 
     Returns:
-    - df_dew (pd.DataFrame): Dataframe with decomposed components.
-    - mod_stats (pd.DataFrame): Dataframe with model statistics.
+        df_dew (pd.DataFrame): Dataframe with decomposed components.
+        mod_stats (pd.DataFrame): Dataframe with model statistics.
     """
     df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
@@ -124,23 +124,23 @@ def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_bud
     Decomposes a time series into different components using machine learning models with feature importance ranking.
 
     Args:
-    - df (pd.DataFrame): Input dataframe containing the time series data.
-    - value (str): Column name of the target variable.
-    - feature_names (list of str): List of feature column names.
-    - split_method (str): Method to split the data ('random' or other methods).
-    - time_budget (int): Time budget for the AutoML training.
-    - metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-    - estimator_list (list of str): List of estimators to be used in AutoML.
-    - task (str): Task type ('regression' or 'classification').
-    - n_samples (int): Number of samples for normalization.
-    - fraction (float): Fraction of data to be used for training.
-    - seed (int): Random seed for reproducibility.
-    - importance_ascending (bool): Sort order for feature importances.
-    - n_cores (int): Number of cores to be used (-1 for all available cores).
+        df (pd.DataFrame): Input dataframe containing the time series data.
+        value (str): Column name of the target variable.
+        feature_names (list of str): List of feature column names.
+        split_method (str): Method to split the data ('random' or other methods).
+        time_budget (int): Time budget for the AutoML training.
+        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
+        estimator_list (list of str): List of estimators to be used in AutoML.
+        task (str): Task type ('regression' or 'classification').
+        n_samples (int): Number of samples for normalization.
+        fraction (float): Fraction of data to be used for training.
+        seed (int): Random seed for reproducibility.
+        importance_ascending (bool): Sort order for feature importances.
+        n_cores (int): Number of cores to be used (-1 for all available cores).
 
     Returns:
-    - df_dewwc (pd.DataFrame): Dataframe with decomposed components.
-    - mod_stats (pd.DataFrame): Dataframe with model statistics.
+        df_dewwc (pd.DataFrame): Dataframe with decomposed components.
+        mod_stats (pd.DataFrame): Dataframe with model statistics.
     """
     df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
     automl=train_model(df,variables=feature_names,
@@ -176,25 +176,25 @@ def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
     Args:
-    - df (pd.DataFrame): Input dataframe containing the time series data.
-    - value (str): Column name of the target variable.
-    - feature_names (list of str): List of feature column names.
-    - split_method (str): Method to split the data ('random' or other methods).
-    - time_budget (int): Time budget for the AutoML training.
-    - metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-    - estimator_list (list of str): List of estimators to be used in AutoML.
-    - task (str): Task type ('regression' or 'classification').
-    - variables_sample (list of str): List of sampled feature names for normalization (optional).
-    - n_samples (int): Number of samples for normalization.
-    - window_days (int): Number of days for the rolling window.
-    - rollingevery (int): Rolling interval.
-    - fraction (float): Fraction of data to be used for training.
-    - seed (int): Random seed for reproducibility.
-    - n_cores (int): Number of cores to be used (-1 for all available cores).
+        df (pd.DataFrame): Input dataframe containing the time series data.
+        value (str): Column name of the target variable.
+        feature_names (list of str): List of feature column names.
+        split_method (str): Method to split the data ('random' or other methods).
+        time_budget (int): Time budget for the AutoML training.
+        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
+        estimator_list (list of str): List of estimators to be used in AutoML.
+        task (str): Task type ('regression' or 'classification').
+        variables_sample (list of str): List of sampled feature names for normalization (optional).
+        n_samples (int): Number of samples for normalization.
+        window_days (int): Number of days for the rolling window.
+        rollingevery (int): Rolling interval.
+        fraction (float): Fraction of data to be used for training.
+        seed (int): Random seed for reproducibility.
+        n_cores (int): Number of cores to be used (-1 for all available cores).
 
     Returns:
-    - dfr (pd.DataFrame): Dataframe with rolling decomposed components.
-    - mod_stats (pd.DataFrame): Dataframe with model statistics.
+        dfr (pd.DataFrame): Dataframe with rolling decomposed components.
+        mod_stats (pd.DataFrame): Dataframe with model statistics.
     """
 
     # Prepare the data
@@ -238,25 +238,25 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
 
     Args:
-    - df (pd.DataFrame): Input dataframe containing the time series data.
-    - value (str): Column name of the target variable.
-    - feature_names (list of str): List of feature column names.
-    - split_method (str): Method to split the data ('random' or other methods).
-    - time_budget (int): Time budget for the AutoML training.
-    - metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-    - estimator_list (list of str): List of estimators to be used in AutoML.
-    - task (str): Task type ('regression' or 'classification').
-    - n_models (int): Number of models to train for uncertainty quantification.
-    - confidence_level (float): Confidence level for the uncertainty bounds.
-    - variables_sample (list of str): List of sampled feature names for normalization (optional).
-    - n_samples (int): Number of samples for normalization.
-    - fraction (float): Fraction of data to be used for training.
-    - seed (int): Random seed for reproducibility.
-    - n_cores (int): Number of cores to be used (-1 for all available cores).
+        df (pd.DataFrame): Input dataframe containing the time series data.
+        value (str): Column name of the target variable.
+        feature_names (list of str): List of feature column names.
+        split_method (str): Method to split the data ('random' or other methods).
+        time_budget (int): Time budget for the AutoML training.
+        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
+        estimator_list (list of str): List of estimators to be used in AutoML.
+        task (str): Task type ('regression' or 'classification').
+        n_models (int): Number of models to train for uncertainty quantification.
+        confidence_level (float): Confidence level for the uncertainty bounds.
+        variables_sample (list of str): List of sampled feature names for normalization (optional).
+        n_samples (int): Number of samples for normalization.
+        fraction (float): Fraction of data to be used for training.
+        seed (int): Random seed for reproducibility.
+        n_cores (int): Number of cores to be used (-1 for all available cores).
 
     Returns:
-    - df_dew (pd.DataFrame): Dataframe with observed values, mean, standard deviation, median, lower and upper bounds, and weighted values.
-    - mod_stats (pd.DataFrame): Dataframe with model statistics.
+        df_dew (pd.DataFrame): Dataframe with observed values, mean, standard deviation, median, lower and upper bounds, and weighted values.
+        mod_stats (pd.DataFrame): Dataframe with model statistics.
     """
     np.random.seed(seed)
     random_seeds = np.random.choice(np.arange(1000001), size=n_models, replace=False)
