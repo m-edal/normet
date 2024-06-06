@@ -47,4 +47,4 @@ packages = { find = {} }
 zip-safe = false
 
 [tool.setuptools.package-data]
-"normet" = ["datasets/*/*"]
+"normet" = ["data/*/*"]
