@@ -1,9 +1,6 @@
 normet.cpd.
 ==========================
 
-cpt_rupture Function
-=====================
-
 .. function:: cpt_rupture(df, col_name='Deweathered', window=12, n=5, model="l2")
 
 Detects change points in a time series using the ruptures package.
