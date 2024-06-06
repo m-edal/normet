@@ -63,10 +63,10 @@ This function downloads ERA5 weather data for a specified area in parallel using
 
     .. code-block:: python
 
-    lat_lim = [30.0, 40.0]
-    lon_lim = [-80.0, -70.0]
-    year_range = ['2020', '2021']
-    download_era5_area(lat_lim, lon_lim, year_range)
+        lat_lim = [30.0, 40.0]
+        lon_lim = [-80.0, -70.0]
+        year_range = ['2020', '2021']
+        download_era5_area(lat_lim, lon_lim, year_range)
 
     This will download ERA5 weather data for the specified latitude and longitude range over the years 2020 and 2021, saving the data to the current directory.
 
@@ -126,13 +126,13 @@ This function reads ERA5 weather data for a specified area in parallel and conve
 
     .. code-block:: python
 
-    lat_list = [40.0, 50.0]
-    lon_list = [-75.0, 10.0]
-    lat_lim = [30.0, 40.0]
-    lon_lim = [-80.0, -70.0]
-    year_range = ['2020', '2021']
-    path = './data'
-    df = era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, path)
+        lat_list = [40.0, 50.0]
+        lon_list = [-75.0, 10.0]
+        lat_lim = [30.0, 40.0]
+        lon_lim = [-80.0, -70.0]
+        year_range = ['2020', '2021']
+        path = './data'
+        df = era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, path)
 
     This will read ERA5 weather data for the specified latitude and longitude range over the years 2020 and 2021, saving the data to the specified path and returning a DataFrame.
 
@@ -157,10 +157,10 @@ This function extracts specified variables from an ERA5 dataset for a given lati
 
     .. code-block:: python
 
-    ds = xr.open_dataset('era5_data.nc')
-    lat = 40.0
-    lon = -75.0
-    data = era5_extract_data(ds, lat, lon)
+        ds = xr.open_dataset('era5_data.nc')
+        lat = 40.0
+        lon = -75.0
+        data = era5_extract_data(ds, lat, lon)
 
     This will extract the specified variables from the ERA5 dataset for the given latitude and longitude, returning the data in a dictionary format.
 
@@ -181,7 +181,7 @@ This function downloads and reads the metadata for UK AURN data.
 
     .. code-block:: python
 
-    metadata, list_authorities = UK_AURN_metadata(path='./data')
+        metadata, list_authorities = UK_AURN_metadata(path='./data')
 
     This will download the UK AURN metadata file to the specified path (if it does not already exist), read the metadata, and return it along with a list of local authorities present in the metadata.
 
@@ -201,12 +201,8 @@ This function downloads and reads the metadata for UK AURN data.
 
     .. code-block:: python
 
-    import os
-    import wget
-    import pyreadr
-
-    metadata, list_authorities = UK_AURN_metadata(path='./data')
-    print(list_authorities)
+        metadata, list_authorities = UK_AURN_metadata(path='./data')
+        print(list_authorities)
 
 
 .. function:: UK_AURN_download(year_lst, list_authorities=None, path='./')
@@ -226,10 +222,10 @@ This function downloads and processes UK AURN data for specified years and local
 
     .. code-block:: python
 
-    year_lst = [2020, 2021]
-    list_authorities = ['London', 'Manchester']
-    path = './data'
-    UK_AURN_download(year_lst, list_authorities, path)
+        year_lst = [2020, 2021]
+        list_authorities = ['London', 'Manchester']
+        path = './data'
+        UK_AURN_download(year_lst, list_authorities, path)
 
     This will download and process UK AURN data for the specified years and local authorities, saving the data to the specified path.
 
@@ -250,6 +246,6 @@ This function downloads and processes UK AURN data for specified years and local
 
     .. code-block:: python
 
-    UK_AURN_download(year_lst=[2020, 2021], list_authorities=['London', 'Manchester'], path='./data')
+        UK_AURN_download(year_lst=[2020, 2021], list_authorities=['London', 'Manchester'], path='./data')
 
     This will download the UK AURN data for the years 2020 and 2021 for London and Manchester, saving the data to the `./data` directory.
