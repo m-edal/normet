@@ -15,3 +15,4 @@ Author: `Congbo Song <https://github.com/dsncas>`_
   :caption: Modules
 
   getdata
+  autodew
