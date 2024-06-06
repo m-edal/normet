@@ -1,4 +1,4 @@
-getdata
+normet.getdata.
 ==========================
 
 .. function:: download_era5(lat_list, lon_list, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12) + 1)], day_range=[str(num).zfill(2) for num in list(np.arange(31) + 1)], time_range=[str(num).zfill(2) + ':00' for num in list(np.arange(24))], var_list=['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_dewpoint_temperature', '2m_temperature', 'boundary_layer_height', 'surface_pressure', 'surface_solar_radiation_downwards', 'total_cloud_cover', 'total_precipitation'], path='./')
