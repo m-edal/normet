@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def cpt_rupture(df,col_name='Deweathered',window=12, n=5,model="l2"):
+def cpd_rupture(df,col_name='Deweathered',window=12, n=5,model="l2"):
     """
     Detects change points in a time series using the ruptures package.
 
@@ -31,7 +31,7 @@ def cpt_rupture(df,col_name='Deweathered',window=12, n=5,model="l2"):
 
 
 
-def cpt_cumsum(df,col_name='Deweathered',threshold_mean= 10, threshold_std=3000):
+def cpd_cumsum(df,col_name='Deweathered',threshold_mean= 10, threshold_std=3000):
     """
     Detects change points in a time series using cumulative sums method.
 
