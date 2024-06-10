@@ -3,7 +3,7 @@ normet.cpd.
 
 .. function:: cpd_rupture(df, col_name='Deweathered', window=12, n=5, model="l2")
 
-Detects change points in a time series using the ruptures package.
+    Detects change points in a time series using the ruptures package.
 
     :param df: Input DataFrame containing the time series data.
     :type df: DataFrame
@@ -41,7 +41,7 @@ Detects change points in a time series using the ruptures package.
 
 .. function:: cpd_cumsum(df, col_name='Deweathered', threshold_mean=10, threshold_std=3000)
 
-Detects change points in a time series using the cumulative sums method.
+    Detects change points in a time series using the cumulative sums method.
 
     :param df: Input DataFrame containing the time series data.
     :type df: DataFrame
