@@ -9,20 +9,20 @@ release = 'v0.1.0'
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    # 'recommonmark',
-    # 'sphinx_markdown_tables',
-    # 'sphinx.ext.githubpages',
+    'recommonmark',
+    'sphinx_markdown_tables',
+    'sphinx.ext.githubpages',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'nbsphinx',
-    # 'IPython.sphinxext.ipython_console_highlighting',
-    # 'sphinx.ext.autodoc',
-    # 'numpydoc',
-    # 'sphinx.ext.autosummary',
-    # 'sphinx.ext.mathjax',
-    # 'sphinx.ext.autodoc',
-    # 'sphinx.ext.napoleon'
+    'IPython.sphinxext.ipython_console_highlighting',
+    'sphinx.ext.autodoc',
+    'numpydoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon'
 ]
 
 
