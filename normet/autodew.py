@@ -26,7 +26,7 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
         metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
         estimator_list (list of str): List of estimators to be used in AutoML.
         task (str): Task type ('regression' or 'classification').
-        n_samples (int): Number of samples for normalization.
+        n_samples (int): Number of samples for normalisation.
         fraction (float): Fraction of data to be used for training.
         seed (int): Random seed for reproducibility.
         n_cores (int): Number of cores to be used (-1 for all available cores).
@@ -77,7 +77,7 @@ def met_rolling(df, value=None,feature_names=None, split_method = 'random',time_
         metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
         estimator_list (list of str): List of estimators to be used in AutoML.
         task (str): Task type ('regression' or 'classification').
-        n_samples (int): Number of samples for normalization.
+        n_samples (int): Number of samples for normalisation.
         window_days (int): Number of days for the rolling window.
         rollingevery (int): Rolling interval.
         fraction (float): Fraction of data to be used for training.
@@ -132,7 +132,7 @@ def met_decom(df,value=None,feature_names=None, split_method = 'random',time_bud
         metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
         estimator_list (list of str): List of estimators to be used in AutoML.
         task (str): Task type ('regression' or 'classification').
-        n_samples (int): Number of samples for normalization.
+        n_samples (int): Number of samples for normalisation.
         fraction (float): Fraction of data to be used for training.
         seed (int): Random seed for reproducibility.
         importance_ascending (bool): Sort order for feature importances.
@@ -184,8 +184,8 @@ def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_
         metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
         estimator_list (list of str): List of estimators to be used in AutoML.
         task (str): Task type ('regression' or 'classification').
-        variables_sample (list of str): List of sampled feature names for normalization (optional).
-        n_samples (int): Number of samples for normalization.
+        variables_sample (list of str): List of sampled feature names for normalisation (optional).
+        n_samples (int): Number of samples for normalisation.
         window_days (int): Number of days for the rolling window.
         rollingevery (int): Rolling interval.
         fraction (float): Fraction of data to be used for training.
@@ -248,8 +248,8 @@ def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_b
         task (str): Task type ('regression' or 'classification').
         n_models (int): Number of models to train for uncertainty quantification.
         confidence_level (float): Confidence level for the uncertainty bounds.
-        variables_sample (list of str): List of sampled feature names for normalization (optional).
-        n_samples (int): Number of samples for normalization.
+        variables_sample (list of str): List of sampled feature names for normalisation (optional).
+        n_samples (int): Number of samples for normalisation.
         fraction (float): Fraction of data to be used for training.
         seed (int): Random seed for reproducibility.
         n_cores (int): Number of cores to be used (-1 for all available cores).
@@ -292,7 +292,7 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
     """
-    Conducts data preparation, model training, and normalization, returning the transformed dataset and model statistics.
+    Conducts data preparation, model training, and normalisation, returning the transformed dataset and model statistics.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
@@ -303,11 +303,11 @@ def do_all(df, value=None,feature_names=None, split_method = 'random',time_budge
         metric (str, optional): Evaluation metric for model performance. Default is 'r2'.
         estimator_list (list, optional): List of estimator names to be used in training. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
         task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
-        variables_sample (list, optional): List of variables for normalization. Default is None.
-        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        variables_sample (list, optional): List of variables for normalisation. Default is None.
+        n_samples (int, optional): Number of samples for normalisation. Default is 300.
         fraction (float, optional): Fraction of the dataset to be used for training. Default is 0.75.
         seed (int, optional): Seed for random operations. Default is 7654321.
-        n_cores (int, optional): Number of CPU cores to be used for normalization. Default is -1 (use all available cores).
+        n_cores (int, optional): Number of CPU cores to be used for normalisation. Default is -1 (use all available cores).
 
     Returns:
         tuple: Transformed dataset and model statistics DataFrame.
@@ -528,7 +528,7 @@ def train_model(df, variables,
 
 def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, seed, verbose):
     """
-    Worker function for parallel normalization of data.
+    Worker function for parallel normalisation of data.
 
     Parameters:
         index (int): Index of the worker.

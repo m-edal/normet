@@ -68,7 +68,7 @@ Example usage:
 
 
 
-.. function:: era5_dataframe(lat_list, lon_list, year_range, path, n_cores=-1)
+.. function:: era5_dataframe(lat_list, lon_list, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)], path='./', n_cores=-1)
 
     Reads ERA5 weather data in parallel and converts it to a DataFrame.
 
@@ -78,8 +78,10 @@ Example usage:
     :type lon_list: list
     :param year_range: Range of years.
     :type year_range: list
+    :param month_range: Range of months.
+    :type month_range: list, optional
     :param path: Path to save downloaded files.
-    :type path: str
+    :type path: str, optional
     :param n_cores: Number of cores to use (default is all available cores).
     :type n_cores: int, optional
     :return: DataFrame containing data for all specified coordinates and years.
@@ -99,7 +101,7 @@ Example usage:
 
 
 
-.. function:: era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, path, n_cores=-1)
+.. function:: era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)], path='./', n_cores=-1)
 
     Reads ERA5 weather data for a specified area in parallel and converts it to a DataFrame.
 
@@ -113,8 +115,10 @@ Example usage:
     :type lon_lim: list
     :param year_range: Range of years.
     :type year_range: list
+    :param month_range: Range of months.
+    :type month_range: list, optional
     :param path: Path to save downloaded files.
-    :type path: str
+    :type path: str, optional
     :param n_cores: Number of cores to use (default is all available cores).
     :type n_cores: int, optional
     :return: DataFrame containing data for the specified area and years.

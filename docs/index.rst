@@ -19,3 +19,9 @@ Author: `Congbo Song <https://github.com/dsncas>`_
   cpd
   pdp
   intervention
+
+.. toctree::
+  :maxdepth: 2
+  :caption: Tutorial
+
+  notebooks/getdata.ipynb

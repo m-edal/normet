@@ -21,7 +21,7 @@ normet.autodew.
     :type estimator_list: list of str, optional
     :param task: Task type ('regression' or 'classification').
     :type task: str, optional
-    :param n_samples: Number of samples for normalization.
+    :param n_samples: Number of samples for normalisation.
     :type n_samples: int, optional
     :param fraction: Fraction of data to be used for training.
     :type fraction: float, optional
@@ -50,7 +50,7 @@ normet.autodew.
     - **Data Preparation:** The input data is prepared using the `prepare_data` function.
     - **Model Training:** An AutoML model is trained using the specified features, time budget, and other parameters.
     - **Model Statistics:** Model statistics are generated for the testing, training, and all data sets.
-    - **Normalization:** The data is normalized, and decomposed components are extracted.
+    - **normalisation:** The data is normalized, and decomposed components are extracted.
     - **Decomposition:** The decomposed components are calculated, including adjustments for hour, weekday, and other factors.
 
     **Returns:**
@@ -91,7 +91,7 @@ normet.autodew.
     :type estimator_list: list of str, optional
     :param task: Task type ('regression' or 'classification').
     :type task: str, optional
-    :param n_samples: Number of samples for normalization.
+    :param n_samples: Number of samples for normalisation.
     :type n_samples: int, optional
     :param fraction: Fraction of data to be used for training.
     :type fraction: float, optional
@@ -124,7 +124,7 @@ normet.autodew.
     - **Data Preparation:** The input data is prepared using the `prepare_data` function.
     - **Model Training:** An AutoML model is trained using the specified features, time budget, and other parameters.
     - **Model Statistics:** Model statistics are generated for the testing, training, and all data sets.
-    - **Normalization:** The data is normalized, and decomposed components are extracted.
+    - **normalisation:** The data is normalized, and decomposed components are extracted.
     - **Rolling Window Decomposition:** The time series is decomposed using a rolling window approach, calculating the mean and standard deviation for each window.
 
     **Returns:**
@@ -164,9 +164,9 @@ normet.autodew.
     :type estimator_list: list of str, optional
     :param task: Task type ('regression' or 'classification').
     :type task: str, optional
-    :param variables_sample: List of sampled feature names for normalization (optional).
+    :param variables_sample: List of sampled feature names for normalisation (optional).
     :type variables_sample: list of str, optional
-    :param n_samples: Number of samples for normalization.
+    :param n_samples: Number of samples for normalisation.
     :type n_samples: int, optional
     :param window_days: Number of days for the rolling window.
     :type window_days: int, optional
@@ -231,9 +231,9 @@ normet.autodew.
     :type n_models: int, optional
     :param confidence_level: Confidence level for the uncertainty bounds.
     :type confidence_level: float, optional
-    :param variables_sample: List of sampled feature names for normalization (optional).
+    :param variables_sample: List of sampled feature names for normalisation (optional).
     :type variables_sample: list of str, optional
-    :param n_samples: Number of samples for normalization.
+    :param n_samples: Number of samples for normalisation.
     :type n_samples: int, optional
     :param fraction: Fraction of data to be used for training.
     :type fraction: float, optional
@@ -271,7 +271,7 @@ normet.autodew.
 
 .. function:: do_all(df, value=None, feature_names=None, split_method='random', time_budget=60, metric='r2', estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression', variables_sample=None, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1)
 
-    Conducts data preparation, model training, and normalization, returning the transformed dataset and model statistics.
+    Conducts data preparation, model training, and normalisation, returning the transformed dataset and model statistics.
 
     :param df: Input DataFrame containing the dataset.
     :type df: DataFrame
@@ -289,15 +289,15 @@ normet.autodew.
     :type estimator_list: list, optional
     :param task: Task type ('regression' or 'classification').
     :type task: str, optional
-    :param variables_sample: List of variables for normalization.
+    :param variables_sample: List of variables for normalisation.
     :type variables_sample: list, optional
-    :param n_samples: Number of samples for normalization.
+    :param n_samples: Number of samples for normalisation.
     :type n_samples: int, optional
     :param fraction: Fraction of the dataset to be used for training.
     :type fraction: float, optional
     :param seed: Seed for random operations.
     :type seed: int, optional
-    :param n_cores: Number of CPU cores to be used for normalization.
+    :param n_cores: Number of CPU cores to be used for normalisation.
     :type n_cores: int, optional
     :returns: Transformed dataset and model statistics DataFrame.
     :rtype: tuple
@@ -307,7 +307,7 @@ normet.autodew.
     - **Data Preparation:** The input data is prepared using the `prepare_data` function.
     - **Model Training:** An AutoML model is trained using the specified features, time budget, and other parameters.
     - **Model Statistics:** Model statistics are generated for the testing, training, and all data sets.
-    - **Normalization:** The data is normalized using the `normalise` function.
+    - **normalisation:** The data is normalized using the `normalise` function.
 
     **Returns:**
 
@@ -573,8 +573,8 @@ normet.autodew.
     **Details:**
 
     - **Input DataFrame Check:** Verifies the integrity of the input DataFrame.
-    - **Variables Selection:** Selects variables for normalization, defaulting to all features except 'date_unix'.
-    - **Sampling and Prediction:** Samples the time series and predicts normalization using the trained model.
+    - **Variables Selection:** Selects variables for normalisation, defaulting to all features except 'date_unix'.
+    - **Sampling and Prediction:** Samples the time series and predicts normalisation using the trained model.
     - **Parallelization:** Utilizes parallel processing for faster execution based on the number of CPU cores.
     - **Result Aggregation:** Aggregates the results into a DataFrame containing normalized predictions.
 

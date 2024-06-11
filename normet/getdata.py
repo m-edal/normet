@@ -37,16 +37,17 @@ def download_era5(lat_list,lon_list,year_range,
     threads = []
     for lat, lon in zip(lat_list, lon_list):
         for year in year_range:
-            t = threading.Thread(target=download_era5_worker,
-            args=(lat, lon, var_list, year, month_range,
-            day_range, time_range,path))
-            t.start()
-            threads.append(t)
+            for month in month_range:
+                t = threading.Thread(target=download_era5_worker,
+                    args=(lat, lon, var_list, year, month,
+                    day_range, time_range,path))
+                t.start()
+                threads.append(t)
     for t in threads:
         t.join()
     return t
 
-def download_era5_worker(lat, lon, var_list, year, month_range,
+def download_era5_worker(lat, lon, var_list, year, month,
     day_range, time_range,path='./'):
     """
     Download ERA5 weather data for a single coordinate point.
@@ -56,11 +57,13 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
         lon (float): Longitude.
         var_list (list): List of variables to download.
         year (int): Year.
-        month_range (list): Range of months.
+        month (int): Month.
         day_range (list): Range of days.
         time_range (list): Range of times.
         path (str): Path to save downloaded files (default is current directory).
     """
+    if not os.path.exists(path):
+        os.makedirs(path)
     try:
         c = cdsapi.Client()
         request = {
@@ -68,7 +71,7 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
             'format': 'netcdf',
             'variable': var_list,
             'year': year,
-            'month': month_range,
+            'month': month,
             'day': day_range,
             'time': time_range,
             'area': [
@@ -76,14 +79,14 @@ def download_era5_worker(lat, lon, var_list, year, month_range,
                 lon+0.25,
             ],
         }
-        filename = path+f"era5_data_{lat}_{lon}_{year}.nc"
+        filename = path+f"era5_{lat}_{lon}_{year}_{month}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
         print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
         print(f"Error message: {str(e)}")
 
 def download_era5_area_worker(lat_lim, lon_lim,
-    var_list, year, month_range,
+    var_list, year, month,
     day_range, time_range,path='./'):
     """
     Download ERA5 weather data for a specified area.
@@ -93,11 +96,13 @@ def download_era5_area_worker(lat_lim, lon_lim,
         lon_lim (list): Longitude range [min_lon, max_lon].
         var_list (list): List of variables to download.
         year (int): Year.
-        month_range (list): Range of months.
+        month (int): Month.
         day_range (list): Range of days.
         time_range (list): Range of times.
         path (str): Path to save downloaded files (default is current directory).
     """
+    if not os.path.exists(path):
+        os.makedirs(path)
     try:
         c = cdsapi.Client()
         request = {
@@ -105,14 +110,14 @@ def download_era5_area_worker(lat_lim, lon_lim,
             'format': 'netcdf',
             'variable': var_list,
             'year': year,
-            'month': month_range,
+            'month': month,
             'day': day_range,
             'time': time_range,
             'area': [lat_lim[1], lon_lim[0],
                     lat_lim[0],lon_lim[1],],
         }
 
-        filename = path+f"era5_data_{lat_lim}_{lon_lim}_{year}.nc"
+        filename = path+f"era5_{lat_lim}_{lon_lim}_{year}_{month}.nc"
         c.retrieve('reanalysis-era5-single-levels', request, filename)
     except Exception as e:
         print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
@@ -145,16 +150,17 @@ def download_era5_area(lat_lim, lon_lim, year_range,
     """
     threads = []
     for year in year_range:
-        t = threading.Thread(target=download_era5_area_worker,
-        args=(lat_lim, lon_lim, var_list, year, month_range,
-        day_range, time_range,path))
-        t.start()
-        threads.append(t)
+        for month in month_range:
+            t = threading.Thread(target=download_era5_area_worker,
+                args=(lat_lim, lon_lim, var_list, year, month,
+                day_range, time_range,path))
+            t.start()
+            threads.append(t)
     for t in threads:
         t.join()
     return t
 
-def era5_dataframe(lat_list,lon_list,year_range,path,n_cores=-1):
+def era5_dataframe(lat_list,lon_list,year_range,month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],path='./',n_cores=-1):
     """
     Read ERA5 weather data in parallel and convert to DataFrame.
 
@@ -162,17 +168,18 @@ def era5_dataframe(lat_list,lon_list,year_range,path,n_cores=-1):
         lat_list (list): List of latitudes.
         lon_list (list): List of longitudes.
         year_range (list): Range of years.
+        year_month (list): Range of months.
         path (str): Path to save downloaded files.
         n_cores (int): Number of cores to use (default is all available cores).
 
     Returns:
         pd.DataFrame: DataFrame containing data for all specified coordinates and years.
     """
-    results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,year_range,path) for (lat,lon) in zip(lat_list,lon_list))
+    results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,year_range,month_range,path) for (lat,lon) in zip(lat_list,lon_list))
     df = pd.concat(results)
     return df
 
-def era5_dataframe_worker(lat,lon,year_range,path):
+def era5_dataframe_worker(lat,lon,year_range,month_range,path):
     """
     Read ERA5 weather data for a single coordinate and range of years and convert to DataFrame.
 
@@ -180,6 +187,7 @@ def era5_dataframe_worker(lat,lon,year_range,path):
         lat (float): Latitude.
         lon (float): Longitude.
         year_range (list): Range of years.
+        year_month (list): Range of months.
         path (str): Path to save downloaded files.
 
     Returns:
@@ -187,16 +195,17 @@ def era5_dataframe_worker(lat,lon,year_range,path):
     """
     results = []
     for year in year_range:
-        filename = f"era5_data_{lat}_{lon}_{year}.nc"
-        filepath = path + filename
-        result = era5_nc_worker(lat, lon, filepath)
-        results.append(result)
+        for month in month_range:
+            filename = f"era5_{lat}_{lon}_{year}_{month}.nc"
+            filepath = path + filename
+            result = era5_nc_worker(lat, lon, filepath)
+            results.append(result)
     df = pd.concat(results)
 
     return df
 
 
-def era5_area_dataframe(lat_list,lon_list,lat_lim, lon_lim,year_range,path,n_cores=-1):
+def era5_area_dataframe(lat_lim, lon_lim,lat_list,lon_list,year_range,month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],path='./',n_cores=-1):
     """
     Read ERA5 weather data for a specified area in parallel and convert to DataFrame.
 
@@ -206,17 +215,18 @@ def era5_area_dataframe(lat_list,lon_list,lat_lim, lon_lim,year_range,path,n_cor
         lat_lim (list): Latitude range [min_lat, max_lat].
         lon_lim (list): Longitude range [min_lon, max_lon].
         year_range (list): Range of years.
+        year_month (list): Range of months.
         path (str): Path to save downloaded files.
         n_cores (int): Number of cores to use (default is all available cores).
 
     Returns:
         pd.DataFrame: DataFrame containing data for the specified area and years.
     """
-    results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,lat_lim, lon_lim,year_range,path) for (lat,lon) in zip(lat_list,lon_list))
+    results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,lat_lim, lon_lim,year_range,month_range,path) for (lat,lon) in zip(lat_list,lon_list))
     df = pd.concat(results)
     return df
 
-def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, path):
+def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, month_range,path):
     """
     Read ERA5 weather data for a specified area and range of years and convert to DataFrame.
 
@@ -226,6 +236,7 @@ def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, path):
         lat_lim (list): Latitude range [min_lat, max_lat].
         lon_lim (list): Longitude range [min_lon, max_lon].
         year_range (list): Range of years.
+        year_month (list): Range of months.
         path (str): Path to save downloaded files.
 
     Returns:
@@ -233,12 +244,13 @@ def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, path):
     """
     results = []
     for year in year_range:
-        # Construct the filename with year information
-        filename = f"era5_data_{lat_lim}_{lon_lim}_{year}.nc"
-        filepath = path + filename
-        # Call the era5_nc_worker function to read the data and append the result to the list
-        result = era5_nc_worker(lat, lon, filepath)
-        results.append(result)
+        for month in month_range:
+            # Construct the filename with year information
+            filename = f"era5_{lat_lim}_{lon_lim}_{year}_{month}.nc"
+            filepath = path + filename
+            # Call the era5_nc_worker function to read the data and append the result to the list
+            result = era5_nc_worker(lat, lon, filepath)
+            results.append(result)
     # Concatenate the results using pd.concat
     df = pd.concat(results)
     return df
@@ -289,6 +301,7 @@ def era5_nc_worker(lat, lon, filepath):
     else:
         data_raw = era5_extract_data(ds_raw, lat, lon)
         df_final = pd.DataFrame(data_raw, index=ds_raw.time.values)
+    df_final['rh2m']=100*((6.112 * np.exp((17.67 * (df_final['d2m']-273.15)) / ((df_final['d2m']-273.15) + 243.5)))/(6.112 * np.exp((17.67 * (df_final['t2m']-273.15)) / ((df_final['t2m']-273.15) + 243.5))))
     df_final['lat'] = lat
     df_final['lon'] = lon
     df_final.index.name='date'
@@ -350,10 +363,14 @@ def UK_AURN_download(year_lst,list_authorities=None,path='./'):
         else:
             data_path = download_path+"/"+str(local_authority)+"/"
             subset_df = metadata['AURN_metadata'][metadata['AURN_metadata'].local_authority == local_authority]
-            datetime_start = pd.to_datetime(subset_df['start_date'].values, format='%Y/%m/%d').year
-            datetime_end_temp = subset_df['end_date'].values
+            datetime_start = pd.to_datetime(subset_df['start_date'].values).year
+            # Handle 'ongoing' and convert other dates
+            end_date_values = subset_df['end_date'].apply(lambda x: datetime.datetime.now() if x == 'ongoing' else x)
+            datetime_end_temp = pd.to_datetime(end_date_values)
+            # Extract year from end_date values
+            datetime_end = datetime_end_temp.dt.year
+
             now = datetime.datetime.now()
-            datetime_end = [now.year]*len(datetime_end_temp) if 'ongoing' in datetime_end_temp else pd.to_datetime(datetime_end_temp).year
             earliest_year = np.min(datetime_start)
             latest_year = np.max(datetime_end)
             proceed = True
