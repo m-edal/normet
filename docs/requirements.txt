@@ -5,6 +5,7 @@ nbsphinx
 recommonmark
 sphinx-markdown-tables
 numpydoc
+nbconvert
 ipython
 pandas
 numpy

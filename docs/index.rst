@@ -24,4 +24,4 @@ Author: `Congbo Song <https://github.com/dsncas>`_
   :maxdepth: 2
   :caption: Tutorial
 
-  notebooks/getdata
+  notebooks/getdata.ipynb
