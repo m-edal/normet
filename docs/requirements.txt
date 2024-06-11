@@ -2,6 +2,10 @@ sphinx
 sphinx-autobuild
 sphinx-rtd-theme
 nbsphinx
+recommonmark
+sphinx-markdown-tables
+numpydoc
+ipython
 pandas
 numpy
 scipy
