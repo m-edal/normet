@@ -71,7 +71,7 @@ normet.autodew.
 
 
 
-.. function:: MET_decom(df, value=None, feature_names=None, split_method='random', time_budget=60, metric='r2', estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression', n_samples=300, fraction=0.75, seed=7654321, importance_ascending=False, n_cores=-1)
+.. function:: met_decom(df, value=None, feature_names=None, split_method='random', time_budget=60, metric='r2', estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression', n_samples=300, fraction=0.75, seed=7654321, importance_ascending=False, n_cores=-1)
 
     Decomposes a time series into different components using machine learning models with feature importance ranking.
 
@@ -115,7 +115,7 @@ normet.autodew.
         df = pd.read_csv('timeseries_data.csv')
         value = 'target_variable'
         feature_names = ['feature1', 'feature2', 'feature3']
-        df_dew, mod_stats = MET_decom(df, value=value, feature_names=feature_names)
+        df_dew, mod_stats = met_decom(df, value=value, feature_names=feature_names)
 
     This will apply a rolling window approach to decompose the time series data into different components using machine learning models, returning a dataframe with decomposed components and a dataframe with model statistics.
 
@@ -137,7 +137,7 @@ normet.autodew.
     .. code-block:: python
 
         df = pd.read_csv('timeseries_data.csv')
-        df_dewwc, mod_stats = MET_decom(df, value='target_variable', feature_names=['feature1', 'feature2'], split_method='random', time_budget=120, metric='mae', estimator_list=["lgbm", "xgboost"], task='regression', n_samples=500, fraction=0.8, seed=123456, importance_ascending=True, n_cores=4)
+        df_dewwc, mod_stats = met_decom(df, value='target_variable', feature_names=['feature1', 'feature2'], split_method='random', time_budget=120, metric='mae', estimator_list=["lgbm", "xgboost"], task='regression', n_samples=500, fraction=0.8, seed=123456, importance_ascending=True, n_cores=4)
 
         print(df_dewwc.head())
         print(mod_stats.head())

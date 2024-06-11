@@ -62,7 +62,7 @@ def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_bud
     return df_dewc, mod_stats
 
 
-def MET_rolling(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+def met_rolling(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   n_samples=300,window_days=15,rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
     """
@@ -117,7 +117,7 @@ def MET_rolling(df, value=None,feature_names=None, split_method = 'random',time_
     df_dew['MET_season']=df_dew['EMI_mean_'+str(window_days)]-df_dew['Normalised_'+str(seed)]
     return df_dew, mod_stats
 
-def MET_decom(df,value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
+def met_decom(df,value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
                   estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
                   n_samples=300,fraction=0.75, seed=7654321, importance_ascending=False, n_cores=-1):
     """
