@@ -7,17 +7,3 @@ sphinx-markdown-tables
 numpydoc
 nbconvert
 ipython
-pandas
-numpy
-scipy
-joblib
-flaml
-matplotlib
-seaborn
-ruptures
-scikit-learn
-statsmodels
-cdsapi
-pyreadr
-wget
-xarray
