@@ -16,7 +16,7 @@ Author: `Congbo Song <https://github.com/dsncas>`_
 
   notebooks/Case1_autodeweather.ipynb
   notebooks/Case2_changepoint.ipynb
-  notebooks/Case3_getdata_function.ipynb
+  notebooks/Case3_getdata.ipynb
   notebooks/Case4_Intervention.ipynb
 
 
