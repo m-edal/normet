@@ -12,9 +12,13 @@ Author: `Congbo Song <https://github.com/dsncas>`_
 
 .. toctree::
   :maxdepth: 2
-  :caption: Tutorial
+  :caption: Tutorials
 
-  notebooks/getdata.ipynb
+  notebooks/Case1_autodeweather.ipynb
+  notebooks/Case2_changepoint.ipynb
+  notebooks/Case3_getdata_function.ipynb
+  notebooks/Case4_Intervention.ipynb
+
 
 .. toctree::
   :maxdepth: 2

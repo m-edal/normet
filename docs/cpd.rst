@@ -31,6 +31,7 @@ normet.cpd.
     Example:
 
     .. code-block:: python
+
         change_points_rupture = cpd_rupture(df, col_name='Deweathered', window=12, n=5, model="l2")
         print("Change points detected using cpd_rupture function:")
         print(change_points_rupture)
@@ -67,8 +68,10 @@ normet.cpd.
     Example:
 
     .. code-block:: python
+
         change_points_cumsum = cpd_cumsum(df, col_name='Deweathered', threshold_mean=10, threshold_std=3000)
         print("Change points detected using cpd_cumsum function:")
         print(change_points_cumsum)
+
 
     This function is useful for identifying significant changes in a time series based on deviations in mean and standard deviation.
