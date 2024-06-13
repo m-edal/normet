@@ -3,6 +3,7 @@ Installation
 This package depends on AutoML from flaml. Install FLAML first:
 
 .. code-block:: bash
+
    conda install flaml -c conda-forge
 
 Install from source:
