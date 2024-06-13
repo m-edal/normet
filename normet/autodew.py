@@ -4,328 +4,442 @@ from datetime import datetime
 from random import sample
 from scipy import stats
 from flaml import AutoML
-automl = AutoML()
 from joblib import Parallel, delayed
 import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
-
-def ts_decom(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
-                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
+def ts_decom(df, value, feature_names, split_method='random', time_budget=60, metric='r2',
+             estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
+             n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
     """
     Decomposes a time series into different components using machine learning models.
+
+    This function prepares the data, trains a machine learning model using AutoML, and decomposes
+    the time series data into various components. The decomposition is based on the contribution
+    of different features to the target variable. It returns the decomposed data and model statistics.
 
     Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
-        split_method (str): Method to split the data ('random' or other methods).
-        time_budget (int): Time budget for the AutoML training.
-        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-        estimator_list (list of str): List of estimators to be used in AutoML.
-        task (str): Task type ('regression' or 'classification').
-        n_samples (int): Number of samples for normalisation.
-        fraction (float): Fraction of data to be used for training.
-        seed (int): Random seed for reproducibility.
-        n_cores (int): Number of cores to be used (-1 for all available cores).
+        split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
+        time_budget (int, optional): Time budget for the AutoML training in seconds. Default is 60.
+        metric (str, optional): Metric to evaluate the model ('r2', 'mae', etc.). Default is 'r2'.
+        estimator_list (list of str, optional): List of estimators to be used in AutoML. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
+        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of cores to be used (-1 for all available cores). Default is -1.
 
     Returns:
         df_dewc (pd.DataFrame): Dataframe with decomposed components.
         mod_stats (pd.DataFrame): Dataframe with model statistics.
+
+    Example:
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> df_dewc, mod_stats = ts_decom(df, value, feature_names)
     """
-    df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
-    automl=train_model(df,variables=feature_names,
-                time_budget= time_budget,  metric= metric, task= task, seed= seed);
-    mod_stats=(pd.concat([modStats(df,set='testing'),
-                modStats(df,set='training'),
-                modStats(df.assign(set="all"),set='all')]))
-    var_names=feature_names
-    df_dew=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
-    for var_to_exclude in ['all','date_unix','day_julian','weekday','hour']:
+
+    # Prepare the data for modeling
+    df = prepare_data(df, value=value, feature_names=feature_names, split_method=split_method, fraction=fraction, seed=seed)
+
+    # Train the model using AutoML
+    automl = train_model(df, value='value', variables=feature_names, time_budget=time_budget, metric=metric, task=task, seed=seed)
+
+    # Gather model statistics for testing, training, and all data
+    mod_stats = pd.concat([modStats(df, automl, set='testing'),
+                           modStats(df, automl, set='training'),
+                           modStats(df.assign(set="all"), automl, set='all')])
+
+    # Initialize the dataframe for decomposed components
+    var_names = feature_names
+    df_dew = df[['date', 'value']].set_index('date').rename(columns={'value': 'Observed'})
+
+    # Decompose the time series by excluding different features
+    for var_to_exclude in ['all', 'date_unix', 'day_julian', 'weekday', 'hour']:
         var_names = list(set(var_names) - set([var_to_exclude]))
-        df_dew_temp = normalise(automl, df,
-            feature_names=feature_names,
-            variables=var_names,
-            n_samples=n_samples,
-            n_cores=n_cores,
-            seed=seed)
+        df_dew_temp = normalise(automl, df, feature_names=feature_names, variables=var_names,
+                                n_samples=n_samples, n_cores=n_cores, seed=seed)
         df_dew[var_to_exclude] = df_dew_temp.iloc[:, 1]
 
-    df_dewc=df_dew.copy()
-    df_dewc['hour']=df_dew['hour']-df_dew['weekday']
-    df_dewc['weekday']=df_dew['weekday']-df_dew['day_julian']
-    df_dewc['day_julian']=df_dew['day_julian']-df_dew['date_unix']
-    df_dewc['date_unix']=df_dew['date_unix']-df_dew['all']+df_dew['hour'].mean()
-    df_dewc['Deweathered']=df_dew['hour']
+    # Adjust the decomposed components to create deweathered values
+    df_dewc = df_dew.copy()
+    df_dewc['hour'] = df_dew['hour'] - df_dew['weekday']
+    df_dewc['weekday'] = df_dew['weekday'] - df_dew['day_julian']
+    df_dewc['day_julian'] = df_dew['day_julian'] - df_dew['date_unix']
+    df_dewc['date_unix'] = df_dew['date_unix'] - df_dew['all'] + df_dew['hour'].mean()
+    df_dewc['Deweathered'] = df_dew['hour']
+
     return df_dewc, mod_stats
 
 
-def met_rolling(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
-                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  n_samples=300,window_days=15,rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
+def met_rolling(df, value, feature_names, split_method='random', time_budget=60, metric='r2',
+                estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
+                n_samples=300, window_days=14, rollingevery=2, fraction=0.75, seed=7654321, n_cores=-1):
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
+    This function prepares the data, trains a machine learning model using AutoML, and applies a rolling window approach
+    to decompose the time series data into various components. The decomposition is based on the contribution of different
+    features to the target variable. It returns the decomposed data and model statistics.
+
     Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
-        split_method (str): Method to split the data ('random' or other methods).
-        time_budget (int): Time budget for the AutoML training.
-        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-        estimator_list (list of str): List of estimators to be used in AutoML.
-        task (str): Task type ('regression' or 'classification').
-        n_samples (int): Number of samples for normalisation.
-        window_days (int): Number of days for the rolling window.
-        rollingevery (int): Rolling interval.
-        fraction (float): Fraction of data to be used for training.
-        seed (int): Random seed for reproducibility.
-        n_cores (int): Number of cores to be used (-1 for all available cores).
+        split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
+        time_budget (int, optional): Time budget for the AutoML training in seconds. Default is 60.
+        metric (str, optional): Metric to evaluate the model ('r2', 'mae', etc.). Default is 'r2'.
+        estimator_list (list of str, optional): List of estimators to be used in AutoML. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
+        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        window_days (int, optional): Number of days for the rolling window. Default is 14.
+        rollingevery (int, optional): Rolling interval in days. Default is 2.
+        fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of cores to be used (-1 for all available cores). Default is -1.
 
     Returns:
-        df_dew (pd.DataFrame): Dataframe with decomposed components.
+        df_dew (pd.DataFrame): Dataframe with decomposed components including mean and standard deviation of the rolling window.
         mod_stats (pd.DataFrame): Dataframe with model statistics.
-    """
-    df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
-    automl=train_model(df,variables=feature_names,
-                time_budget= time_budget,  metric= metric, task= task, seed= seed);
-    mod_stats=(pd.concat([modStats(df,set='testing'),
-                modStats(df,set='training'),
-                modStats(df.assign(set="all"),set='all')]))
-    variables_sample=[item for item in feature_names if item not in ['hour','weekday','day_julian','date_unix']]
-    df_dew=normalise(automl, df,
-                           feature_names = feature_names,
-                          variables= variables_sample,
-                          n_samples=n_samples, n_cores=n_cores, seed=seed)
 
-    dfr=pd.DataFrame(index=df_dew.index)
-    df['date_d']=df['date'].dt.date
-    date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
-    date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
-    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()[::rollingevery]):
-        dfa=df[df['date_d']>=ds]
-        dfa=dfa[dfa['date']<=dfa['date'].min()+pd.DateOffset(days=window_days)]
-        dfar=normalise(automl=automl,df=dfa,
-            feature_names=feature_names, variables= variables_sample,
-            n_samples=n_samples, n_cores=n_cores, seed=seed)
-        dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
-    df_dew['EMI_mean_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
-    df_dew['EMI_std_'+str(window_days)]=np.mean(dfr.iloc[:,1:],axis=1)
-    df_dew['MET_short']=df_dew['Observed']-df_dew['EMI_mean_'+str(window_days)]
-    df_dew['MET_season']=df_dew['EMI_mean_'+str(window_days)]-df_dew['Normalised_'+str(seed)]
+    Example:
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> df_dew, mod_stats = met_rolling(df, value, feature_names, window_days=14, rollingevery=2)
+    """
+
+    # Prepare the data for modeling
+    df = prepare_data(df, value=value, feature_names=feature_names, split_method=split_method, fraction=fraction, seed=seed)
+
+    # Train the model using AutoML
+    automl = train_model(df, value='value', variables=feature_names, time_budget=time_budget, metric=metric, task=task, seed=seed)
+
+    # Gather model statistics for testing, training, and all data
+    mod_stats = pd.concat([
+        modStats(df, automl, set='testing'),
+        modStats(df, automl, set='training'),
+        modStats(df.assign(set="all"), automl, set='all')
+    ])
+
+    # Variables to be used in resampling
+    variables_resample = [item for item in feature_names if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]
+
+    # Normalize the data
+    df_dew = normalise(automl, df, feature_names=feature_names, variables=variables_resample, n_samples=n_samples, n_cores=n_cores, seed=seed)
+
+    # Initialize the dataframe for rolling window results
+    dfr = pd.DataFrame(index=df_dew.index)
+    df['date_d'] = pd.to_datetime(df['date']).dt.date
+    date_max = pd.to_datetime(df['date_d'].max() - pd.DateOffset(days=window_days - 1))
+    date_min = pd.to_datetime(df['date_d'].min() + pd.DateOffset(days=window_days - 1))
+
+    # Apply the rolling window approach
+    for i, ds in enumerate(pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rollingevery]):
+        dfa = df[df['date_d'] >= ds.date()]
+        dfa = dfa[dfa['date_d'] <= (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
+        dfar = normalise(automl=automl, df=dfa, feature_names=feature_names, variables=variables_resample, n_samples=n_samples, n_cores=n_cores, seed=seed)
+
+        dfr = pd.concat([dfr, dfar.iloc[:, 1]], axis=1)
+
+    # Calculate the mean and standard deviation for the rolling window
+    df_dew['EMI_mean_' + str(window_days)] = np.mean(dfr.iloc[:, 1:], axis=1)
+    df_dew['EMI_std_' + str(window_days)] = np.std(dfr.iloc[:, 1:], axis=1)
+
+    # Calculate the short-term and seasonal components
+    df_dew['MET_short'] = df_dew['Observed'] - df_dew['EMI_mean_' + str(window_days)]
+    df_dew['MET_season'] = df_dew['EMI_mean_' + str(window_days)] - df_dew['Normalised_' + str(seed)]
+
     return df_dew, mod_stats
 
-def met_decom(df,value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
-                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  n_samples=300,fraction=0.75, seed=7654321, importance_ascending=False, n_cores=-1):
+def met_decom(df, value, feature_names, split_method='random', time_budget=60, metric='r2',
+              estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
+              n_samples=300, fraction=0.75, seed=7654321, importance_ascending=False, n_cores=-1):
     """
     Decomposes a time series into different components using machine learning models with feature importance ranking.
 
+    This function prepares the data, trains a machine learning model using AutoML, and decomposes the time series data
+    into various components. The decomposition is based on the feature importance ranking and their contributions to the
+    target variable. It returns the decomposed data and model statistics.
+
     Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
-        split_method (str): Method to split the data ('random' or other methods).
-        time_budget (int): Time budget for the AutoML training.
-        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-        estimator_list (list of str): List of estimators to be used in AutoML.
-        task (str): Task type ('regression' or 'classification').
-        n_samples (int): Number of samples for normalisation.
-        fraction (float): Fraction of data to be used for training.
-        seed (int): Random seed for reproducibility.
-        importance_ascending (bool): Sort order for feature importances.
-        n_cores (int): Number of cores to be used (-1 for all available cores).
+        split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
+        time_budget (int, optional): Time budget for the AutoML training in seconds. Default is 60.
+        metric (str, optional): Metric to evaluate the model ('r2', 'mae', etc.). Default is 'r2'.
+        estimator_list (list of str, optional): List of estimators to be used in AutoML. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
+        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        importance_ascending (bool, optional): Sort order for feature importances. Default is False.
+        n_cores (int, optional): Number of cores to be used (-1 for all available cores). Default is -1.
 
     Returns:
         df_dewwc (pd.DataFrame): Dataframe with decomposed components.
         mod_stats (pd.DataFrame): Dataframe with model statistics.
+
+    Example:
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> df_dewwc, mod_stats = met_decom(df, value, feature_names)
     """
-    df=prepare_data(df, value=value, feature_names=feature_names, split_method = split_method,fraction=fraction,seed=seed)
-    automl=train_model(df,variables=feature_names,
-                time_budget= time_budget,metric= metric, task= task, seed= seed);
-    mod_stats=(pd.concat([modStats(df,set='testing'),
-                modStats(df,set='training'),
-                modStats(df.assign(set="all"),set='all')]))
-    var_names=feature_names
-    automlfi=pd.DataFrame(data={'feature_importances':automl.feature_importances_},
-                      index=automl.feature_names_in_).sort_values('feature_importances',ascending=importance_ascending)
-    df_deww=df[['date','value']].set_index('date').rename(columns={'value':'Observed'})
-    MET_list=['all']+[item for item in automlfi.index if item not in ['hour','weekday','day_julian','date_unix']]
+
+    # Prepare the data for modeling
+    df = prepare_data(df, value=value, feature_names=feature_names, split_method=split_method, fraction=fraction, seed=seed)
+
+    # Train the model using AutoML
+    automl = train_model(df, value='value', variables=feature_names, time_budget=time_budget, metric=metric, task=task, seed=seed)
+
+    # Gather model statistics for testing, training, and all data
+    mod_stats = pd.concat([
+        modStats(df, automl, set='testing'),
+        modStats(df, automl, set='training'),
+        modStats(df.assign(set="all"), automl, set='all')
+    ])
+
+    # Determine feature importances and sort them
+    var_names = feature_names
+    automlfi = pd.DataFrame(data={'feature_importances': automl.feature_importances_},
+                            index=automl.feature_names_in_).sort_values('feature_importances', ascending=importance_ascending)
+
+    # Initialize the dataframe for decomposed components
+    df_deww = df[['date', 'value']].set_index('date').rename(columns={'value': 'Observed'})
+    MET_list = ['all'] + [item for item in automlfi.index if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]
+
+    # Decompose the time series by excluding different features based on their importance
     for var_to_exclude in MET_list:
         var_names = list(set(var_names) - set([var_to_exclude]))
-        df_dew_temp = normalise(automl, df,
-            feature_names=feature_names,
-            variables=var_names,
-            n_samples=n_samples,
-            n_cores=n_cores,
-            seed=seed)
+        df_dew_temp = normalise(automl, df, feature_names=feature_names, variables=var_names, n_samples=n_samples, n_cores=n_cores, seed=seed)
         df_deww[var_to_exclude] = df_dew_temp.iloc[:, 1]
-    df_dewwc=df_deww.copy()
-    for i,param in enumerate(MET_list):
-        if (i>0)&(i<len(MET_list)):
-            df_dewwc[param]=df_deww[param]-df_deww[MET_list[i-1]]
+
+    # Adjust the decomposed components to create weather-independent values
+    df_dewwc = df_deww.copy()
+    for i, param in enumerate(MET_list):
+        if (i > 0) & (i < len(MET_list)):
+            df_dewwc[param] = df_deww[param] - df_deww[MET_list[i - 1]]
 
     return df_dewwc, mod_stats
 
-def rolling_dew(df,value=None, feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
-                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  variables_sample=None, n_samples=300,window_days=15, rollingevery=2,fraction=0.75, seed=7654321, n_cores=-1):
+
+def rolling_dew(df, value, feature_names, variables_resample, split_method='random', time_budget=60, metric='r2',
+                estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
+                n_samples=300, window_days=14, rollingevery=2, fraction=0.75, seed=7654321, n_cores=-1):
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
+
+    This function prepares the data, trains a machine learning model using AutoML, and applies a rolling window approach
+    to decompose the time series data into various components. The decomposition is based on the contribution of different
+    features to the target variable over rolling windows. It returns the decomposed data and model statistics.
 
     Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
-        split_method (str): Method to split the data ('random' or other methods).
-        time_budget (int): Time budget for the AutoML training.
-        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-        estimator_list (list of str): List of estimators to be used in AutoML.
-        task (str): Task type ('regression' or 'classification').
-        variables_sample (list of str): List of sampled feature names for normalisation (optional).
-        n_samples (int): Number of samples for normalisation.
-        window_days (int): Number of days for the rolling window.
-        rollingevery (int): Rolling interval.
-        fraction (float): Fraction of data to be used for training.
-        seed (int): Random seed for reproducibility.
-        n_cores (int): Number of cores to be used (-1 for all available cores).
+        split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
+        time_budget (int, optional): Time budget for the AutoML training in seconds. Default is 60.
+        metric (str, optional): Metric to evaluate the model ('r2', 'mae', etc.). Default is 'r2'.
+        estimator_list (list of str, optional): List of estimators to be used in AutoML. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
+        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
+        variables_resample (list of str): List of sampled feature names for normalization.
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        window_days (int, optional): Number of days for the rolling window. Default is 14.
+        rollingevery (int, optional): Rolling interval in days. Default is 2.
+        fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of cores to be used (-1 for all available cores). Default is -1.
 
     Returns:
         dfr (pd.DataFrame): Dataframe with rolling decomposed components.
         mod_stats (pd.DataFrame): Dataframe with model statistics.
+
+    Example:
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> variables_resample = ['feature1', 'feature2']
+        >>> dfr, mod_stats = rolling_dew(df, value, feature_names, variables_resample)
     """
 
     # Prepare the data
-    df=prepare_data(df, value=value, feature_names=feature_names,split_method = split_method,fraction=fraction,seed=seed)
+    df = prepare_data(df, value=value, feature_names=feature_names, split_method=split_method, fraction=fraction, seed=seed)
 
     # Train the model using AutoML
-    automl=train_model(df,variables=feature_names,
-                time_budget= time_budget,  metric= metric, task= task, seed= seed);
+    automl = train_model(df, value='value', variables=feature_names, time_budget=time_budget, metric=metric, task=task, seed=seed)
 
     # Collect model statistics
-    mod_stats=(pd.concat([modStats(df,set='testing'),
-                modStats(df,set='training'),
-                modStats(df.assign(set="all"),set='all')]))
+    mod_stats = pd.concat([
+        modStats(df, automl, set='testing'),
+        modStats(df, automl, set='training'),
+        modStats(df.assign(set="all"), automl, set='all')
+    ])
 
     # Create an initial dataframe to store observed values
-    dfr=pd.DataFrame(index=df['date'],data={'Observed':list(df['value'])})
-    df['date_d']=df['date'].dt.date
+    dfr = pd.DataFrame(index=df['date'], data={'Observed': list(df['value'])})
+    df['date_d'] = df['date'].dt.date
 
     # Define the rolling window range
-    date_max=df['date_d'].max()-pd.DateOffset(days=window_days-1)
-    date_min=df['date_d'].min()+pd.DateOffset(days=window_days-1)
+    date_max = df['date_d'].max() - pd.DateOffset(days=window_days - 1)
+    date_min = df['date_d'].min() + pd.DateOffset(days=window_days - 1)
 
     # Iterate over the rolling windows
-    for i,ds in enumerate(df['date_d'][df['date_d']<=date_max].unique()[::rollingevery]):
-        dfa=df[df['date_d']>=ds]
-        dfa=dfa[dfa['date']<=dfa['date'].min()+pd.DateOffset(days=window_days)]
+    for i, ds in enumerate(pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rollingevery]):
+        dfa = df[df['date_d'] >= ds.date()]
+        dfa = dfa[dfa['date_d'] <= (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
 
         # Normalize the data within the rolling window
-        dfar=normalise(automl=automl,df=dfa,
-            feature_names=feature_names, variables= variables_sample,
-            n_samples=n_samples, n_cores=n_cores, seed=seed)
+        dfar = normalise(automl=automl, df=dfa, feature_names=feature_names, variables=variables_resample,
+                         n_samples=n_samples, n_cores=n_cores, seed=seed)
 
         # Concatenate the results
-        dfr=pd.concat([dfr,dfar.iloc[:,1]],axis=1)
+        dfr = pd.concat([dfr, dfar.iloc[:, 1]], axis=1)
+
     return dfr, mod_stats
 
-def do_all_unc(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
-                estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                n_models=10, confidence_level=0.95, variables_sample=None, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
+def do_all(df, value, feature_names, variables_resample, split_method='random', time_budget=60, metric='r2',
+           estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
+           n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
+    """
+    Conducts data preparation, model training, and normalization, returning the transformed dataset and model statistics.
+
+    This function performs the entire pipeline from data preparation to model training and normalization using
+    specified parameters and returns the transformed dataset along with model statistics.
+
+    Parameters:
+        df (pd.DataFrame): Input DataFrame containing the dataset.
+        value (str): Name of the target variable.
+        feature_names (list of str): List of feature names.
+        variables_resample (list of str): List of variables for normalization.
+        split_method (str, optional): Method for splitting data ('random' or 'time_series'). Default is 'random'.
+        time_budget (int, optional): Maximum time allowed for training models, in seconds. Default is 60.
+        metric (str, optional): Evaluation metric for model performance ('r2', 'mae', etc.). Default is 'r2'.
+        estimator_list (list of str, optional): List of estimator names to be used in training. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
+        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        fraction (float, optional): Fraction of the dataset to be used for training. Default is 0.75.
+        seed (int, optional): Seed for random operations. Default is 7654321.
+        n_cores (int, optional): Number of CPU cores to be used for normalization (-1 for all available cores). Default is -1.
+
+    Returns:
+        tuple:
+            - df_dew (pd.DataFrame): Transformed dataset with normalized values.
+            - mod_stats (pd.DataFrame): DataFrame containing model statistics.
+
+    Example:
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> variables_resample = ['feature1', 'feature2']
+        >>> df_dew, mod_stats = do_all(df, value, feature_names, variables_resample)
+    """
+
+    # Prepare the data
+    df = prepare_data(df, value=value, feature_names=feature_names, split_method=split_method, fraction=fraction, seed=seed)
+
+    # Train the model using AutoML
+    automl = train_model(df, value='value', variables=feature_names, time_budget=time_budget, metric=metric, task=task, seed=seed)
+
+    # Collect model statistics
+    mod_stats = pd.concat([
+        modStats(df, automl, set='testing'),
+        modStats(df, automl, set='training'),
+        modStats(df.assign(set="all"), automl, set='all')
+    ])
+
+    # Normalize the data
+    df_dew = normalise(automl, df, feature_names=feature_names, variables=variables_resample, n_samples=n_samples, n_cores=n_cores, seed=seed)
+
+    return df_dew, mod_stats
+
+def do_all_unc(df, value, feature_names, variables_resample, split_method='random', time_budget=60, metric='r2',
+               estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
+               n_models=10, confidence_level=0.95, n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
     """
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
+
+    This function performs the entire pipeline from data preparation to model training and normalization, with an added step
+    to quantify uncertainty by training multiple models using different random seeds. It returns a dataframe containing observed
+    values, mean, standard deviation, median, confidence bounds, and weighted values, as well as a dataframe with model statistics.
 
     Parameters:
         df (pd.DataFrame): Input dataframe containing the time series data.
         value (str): Column name of the target variable.
         feature_names (list of str): List of feature column names.
-        split_method (str): Method to split the data ('random' or other methods).
-        time_budget (int): Time budget for the AutoML training.
-        metric (str): Metric to evaluate the model ('r2', 'mae', etc.).
-        estimator_list (list of str): List of estimators to be used in AutoML.
-        task (str): Task type ('regression' or 'classification').
-        n_models (int): Number of models to train for uncertainty quantification.
-        confidence_level (float): Confidence level for the uncertainty bounds.
-        variables_sample (list of str): List of sampled feature names for normalisation (optional).
-        n_samples (int): Number of samples for normalisation.
-        fraction (float): Fraction of data to be used for training.
-        seed (int): Random seed for reproducibility.
-        n_cores (int): Number of cores to be used (-1 for all available cores).
+        split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
+        time_budget (int, optional): Time budget for the AutoML training. Default is 60.
+        metric (str, optional): Metric to evaluate the model ('r2', 'mae', etc.). Default is 'r2'.
+        estimator_list (list of str, optional): List of estimators to be used in AutoML. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
+        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
+        n_models (int, optional): Number of models to train for uncertainty quantification. Default is 10.
+        confidence_level (float, optional): Confidence level for the uncertainty bounds. Default is 0.95.
+        variables_resample (list of str): List of sampled feature names for normalization (optional).
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
+        fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of cores to be used (-1 for all available cores). Default is -1.
 
     Returns:
-        df_dew (pd.DataFrame): Dataframe with observed values, mean, standard deviation, median, lower and upper bounds, and weighted values.
-        mod_stats (pd.DataFrame): Dataframe with model statistics.
+        tuple:
+            - df_dew (pd.DataFrame): Dataframe with observed values, mean, standard deviation, median, lower and upper bounds, and weighted values.
+            - mod_stats (pd.DataFrame): Dataframe with model statistics.
+
+    Example:
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> variables_resample = ['feature1', 'feature2']
+        >>> df_dew, mod_stats = do_all_unc(df, value, feature_names, variables_resample)
     """
+
     np.random.seed(seed)
     random_seeds = np.random.choice(np.arange(1000001), size=n_models, replace=False)
-    mod_stats=pd.DataFrame(columns=['n','FAC2','MB','MGE','NMB','NMGE','RMSE','r','p_value','COE',
-                                   'IOA','R2','set','seed'])
-    df_dew=df.set_index('date')[[value]].rename(columns={value:'Observed'})
+    df_dew = None
+    mod_stats = None
+
     for i in random_seeds:
-        df_dew0,mod_stats0=do_all(df=df, value=value,
-                                 feature_names=feature_names,
-                                 split_method = split_method,time_budget=time_budget,
-                                 variables_sample=variables_sample,
-                                 n_samples=n_samples,fraction=fraction,seed=i, n_cores=n_cores)
-        df_dew=pd.concat([df_dew,df_dew0.iloc[:,1]],axis=1)
-        mod_stats0['seed']=i
-        mod_stats=pd.concat([mod_stats,mod_stats0])
-    df_dew['mean']=df_dew.iloc[:,1:n_models+1].mean(axis=1)
-    df_dew['std']=df_dew.iloc[:,1:n_models+1].std(axis=1)
-    df_dew['median']=df_dew.iloc[:,1:n_models+1].median(axis=1)
-    df_dew['lower_bound'] = df_dew.iloc[:,1:n_models+1].quantile((1 - confidence_level) / 2,axis=1)
-    df_dew['upper_bound'] = df_dew.iloc[:,1:n_models+1].quantile(1 - (1 - confidence_level) / 2,axis=1)
+        df_dew0, mod_stats0 = do_all(df=df, value=value,
+                                     feature_names=feature_names,
+                                     split_method=split_method, time_budget=time_budget,
+                                     variables_resample=variables_resample,
+                                     n_samples=n_samples, fraction=fraction, seed=i, n_cores=n_cores)
+        if df_dew is None:
+            df_dew = df_dew0
+        else:
+            df_dew = pd.concat([df_dew, df_dew0.iloc[:, 1]], axis=1)
+
+        mod_stats0['seed'] = i
+        if mod_stats is None:
+            mod_stats = mod_stats0
+        else:
+            mod_stats = pd.concat([mod_stats, mod_stats0], ignore_index=True)
+
+    df_dew['mean'] = df_dew.iloc[:, 1:n_models+1].mean(axis=1)
+    df_dew['std'] = df_dew.iloc[:, 1:n_models+1].std(axis=1)
+    df_dew['median'] = df_dew.iloc[:, 1:n_models+1].median(axis=1)
+    df_dew['lower_bound'] = df_dew.iloc[:, 1:n_models+1].quantile((1 - confidence_level) / 2, axis=1)
+    df_dew['upper_bound'] = df_dew.iloc[:, 1:n_models+1].quantile(1 - (1 - confidence_level) / 2, axis=1)
 
     test_stats = mod_stats[mod_stats['set'] == 'testing']
-    test_stats['R2']=test_stats['R2'].replace([np.inf, -np.inf], np.nan)
+    test_stats['R2'] = test_stats['R2'].replace([np.inf, -np.inf], np.nan)
     normalized_R2 = (test_stats['R2'] - test_stats['R2'].min()) / (test_stats['R2'].max() - test_stats['R2'].min())
     weighted_R2 = normalized_R2 / normalized_R2.sum()
 
     df_dew1 = df_dew.copy()
     df_dew1.iloc[:, 1:n_models+1] = df_dew.iloc[:, 1:n_models+1].values * weighted_R2.values
     df_dew['weighted'] = df_dew1.iloc[:, 1:n_models+1].sum(axis=1)
+
     return df_dew, mod_stats
 
-def do_all(df, value=None,feature_names=None, split_method = 'random',time_budget=60,metric= 'r2',
-                  estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],task='regression',
-                  variables_sample=None, n_samples=300,fraction=0.75, seed=7654321, n_cores=-1):
-    """
-    Conducts data preparation, model training, and normalisation, returning the transformed dataset and model statistics.
 
-    Parameters:
-        df (DataFrame): Input DataFrame containing the dataset.
-        value (str, optional): Name of the target variable. Default is None.
-        feature_names (list, optional): List of feature names. Default is None.
-        split_method (str, optional): Method for splitting data ('random' or 'time_series'). Default is 'random'.
-        time_budget (int, optional): Maximum time allowed for training models, in seconds. Default is 60.
-        metric (str, optional): Evaluation metric for model performance. Default is 'r2'.
-        estimator_list (list, optional): List of estimator names to be used in training. Default is ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"].
-        task (str, optional): Task type ('regression' or 'classification'). Default is 'regression'.
-        variables_sample (list, optional): List of variables for normalisation. Default is None.
-        n_samples (int, optional): Number of samples for normalisation. Default is 300.
-        fraction (float, optional): Fraction of the dataset to be used for training. Default is 0.75.
-        seed (int, optional): Seed for random operations. Default is 7654321.
-        n_cores (int, optional): Number of CPU cores to be used for normalisation. Default is -1 (use all available cores).
-
-    Returns:
-        tuple: Transformed dataset and model statistics DataFrame.
-    """
-    df=prepare_data(df, value=value, feature_names=feature_names,split_method = split_method,fraction=fraction,seed=seed)
-    automl=train_model(df,variables=feature_names,
-                time_budget= time_budget,  metric= metric, task= task, seed= seed);
-    mod_stats=(pd.concat([modStats(df,set='testing'),
-                modStats(df,set='training'),
-                modStats(df.assign(set="all"),set='all')]))
-
-    df_dew=normalise(automl, df,
-                           feature_names = feature_names,
-                          variables= variables_sample,
-                          n_samples=n_samples, n_cores=n_cores, seed=seed)
-    return df_dew, mod_stats
-
-def prepare_data(df, value='value', feature_names=None, na_rm=True,split_method = 'random' ,replace=False, fraction=0.75,seed=7654321):
+def prepare_data(df, value, feature_names, prepared=False, na_rm=True, split_method='random', replace=False, fraction=0.75, seed=7654321):
     """
     Prepares the input DataFrame by performing data cleaning, imputation, and splitting.
 
@@ -342,17 +456,116 @@ def prepare_data(df, value='value', feature_names=None, na_rm=True,split_method 
     Returns:
         DataFrame: Prepared DataFrame with cleaned data and split into training and testing sets.
     """
-    # Check
+
+    # Perform the data preparation steps
+    df = (df
+          .pipe(check_data, value=value,feature_names=feature_names)
+          .pipe(impute_values, na_rm=na_rm)
+          .pipe(add_date_variables, replace=replace)
+          .pipe(split_into_sets, split_method=split_method, fraction=fraction, seed=seed)
+          .reset_index(drop=True))
+
+    return df
+
+def check_data(df, value, feature_names):
+    """
+    Validates and preprocesses the input DataFrame for subsequent analysis or modeling.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The input DataFrame containing the data to be checked.
+    value : str
+        The name of the target variable (column) to be used in the analysis.
+    feature_names : list of str
+        A list of feature names to be included in the analysis. If empty, all columns are used.
+
+    Returns:
+    --------
+    pandas.DataFrame
+        A DataFrame containing only the necessary columns, with appropriate checks and transformations applied.
+
+    Raises:
+    -------
+    ValueError:
+        If any of the following conditions are met:
+        - The target variable (`value`) is not in the DataFrame columns.
+        - There is no datetime information in either the index or the 'date' column.
+        - The 'date' column is not of type datetime64.
+        - The 'date' column contains missing values.
+
+    Notes:
+    ------
+    - If the DataFrame's index is a DatetimeIndex, it is reset to a column named 'date'.
+    - The target column (`value`) is renamed to 'value'.
+    - If `feature_names` is provided, only those columns (along with 'date' and the target column) are selected.
+    """
+    # Check if the target variable is in the DataFrame
     if value not in df.columns:
         raise ValueError("`value` is not within input data frame.")
 
-    df=df[list(set(feature_names) & set(list(df.columns)))+['date',value]]
-    df = (df.rename(columns={value: "value"})
-        .pipe(check_data, prepared=False)
-        .pipe(impute_values, na_rm=na_rm)
-        .pipe(add_date_variables, replace=replace)
-        .pipe(split_into_sets, split_method = split_method,fraction=fraction,seed=seed)
-        .reset_index(drop=True))
+    # Check if the date is in the index or columns
+    if isinstance(df.index, pd.DatetimeIndex):
+        date_in_index = True
+    elif 'date' in df.columns:
+        date_in_index = False
+    else:
+        raise ValueError("No datetime information found in index or 'date' column.")
+
+    # Select features and the target variable
+    if feature_names:
+        selected_columns = list(set(feature_names) & set(df.columns))
+    else:
+        selected_columns = df.columns.tolist()
+
+    # Ensure date and value columns are included
+    if not date_in_index:
+        selected_columns = selected_columns + ['date']
+    selected_columns.append(value)
+
+    # Select only the necessary columns
+    df = df[selected_columns]
+
+    # If the date is in the index, reset the index to a column for processing
+    if date_in_index:
+        df = df.reset_index()
+        df = df.rename(columns={'index': 'date'})
+
+    # Rename the target column to 'value'
+    df = df.rename(columns={value: "value"})
+
+    # Check if the date column is of type datetime64
+    if not np.issubdtype(df["date"].dtype, np.datetime64):
+        raise ValueError("`date` variable needs to be a parsed date (datetime64).")
+
+    # Check if the date column contains any missing values
+    if df['date'].isnull().any():
+        raise ValueError("`date` must not contain missing (NA) values.")
+
+    return df
+
+
+def impute_values(df, na_rm):
+    """
+    Imputes missing values in the DataFrame.
+
+    Parameters:
+        df (DataFrame): Input DataFrame containing the dataset.
+        na_rm (bool): Whether to remove missing values.
+
+    Returns:
+        DataFrame: DataFrame with imputed missing values.
+    """
+    # Remove missing values
+    if na_rm:
+        df = df.dropna(subset=['value']).reset_index(drop=True)
+    # Numeric variables
+    for col in df.select_dtypes(include=[np.number]).columns:
+        df.fillna({col: df[col].median()}, inplace=True)
+
+    # Character and categorical variables
+    for col in df.select_dtypes(include=['object', 'category']).columns:
+        df.fillna({col: df[col].mode()[0]}, inplace=True)
 
     return df
 
@@ -372,7 +585,7 @@ def add_date_variables(df, replace):
         df['date_unix'] = df['date'].astype(np.int64) // 10**9
         df['day_julian'] = pd.DatetimeIndex(df['date']).dayofyear
         df['weekday'] = pd.DatetimeIndex(df['date']).weekday + 1
-        df['weekday']=df['weekday'].astype("category")
+        #df['weekday']=df['weekday'].astype("category")
         df['hour'] = pd.DatetimeIndex(df['date']).hour
 
     else:
@@ -388,29 +601,6 @@ def add_date_variables(df, replace):
 
         if 'hour' not in df.columns:
             df['hour'] = df['date'].apply(lambda x: x.hour)
-
-    return df
-
-def impute_values(df, na_rm):
-    """
-    Imputes missing values in the DataFrame.
-
-    Parameters:
-        df (DataFrame): Input DataFrame containing the dataset.
-        na_rm (bool): Whether to remove missing values.
-
-    Returns:
-        DataFrame: DataFrame with imputed missing values.
-    """
-    # Remove missing values
-    if na_rm:
-        df = df.dropna(subset=['value']).reset_index(drop=True)
-    # Numeric variables
-    for col in df.select_dtypes(include=[np.number]).columns:
-        df[col].fillna(df[col].median(), inplace=True)
-    # Character and categorical variables
-    for col in df.select_dtypes(include=['object', 'category']).columns:
-        df[col].fillna(df[col].mode()[0],inplace=True)
 
     return df
 
@@ -444,50 +634,16 @@ def split_into_sets(df, split_method, fraction,seed):
 
     return df_split
 
-def check_data(df, prepared):
+def train_model(df, value, variables, time_budget=60, metric='r2',
+                estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"],
+                task='regression', seed=7654321, verbose=True):
     """
-    Checks the integrity of the input DataFrame.
+    Trains a machine learning model using the provided dataset and parameters.
 
     Parameters:
-        df (DataFrame): Input DataFrame containing the dataset.
-        prepared (bool): Whether the DataFrame is already prepared.
-
-    Returns:
-        DataFrame: DataFrame with checked integrity.
-    """
-    if 'date' not in df.columns:
-        raise ValueError("Input must contain a `date` variable.")
-    if not np.issubdtype(df["date"].dtype, np.datetime64):
-        raise ValueError("`date` variable needs to be a parsed date (datetime64).")
-    if df['date'].isnull().any():
-        raise ValueError("`date` must not contain missing (NA) values.")
-
-    if prepared:
-        if 'set' not in df.columns:
-            raise ValueError("Input must contain a `set` variable.")
-        if not set(df['set'].unique()).issubset(set(['training', 'testing'])):
-            raise ValueError("`set` can only take the values `training` and `testing`.")
-        if "value" not in df.columns:
-            raise ValueError("Input must contain a `value` variable.")
-        if "date_unix" not in df.columns:
-            raise ValueError("Input must contain a `date_unix` variable.")
-    return df
-
-
-def train_model(df, variables,
-    time_budget= 60,  # total running time in seconds
-    metric= 'r2',  # primary metrics for regression can be chosen from: ['mae','mse','r2','rmse','mape']
-    estimator_list= ["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"],  # list of ML learners; we tune lightgbm in this example
-    task= 'regression',  # task type
-    seed= 7654321,    # random seed
-    verbose = True
-):
-    """
-    Trains a model using the provided dataset and Args.
-
-    Parameters:
-        df (DataFrame): Input DataFrame containing the dataset.
-        variables (list): List of feature variables.
+        df (pd.DataFrame): Input DataFrame containing the dataset.
+        value (str): Name of the target variable.
+        variables (list of str): List of feature variables.
 
     Keyword Parameters:
         time_budget (int, optional): Total running time in seconds. Default is 60.
@@ -498,81 +654,93 @@ def train_model(df, variables,
         verbose (bool, optional): Whether to print progress messages. Default is True.
 
     Returns:
-        object: Trained model.
+        AutoML: Trained AutoML model object.
+
+    Raises:
+        ValueError: If `variables` contains duplicates or if any `variables` are not present in the DataFrame.
     """
-    # Check arguments
+
+    # Check for duplicate variables
     if len(set(variables)) != len(variables):
         raise ValueError("`variables` contains duplicate elements.")
 
+    # Check if all variables are in the DataFrame
     if not all([var in df.columns for var in variables]):
         raise ValueError("`variables` given are not within input data frame.")
 
-    # Check input dataset
-    df = check_data(df, prepared=True)
+    # Filter DataFrame to include only the training set and relevant columns
+    df = df.loc[df['set'] == 'training', [value] + variables]
 
-    # Filter and select input for modelling
-    df = df.loc[df['set'] == 'training', ['value'] + variables]
-
+    # AutoML settings
     automl_settings = {
-        "time_budget": time_budget,  # total running time in seconds
-        "metric": metric,  # primary metrics for regression can be chosen from: ['mae','mse','r2','rmse','mape']
-        "estimator_list": estimator_list,  # list of ML learners; we tune lightgbm in this example
-        "task": task,  # task type
-        "seed": seed,    # random seed
-        "verbose": verbose
+        "time_budget": time_budget,  # Total running time in seconds
+        "metric": metric,  # Primary metrics for regression can be chosen from: ['mae','mse','r2','rmse','mape']
+        "estimator_list": estimator_list,  # List of ML learners
+        "task": task,  # Task type
+        "seed": seed,  # Random seed
+        "verbose": verbose  # Verbose output
     }
 
-    automl.fit(X_train=df[variables], y_train=df['value'],**automl_settings)
+    # Initialize and train AutoML model
+    automl = AutoML()
+    automl.fit(X_train=df[variables], y_train=df[value], **automl_settings)
 
     return automl
 
-def normalise_worker(index, automl, df, variables, replace, n_samples,n_cores, seed, verbose):
+
+def normalise_worker(index, automl, df, variables, replace, n_samples, n_cores, seed, verbose):
     """
-    Worker function for parallel normalisation of data.
+    Worker function for parallel normalization of data.
 
     Parameters:
         index (int): Index of the worker.
-        automl (object): Trained AutoML model.
-        df (DataFrame): Input DataFrame containing the dataset.
-        variables (list): List of feature variables.
-        replace (bool): Whether to replace existing data.
+        automl (AutoML): Trained AutoML model.
+        df (pd.DataFrame): Input DataFrame containing the dataset.
+        variables (list of str): List of feature variables.
+        replace (bool): Whether to sample with replacement.
         n_samples (int): Number of samples to normalize.
         n_cores (int): Number of CPU cores to use.
         seed (int): Random seed.
         verbose (bool): Whether to print progress messages.
 
     Returns:
-        DataFrame: DataFrame containing normalized predictions.
+        pd.DataFrame: DataFrame containing normalized predictions.
     """
-    # Only every fifth prediction message
+
+    # Print progress message every fifth prediction
     if verbose and index % 5 == 0:
-        # Calculate percent
+        # Calculate and format the progress percentage
         message_percent = round((index / n_samples) * 100, 2)
-        # Always have 2 dp
         message_percent = "{:.1f} %".format(message_percent)
-        # Print
         print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
-              ": Predicting", index, "of", n_samples, "times (", message_precent, ")...")
+              ": Predicting", index, "of", n_samples, "times (", message_percent, ")...")
+
     # Randomly sample observations
-    n_rows = df.shape[0]
     np.random.seed(seed)
+    n_rows = df.shape[0]
     index_rows = np.random.choice(range(n_rows), size=n_rows, replace=replace)
 
-    # Transform data frame to include sampled variables
+    # If variables are not provided, select all columns except 'date_unix'
     if variables is None:
         variables = list(set(df.columns) - {'date_unix'})
-    # Transform data frame to include sampled variables
+
+    # Create a sampled DataFrame
     df[variables] = df[variables].iloc[index_rows].reset_index(drop=True)
 
-    # Use model to predict
-    value_predict = model_predict(automl, df)
+    # Use the model to predict
+    value_predict = automl.predict(df)
 
-    # Build data frame of predictions
-    predictions = pd.DataFrame({'date': df['date'], 'Observed':df['value'],'Normalised': value_predict})
+    # Build DataFrame of predictions
+    predictions = pd.DataFrame({
+        'date': df['date'],
+        'Observed': df['value'],
+        'Normalised': value_predict
+    })
 
     return predictions
 
-def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=True,
+
+def normalise(automl, df, feature_names,variables, n_samples=300, replace=True,
                   aggregate=True, seed=7654321, n_cores=None,  verbose=False):
     """
     Normalizes the dataset using the trained model.
@@ -594,7 +762,7 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
     Returns:
         DataFrame: DataFrame containing normalized predictions.
     """
-    df = check_data(df, prepared=True)
+
     # Default logic for cpu cores
     n_cores = n_cores if n_cores is not None else -1
 
@@ -617,28 +785,14 @@ def normalise(automl, df, feature_names,variables=None, n_samples=300, replace=T
         df = pd.DataFrame()
     else:
         df = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
-            index=i,automl=automl,df=df,
-            variables=variables,replace=replace,n_cores=n_cores,
-            n_samples=n_samples,seed=random_seeds[i],
+            index=i,automl=automl,df=df,variables=variables,replace=replace,
+            n_cores=n_cores,n_samples=n_samples,seed=random_seeds[i],
             verbose=verbose) for i in range(n_samples)), axis=0).pivot_table(index='date',aggfunc='mean')
     df=df[['Observed','Normalised']].rename(columns={'Normalised':'Normalised_'+str(seed)})
     return df
 
-def model_predict(automl, df=None):
-    """
-    Predicts values using the trained model.
 
-    Parameters:
-        automl (object): Trained AutoML model.
-        df (DataFrame, optional): DataFrame containing data to predict. Default is None.
-
-    Returns:
-        array: Predicted values.
-    """
-    x = automl.predict(df)
-    return x
-
-def modStats(df,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA","R2"]):
+def modStats(df,automl,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA","R2"]):
     """
     Calculates statistics for model evaluation based on provided data.
 

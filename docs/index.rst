@@ -1,7 +1,7 @@
 NORmet for Automated Air Quality Intervention Studies
 =====================================================
 
-Author: `Congbo Song <https://github.com/dsncas>`_
+Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
 
 .. toctree::
   :maxdepth: 2
@@ -14,9 +14,10 @@ Author: `Congbo Song <https://github.com/dsncas>`_
   :maxdepth: 2
   :caption: Tutorials
 
-  notebooks/Case1_autodeweather.ipynb
+  notebooks/Case1_getdata.ipynb
+  notebooks/Case2_autodew.ipynb
+  notebooks/Case2_autodeweather.ipynb
   notebooks/Case2_changepoint.ipynb
-  notebooks/Case3_getdata.ipynb
   notebooks/Case4_Intervention.ipynb
 
 
