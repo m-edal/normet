@@ -1,12 +1,19 @@
 Installation
 ======================================================================================
+Create an Python3.9 environment:
+
+.. code-block:: bash
+
+   conda create -n normet python=3.9
+   conda activate normet
+
 This package depends on AutoML from flaml. Install FLAML first:
 
 .. code-block:: bash
 
    conda install flaml -c conda-forge
 
-Install from source:
+Install normet from source:
 
 .. code-block:: bash
 

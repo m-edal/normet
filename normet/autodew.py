@@ -64,7 +64,8 @@ def ts_decom(df, value, feature_names, split_method='random', time_budget=60, me
         var_names = list(set(var_names) - set([var_to_exclude]))
         df_dew_temp = normalise(automl, df, feature_names=feature_names, variables=var_names,
                                 n_samples=n_samples, n_cores=n_cores, seed=seed)
-        df_dew[var_to_exclude] = df_dew_temp.iloc[:, 1]
+
+        df_dew[var_to_exclude] = df_dew_temp['Normalised']
 
     # Adjust the decomposed components to create deweathered values
     df_dewc = df_dew.copy()
@@ -144,8 +145,10 @@ def met_rolling(df, value, feature_names, split_method='random', time_budget=60,
         dfa = df[df['date_d'] >= ds.date()]
         dfa = dfa[dfa['date_d'] <= (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
         dfar = normalise(automl=automl, df=dfa, feature_names=feature_names, variables=variables_resample, n_samples=n_samples, n_cores=n_cores, seed=seed)
+        dfar.rename(columns={'Normalised':'Rolling_'+str(i)},inplace=True)
 
-        dfr = pd.concat([dfr, dfar.iloc[:, 1]], axis=1)
+        # Concatenate the results
+        dfr = pd.concat([dfr, dfar['Rolling_'+str(i)]], axis=1)
 
     # Calculate the mean and standard deviation for the rolling window
     df_dew['EMI_mean_' + str(window_days)] = np.mean(dfr.iloc[:, 1:], axis=1)
@@ -153,7 +156,7 @@ def met_rolling(df, value, feature_names, split_method='random', time_budget=60,
 
     # Calculate the short-term and seasonal components
     df_dew['MET_short'] = df_dew['Observed'] - df_dew['EMI_mean_' + str(window_days)]
-    df_dew['MET_season'] = df_dew['EMI_mean_' + str(window_days)] - df_dew['Normalised_' + str(seed)]
+    df_dew['MET_season'] = df_dew['EMI_mean_' + str(window_days)] - df_dew['Normalised']
 
     return df_dew, mod_stats
 
@@ -219,7 +222,7 @@ def met_decom(df, value, feature_names, split_method='random', time_budget=60, m
     for var_to_exclude in MET_list:
         var_names = list(set(var_names) - set([var_to_exclude]))
         df_dew_temp = normalise(automl, df, feature_names=feature_names, variables=var_names, n_samples=n_samples, n_cores=n_cores, seed=seed)
-        df_deww[var_to_exclude] = df_dew_temp.iloc[:, 1]
+        df_deww[var_to_exclude] = df_dew_temp['Normalised']
 
     # Adjust the decomposed components to create weather-independent values
     df_dewwc = df_deww.copy()
@@ -298,9 +301,10 @@ def rolling_dew(df, value, feature_names, variables_resample, split_method='rand
         # Normalize the data within the rolling window
         dfar = normalise(automl=automl, df=dfa, feature_names=feature_names, variables=variables_resample,
                          n_samples=n_samples, n_cores=n_cores, seed=seed)
+        dfar.rename(columns={'Normalised':'Rolling_'+str(i)},inplace=True)
 
         # Concatenate the results
-        dfr = pd.concat([dfr, dfar.iloc[:, 1]], axis=1)
+        dfr = pd.concat([dfr, dfar['Rolling_'+str(i)]], axis=1)
 
     return dfr, mod_stats
 
@@ -355,7 +359,7 @@ def do_all(df, value, feature_names, variables_resample, split_method='random', 
     ])
 
     # Normalize the data
-    df_dew = normalise(automl, df, feature_names=feature_names, variables=variables_resample, n_samples=n_samples, n_cores=n_cores, seed=seed)
+    df_dew = normalise(automl, df, feature_names=feature_names, variables=variables_resample, n_samples=n_samples,aggregate=True, n_cores=n_cores, seed=seed)
 
     return df_dew, mod_stats
 
@@ -410,10 +414,12 @@ def do_all_unc(df, value, feature_names, variables_resample, split_method='rando
                                      split_method=split_method, time_budget=time_budget,
                                      variables_resample=variables_resample,
                                      n_samples=n_samples, fraction=fraction, seed=i, n_cores=n_cores)
+        df_dew0.rename(columns={'Normalised':'Normalised_'+str(i)},inplace=True)
+        df_dew0=df_dew0[['Observed','Normalised_'+str(i)]]
         if df_dew is None:
             df_dew = df_dew0
         else:
-            df_dew = pd.concat([df_dew, df_dew0.iloc[:, 1]], axis=1)
+            df_dew = pd.concat([df_dew, df_dew0.iloc[:,1]], axis=1)
 
         mod_stats0['seed'] = i
         if mod_stats is None:
@@ -736,12 +742,13 @@ def normalise_worker(index, automl, df, variables, replace, n_samples, n_cores, 
         'Observed': df['value'],
         'Normalised': value_predict
     })
+    predictions['Seed']=seed
 
     return predictions
 
 
 def normalise(automl, df, feature_names,variables, n_samples=300, replace=True,
-                  aggregate=True, seed=7654321, n_cores=None,  verbose=False):
+                  aggregate=True, seed=7654321, n_cores=None,  verbose=True):
     """
     Normalizes the dataset using the trained model.
 
@@ -784,12 +791,25 @@ def normalise(automl, df, feature_names,variables, n_samples=300, replace=True,
     if n_samples == 0:
         df = pd.DataFrame()
     else:
-        df = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
-            index=i,automl=automl,df=df,variables=variables,replace=replace,
-            n_cores=n_cores,n_samples=n_samples,seed=random_seeds[i],
-            verbose=verbose) for i in range(n_samples)), axis=0).pivot_table(index='date',aggfunc='mean')
-    df=df[['Observed','Normalised']].rename(columns={'Normalised':'Normalised_'+str(seed)})
-    return df
+        # Perform normalization using parallel processing
+        df_result = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
+            index=i, automl=automl, df=df, variables=variables, replace=replace,
+            n_cores=n_cores, n_samples=n_samples, seed=random_seeds[i],
+            verbose=False) for i in range(n_samples)), axis=0)
+    # Aggregate results if needed
+    if aggregate:
+        df_result = df_result[['date','Observed','Normalised']].pivot_table(index='date', aggfunc='mean')[['Observed','Normalised']]
+    else:
+        # Pivot table to reshape 'Normalised' values by 'Seed' and set 'date' as index
+        normalized_pivot = df_result.pivot_table(index='date', columns='Seed', values='Normalised')
+
+        # Select and drop duplicate rows based on 'date', keeping only 'Observed' column
+        observed_unique = df_result[['date', 'Observed']].drop_duplicates().set_index('date')
+
+        # Concatenate the pivoted 'Normalised' values and unique 'Observed' values
+        df_result = pd.concat([observed_unique, normalized_pivot], axis=1)
+
+    return df_result
 
 
 def modStats(df,automl,set=set,statistic=["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA","R2"]):
