@@ -1,6 +1,6 @@
 Installation
 ======================================================================================
-Create an Python3.9 environment:
+Create a Python3.9 environment:
 
 .. code-block:: bash
 
