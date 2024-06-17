@@ -7,7 +7,8 @@ def install_with_pip(package):
 
 required_packages = [
     "pandas", "numpy", "scipy", "joblib", "flaml", "matplotlib", "seaborn",
-    "ruptures", "scikit-learn", "statsmodels", "cdsapi", "pyreadr", "wget", "xarray"
+    "ruptures", "scikit-learn", "statsmodels", "cdsapi", "pyreadr", "wget",
+    "xarray","cvxpy"
 ]
 
 for package in required_packages:
