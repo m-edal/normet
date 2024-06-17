@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
 
-def cpd_rupture(df,col_name='Deweathered',window=12, n=5,model="l2"):
+def cpd_rupture(df,col_name='Normalised',window=12, n=5,model="l2"):
     """
     Detects change points in a time series using the ruptures package.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the time series data.
-        col_name (str, optional): Name of the column containing the time series data. Default is 'Deweathered'.
+        col_name (str, optional): Name of the column containing the time series data. Default is 'Normalised'.
         window (int, optional): Width of the sliding window. Default is 12.
         n (int, optional): Number of change points to detect. Default is 5.
         model (str, optional): Type of cost function model for the ruptures package. Default is "l2".
@@ -31,13 +31,13 @@ def cpd_rupture(df,col_name='Deweathered',window=12, n=5,model="l2"):
 
 
 
-def cpd_cumsum(df,col_name='Deweathered',threshold_mean= 10, threshold_std=3000):
+def cpd_cumsum(df,col_name='Normalised',threshold_mean= 10, threshold_std=3000):
     """
     Detects change points in a time series using cumulative sums method.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the time series data.
-        col_name (str, optional): Name of the column containing the time series data. Default is 'Deweathered'.
+        col_name (str, optional): Name of the column containing the time series data. Default is 'Normalised'.
         threshold_mean (float, optional): Threshold for mean change detection. Default is 10.
         threshold_std (float, optional): Threshold for standard deviation change detection. Default is 3000.
 

@@ -48,11 +48,6 @@ Repository structure
       ├── docs                           # Documentation of the package
       |------ figs                       # Figures for the demonstration
       |---------- NORmet_Framework.webp  # framework for the package
-      ├------ tutorials                  # Contains demos and tutorials
-      |---------- Case1_autodeweather    # Automl-based weather normalisation
-      |---------- Case2_changepoint      # Change-point detection
-      |---------- Case3_getdata function # Download AQ and ERA5 data
-      |---------- Case4_Intervention     # Causal analysis of air quality interventions
       |------ ...
       ├── setup.py
       ├── pyproject.toml
@@ -62,4 +57,4 @@ Repository structure
 Documentation
 =============
 
-You can find Demo and tutorials of the functions `here <https://github.com/m-edal/NORmet/tree/main/tutorials>`_.
+You can find Demo and tutorials of the functions `here <https://normet.readthedocs.io>`_.

@@ -141,7 +141,7 @@ def pdp_nointeraction(automl,df,feature_names,variables=None,kind='average',trai
         df.loc[:,cat_col]=codes
 
     X_train, y_train = df[feature_names], df['value']
-    interaction_cst = [[i] for i in range(X_train.shape[1])]
+    interaction_cst = [[name] for name in feature_names]
 
     model_without_interactions = (
         clone(automl.model.estimator)
