@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "normet"
-version = "0.0.1"
+version = "0.1.0"
 description = "Normet for automated air quality intervention studies"
-readme = "README.md"
+readme = "README.rst"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
@@ -36,15 +36,16 @@ dependencies = [
     "cdsapi",
     "pyreadr",
     "wget",
-    "xarray"
+    "xarray",
+    "cvxpy"
 ]
 
 [project.urls]
-homepage = "https://github.com/m-edal/normet"
+homepage = "https://github.com/dsncas/NORmet"
 
 [tool.setuptools]
 packages = { find = {} }
 zip-safe = false
 
 [tool.setuptools.package-data]
-"normet" = ["datasets/*/*"]
+"normet" = ["docs/notebooks/data/*/*"]
