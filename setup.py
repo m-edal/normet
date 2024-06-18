@@ -37,7 +37,7 @@ setup(
     ],
     install_requires=required_packages,
     packages=find_packages(),
-    package_data={"normet": ["data/*/*"]},
+    package_data={"normet": ["docs/notebooks/data/*/*"]},
     zip_safe=False,
     project_urls={"homepage": "https://github.com/dsncas/NORmet"}
 )

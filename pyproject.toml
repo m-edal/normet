@@ -48,4 +48,4 @@ packages = { find = {} }
 zip-safe = false
 
 [tool.setuptools.package-data]
-"normet" = ["data/*/*"]
+"normet" = ["docs/notebooks/data/*/*"]

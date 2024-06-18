@@ -1,13 +1,13 @@
 normet.cpd.
 ==========================
 
-.. function:: cpd_rupture(df, col_name='Deweathered', window=12, n=5, model="l2")
+.. function:: cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
 
     Detects change points in a time series using the ruptures package.
 
     :param df: Input DataFrame containing the time series data.
     :type df: DataFrame
-    :param col_name: Name of the column containing the time series data. Default is 'Deweathered'.
+    :param col_name: Name of the column containing the time series data. Default is 'Normalised'.
     :type col_name: str, optional
     :param window: Width of the sliding window. Default is 12.
     :type window: int, optional
@@ -32,7 +32,7 @@ normet.cpd.
 
     .. code-block:: python
 
-        change_points_rupture = cpd_rupture(df, col_name='Deweathered', window=12, n=5, model="l2")
+        change_points_rupture = cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
         print("Change points detected using cpd_rupture function:")
         print(change_points_rupture)
 
@@ -40,13 +40,13 @@ normet.cpd.
 
 
 
-.. function:: cpd_cumsum(df, col_name='Deweathered', threshold_mean=10, threshold_std=3000)
+.. function:: cpd_cumsum(df, col_name='Normalised', threshold_mean=10, threshold_std=3000)
 
     Detects change points in a time series using the cumulative sums method.
 
     :param df: Input DataFrame containing the time series data.
     :type df: DataFrame
-    :param col_name: Name of the column containing the time series data. Default is 'Deweathered'.
+    :param col_name: Name of the column containing the time series data. Default is 'Normalised'.
     :type col_name: str, optional
     :param threshold_mean: Threshold for mean change detection. Default is 10.
     :type threshold_mean: float, optional
@@ -69,7 +69,7 @@ normet.cpd.
 
     .. code-block:: python
 
-        change_points_cumsum = cpd_cumsum(df, col_name='Deweathered', threshold_mean=10, threshold_std=3000)
+        change_points_cumsum = cpd_cumsum(df, col_name='Normalised', threshold_mean=10, threshold_std=3000)
         print("Change points detected using cpd_cumsum function:")
         print(change_points_cumsum)
 

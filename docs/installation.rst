@@ -20,3 +20,9 @@ Install normet from source:
    git clone https://github.com/dsncas/normet.git
    cd normet
    python setup.py install
+
+(optional) for jupyter notebook:
+
+.. code-block:: bash
+
+   conda install jupyter
