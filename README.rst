@@ -10,13 +10,30 @@ normet
 Installation
 ============
 
-Install from source:
+.. code-block:: bash
+
+   conda create -n normet python=3.9
+   conda activate normet
+
+This package depends on AutoML from flaml. Install FLAML first:
+
+.. code-block:: bash
+
+   conda install flaml -c conda-forge
+
+Install normet from source:
 
 .. code-block:: bash
 
    git clone https://github.com/dsncas/normet.git
    cd normet
    python setup.py install
+
+(optional) for jupyter notebook:
+
+.. code-block:: bash
+
+   conda install jupyter
 
 Main Features
 =============
@@ -29,30 +46,6 @@ Here are a few of the functions that normet implemented:
   - Weather normalisation. Decoupling emission-related air pollutant concentrations from meteorological effects.
   - Change point detection. Detect the change points caused by policy interventions.
   - Causal inference for air quality interventions. Attribution of changes in air pollutant concentrations to air quality policy interventions.
-
-Repository structure
-====================
-
-.. code-block:: none
-
-      .                                  # Root folder of our repository
-      ├── normet                         # Contains datasets and function modules
-      |------__init__.py
-      |------ getdata.py                 # Functions of downloading AQ and ERA5 datasets
-      |------ autodew.py                 # Functions of automl-based weather normalisation
-      |------ pdp.py                     # Functions of partial dependency
-      |------ cpd.py                     # Functions of change-point detection
-      |------ intervention.py            # Functions of causal inference
-      |---------- ...
-      |── datasets                       # Datasets used for demonstration
-      ├── docs                           # Documentation of the package
-      |------ figs                       # Figures for the demonstration
-      |---------- NORmet_Framework.webp  # framework for the package
-      |------ ...
-      ├── setup.py
-      ├── pyproject.toml
-      ├── LICENSE
-      └── README.md
 
 Documentation
 =============
