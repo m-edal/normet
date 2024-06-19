@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "normet"
-version = "0.1.0"
+version = "0.1.2"
 description = "Normet for automated air quality intervention studies"
 readme = "README.rst"
 license = {text = "MIT"}
@@ -36,8 +36,7 @@ dependencies = [
     "cdsapi",
     "pyreadr",
     "wget",
-    "xarray",
-    "cvxpy"
+    "xarray"
 ]
 
 [project.urls]
