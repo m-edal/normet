@@ -140,7 +140,7 @@ Example usage:
 
 
 
-.. function:: era5_extract_data(ds, lat, lon, data_vars=['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp'])
+.. function:: era5_extract_data(ds, lat, lon, data_vars)
 
     Extracts specified variables from an ERA5 dataset for a given latitude and longitude.
 
