@@ -13,7 +13,13 @@ This package depends on AutoML from flaml. Install FLAML first:
 
    conda install flaml -c conda-forge
 
-Install normet from source:
+Install normet using pip:
+
+.. code-block:: bash
+
+   pip install normet
+
+Or install normet from source:
 
 .. code-block:: bash
 
