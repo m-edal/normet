@@ -9,7 +9,7 @@ import statsmodels.api as sm
 import warnings
 warnings.filterwarnings('ignore')
 
-def ts_decom(df, value, feature_names, split_method='random', time_budget=60, metric='r2',
+def emi_decom(df, value, feature_names, split_method='random', time_budget=60, metric='r2',
              estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
              n_samples=300, fraction=0.75, seed=7654321, n_cores=-1):
     """
@@ -60,7 +60,7 @@ def ts_decom(df, value, feature_names, split_method='random', time_budget=60, me
     df_dew = df[['date', 'value']].set_index('date').rename(columns={'value': 'Observed'})
 
     # Decompose the time series by excluding different features
-    for var_to_exclude in ['all', 'date_unix', 'day_julian', 'weekday', 'hour']:
+    for var_to_exclude in ['base', 'date_unix', 'day_julian', 'weekday', 'hour']:
         var_names = list(set(var_names) - set([var_to_exclude]))
         df_dew_temp = normalise(automl, df, feature_names=feature_names, variables=var_names,
                                 n_samples=n_samples, n_cores=n_cores, seed=seed)
@@ -72,11 +72,11 @@ def ts_decom(df, value, feature_names, split_method='random', time_budget=60, me
     df_dewc['hour'] = df_dew['hour'] - df_dew['weekday']
     df_dewc['weekday'] = df_dew['weekday'] - df_dew['day_julian']
     df_dewc['day_julian'] = df_dew['day_julian'] - df_dew['date_unix']
-    df_dewc['date_unix'] = df_dew['date_unix'] - df_dew['all'] + df_dew['hour'].mean()
+    df_dewc['date_unix'] = df_dew['date_unix'] - df_dew['base'] + df_dew['base'].mean()
+    df_dewc['emi_noise'] =  df_dew['base']- df_dew['base'].mean()
     df_dewc['Deweathered'] = df_dew['hour']
 
     return df_dewc, mod_stats
-
 
 def met_rolling(df, value, feature_names, split_method='random', time_budget=60, metric='r2',
                 estimator_list=["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"], task='regression',
@@ -210,13 +210,14 @@ def met_decom(df, value, feature_names, split_method='random', time_budget=60, m
     ])
 
     # Determine feature importances and sort them
-    var_names = feature_names
+
     automlfi = pd.DataFrame(data={'feature_importances': automl.feature_importances_},
                             index=automl.feature_names_in_).sort_values('feature_importances', ascending=importance_ascending)
 
     # Initialize the dataframe for decomposed components
     df_deww = df[['date', 'value']].set_index('date').rename(columns={'value': 'Observed'})
-    MET_list = ['all'] + [item for item in automlfi.index if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]
+    MET_list = ['Deweathered'] + [item for item in automlfi.index if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]
+    var_names = [item for item in automlfi.index if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]
 
     # Decompose the time series by excluding different features based on their importance
     for var_to_exclude in MET_list:
@@ -226,9 +227,13 @@ def met_decom(df, value, feature_names, split_method='random', time_budget=60, m
 
     # Adjust the decomposed components to create weather-independent values
     df_dewwc = df_deww.copy()
-    for i, param in enumerate(MET_list):
-        if (i > 0) & (i < len(MET_list)):
+    for i, param in enumerate([item for item in automlfi.index if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]):
+        if i > 0:
             df_dewwc[param] = df_deww[param] - df_deww[MET_list[i - 1]]
+        else:
+            df_dewwc[param] = df_deww[param] - df_deww['Deweathered']
+
+    df_dewwc['met_noise'] = df_deww['Observed'] - df_deww[MET_list[-1]]
 
     return df_dewwc, mod_stats
 
@@ -781,7 +786,7 @@ def normalise(automl, df, feature_names,variables, n_samples=300, replace=True,
 
     # Sample the time series
     if verbose:
-        print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Sampling and predicting",
+        print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Resampling", str(variables), " and predicting",
               n_samples, "times...")
 
     # If no samples are passed

@@ -1,7 +1,7 @@
 normet.autodew.
 ==========================
 
-.. function:: ts_decom(df, value=None, feature_names=None, split_method='random', time_budget=60, metric='r2', estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"], task='regression', n_samples=300, fraction=0.75, seed=7654321, n_cores=-1)
+.. function:: emi_decom(df, value=None, feature_names=None, split_method='random', time_budget=60, metric='r2', estimator_list=["lgbm", "rf","xgboost","extra_tree","xgb_limitdepth"], task='regression', n_samples=300, fraction=0.75, seed=7654321, n_cores=-1)
 
     This function decomposes a time series into different components using machine learning models.
 
