@@ -10,14 +10,9 @@ import datetime
 import wget
 
 #install the CDS API key, https://cds.climate.copernicus.eu/api-how-to
-def download_era5(lat_list,lon_list,year_range,
-    month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
-    day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)],
-    time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
-    var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
-        '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
-        'surface_pressure','surface_solar_radiation_downwards',
-        'total_cloud_cover','total_precipitation'],path='./'):
+def download_era5(lat_list, lon_list, year_range,
+                  month_range=None, day_range=None, time_range=None,
+                  var_list=None, path='./'):
     """
     Download ERA5 weather data in parallel.
 
@@ -34,18 +29,31 @@ def download_era5(lat_list,lon_list,year_range,
     Returns:
         threading.Thread: The last started thread object.
     """
+    if month_range is None:
+        month_range = [f"{num:02d}" for num in range(1, 13)]
+    if day_range is None:
+        day_range = [f"{num:02d}" for num in range(1, 32)]
+    if time_range is None:
+        time_range = [f"{num:02d}:00" for num in range(24)]
+    if var_list is None:
+        var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
+                    '2m_dewpoint_temperature', '2m_temperature', 'boundary_layer_height',
+                    'surface_pressure', 'surface_solar_radiation_downwards',
+                    'total_cloud_cover', 'total_precipitation']
+
     threads = []
     for lat, lon in zip(lat_list, lon_list):
         for year in year_range:
             for month in month_range:
                 t = threading.Thread(target=download_era5_worker,
-                    args=(lat, lon, var_list, year, month,
-                    day_range, time_range,path))
+                                     args=(lat, lon, var_list, year, month,
+                                           day_range, time_range, path))
                 t.start()
                 threads.append(t)
     for t in threads:
         t.join()
     return t
+
 
 def download_era5_worker(lat, lon, var_list, year, month,
     day_range, time_range,path='./'):
@@ -123,15 +131,9 @@ def download_era5_area_worker(lat_lim, lon_lim,
         print(f"CDS API call failed. Make sure to install the CDS API KEY, https://cds.climate.copernicus.eu/api-how-to")
         print(f"Error message: {str(e)}")
 
-
 def download_era5_area(lat_lim, lon_lim, year_range,
-    month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],
-    day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)],
-    time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))],
-    var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
-        '2m_dewpoint_temperature','2m_temperature','boundary_layer_height',
-        'surface_pressure','surface_solar_radiation_downwards',
-        'total_cloud_cover','total_precipitation'],path='./'):
+                       month_range=None, day_range=None, time_range=None,
+                       var_list=None, path='./'):
     """
     Download ERA5 weather data for a specified area in parallel.
 
@@ -148,19 +150,32 @@ def download_era5_area(lat_lim, lon_lim, year_range,
     Returns:
         threading.Thread: The last started thread object.
     """
+    if month_range is None:
+        month_range = [f"{num:02d}" for num in range(1, 13)]
+    if day_range is None:
+        day_range = [f"{num:02d}" for num in range(1, 32)]
+    if time_range is None:
+        time_range = [f"{num:02d}:00" for num in range(24)]
+    if var_list is None:
+        var_list = ['10m_u_component_of_wind', '10m_v_component_of_wind',
+                    '2m_dewpoint_temperature', '2m_temperature', 'boundary_layer_height',
+                    'surface_pressure', 'surface_solar_radiation_downwards',
+                    'total_cloud_cover', 'total_precipitation']
+
     threads = []
     for year in year_range:
         for month in month_range:
             t = threading.Thread(target=download_era5_area_worker,
-                args=(lat_lim, lon_lim, var_list, year, month,
-                day_range, time_range,path))
+                                 args=(lat_lim, lon_lim, var_list, year, month,
+                                       day_range, time_range, path))
             t.start()
             threads.append(t)
     for t in threads:
         t.join()
     return t
 
-def era5_dataframe(lat_list,lon_list,year_range,month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],path='./',n_cores=-1):
+def era5_dataframe(lat_list, lon_list, year_range,
+                   month_range=None, path='./', n_cores=-1):
     """
     Read ERA5 weather data in parallel and convert to DataFrame.
 
@@ -168,16 +183,24 @@ def era5_dataframe(lat_list,lon_list,year_range,month_range=[str(num).zfill(2) f
         lat_list (list): List of latitudes.
         lon_list (list): List of longitudes.
         year_range (list): Range of years.
-        year_month (list): Range of months.
+        month_range (list): Range of months (default is January to December).
         path (str): Path to save downloaded files.
         n_cores (int): Number of cores to use (default is all available cores).
 
     Returns:
         pd.DataFrame: DataFrame containing data for all specified coordinates and years.
     """
-    results = Parallel(n_jobs=n_cores)(delayed(era5_dataframe_worker)(lat,lon,year_range,month_range,path) for (lat,lon) in zip(lat_list,lon_list))
+    if month_range is None:
+        month_range = [f"{num:02d}" for num in range(1, 13)]
+
+    results = Parallel(n_jobs=n_cores)(
+        delayed(era5_dataframe_worker)(lat, lon, year_range, month_range, path)
+        for lat, lon in zip(lat_list, lon_list)
+    )
+
     df = pd.concat(results)
     return df
+
 
 def era5_dataframe_worker(lat,lon,year_range,month_range,path):
     """
@@ -204,8 +227,8 @@ def era5_dataframe_worker(lat,lon,year_range,month_range,path):
 
     return df
 
-
-def era5_area_dataframe(lat_lim, lon_lim,lat_list,lon_list,year_range,month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)],path='./',n_cores=-1):
+def era5_area_dataframe(lat_lim, lon_lim, lat_list, lon_list, year_range,
+                        month_range=None, path='./', n_cores=-1):
     """
     Read ERA5 weather data for a specified area in parallel and convert to DataFrame.
 
@@ -215,14 +238,21 @@ def era5_area_dataframe(lat_lim, lon_lim,lat_list,lon_list,year_range,month_rang
         lat_lim (list): Latitude range [min_lat, max_lat].
         lon_lim (list): Longitude range [min_lon, max_lon].
         year_range (list): Range of years.
-        year_month (list): Range of months.
+        month_range (list): Range of months (default is January to December).
         path (str): Path to save downloaded files.
         n_cores (int): Number of cores to use (default is all available cores).
 
     Returns:
         pd.DataFrame: DataFrame containing data for the specified area and years.
     """
-    results = Parallel(n_jobs=n_cores)(delayed(era5_area_dataframe_worker)(lat,lon,lat_lim, lon_lim,year_range,month_range,path) for (lat,lon) in zip(lat_list,lon_list))
+    if month_range is None:
+        month_range = [f"{num:02d}" for num in range(1, 13)]
+
+    results = Parallel(n_jobs=n_cores)(
+        delayed(era5_area_dataframe_worker)(lat, lon, lat_lim, lon_lim, year_range, month_range, path)
+        for lat, lon in zip(lat_list, lon_list)
+    )
+
     df = pd.concat(results)
     return df
 
@@ -255,7 +285,7 @@ def era5_area_dataframe_worker(lat, lon, lat_lim, lon_lim, year_range, month_ran
     df = pd.concat(results)
     return df
 
-def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']):
+def era5_extract_data(ds, lat, lon, data_vars=None):
     """
     Extract specified variables from an ERA5 dataset for a given latitude and longitude.
 
@@ -268,6 +298,8 @@ def era5_extract_data(ds, lat, lon,data_vars =['u10', 'v10', 'd2m', 't2m', 'blh'
     Returns:
         dict: Dictionary containing extracted data for the specified variables, latitude, and longitude.
     """
+    if data_vars is None:
+        data_vars = ['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp']
     data = {}
     for var in data_vars:
         if var in ds.data_vars:
