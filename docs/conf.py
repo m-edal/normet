@@ -20,10 +20,9 @@ extensions = [
     'nbsphinx',
 ]
 
-
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-nbsphinx_execute = 'always'  # 或者 'never', 'auto'
+nbsphinx_allow_errors = True
 
 # -- Options for HTML output -------------------------------------------------
 
