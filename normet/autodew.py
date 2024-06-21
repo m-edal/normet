@@ -786,8 +786,8 @@ def normalise(automl, df, feature_names,variables, n_samples=300, replace=True,
 
     # Sample the time series
     if verbose:
-        print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Resampling", str(variables), " and predicting",
-              n_samples, "times...")
+        print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),": Resampling data range from", df['date'].min().strftime('%Y-%m-%d'), "to", df['date'].max().strftime('%Y-%m-%d'))
+        print("Resampling variales:", str(variables), "and predicting",n_samples, "times...")
 
     # If no samples are passed
     np.random.seed(seed)
@@ -865,7 +865,17 @@ def Stats(df, mod="mod", obs="obs",
         res["RMSE"] = RMSE(df, mod, obs)
     if "r" in statistic:
         res["r"] = r(df, mod, obs)[0]
-        res["p_value"] = r(df, mod, obs)[1]
+        p_value = r(df, mod, obs)[1]
+        if p_value >= 0.1:
+            res["p_level"] = ""
+        elif p_value < 0.1 and p_value >= 0.05:
+            res["p_level"] = "+"
+        elif p_value < 0.05 and p_value >= 0.01:
+            res["p_level"] = "*"
+        elif p_value < 0.01 and p_value >= 0.001:
+            res["p_level"] = "**"
+        else:
+            res["p_level"] = "***"
     if "COE" in statistic:
         res["COE"] = COE(df, mod, obs)
     if "IOA" in statistic:
@@ -874,7 +884,7 @@ def Stats(df, mod="mod", obs="obs",
         res["R2"] = R2(df, mod, obs)
 
     results = {'n':res['n'], 'FAC2':res['FAC2'], 'MB':res['MB'], 'MGE':res['MGE'], 'NMB':res['NMB'],
-               'NMGE':res['NMGE'],'RMSE':res['RMSE'], 'r':res['r'],'p_value':res['p_value'],
+               'NMGE':res['NMGE'],'RMSE':res['RMSE'], 'r':res['r'],'p_level':res['p_level'],
                'COE':res['COE'], 'IOA':res['IOA'], 'R2':res['R2']}
 
     results = pd.DataFrame([results])
