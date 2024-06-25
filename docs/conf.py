@@ -18,13 +18,11 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'nbsphinx',
-    'IPython.sphinxext.ipython_console_highlighting',
-    'numpydoc',
 ]
-
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+nbsphinx_allow_errors = True
 
 # -- Options for HTML output -------------------------------------------------
 

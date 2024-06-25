@@ -4,6 +4,4 @@ sphinx-rtd-theme
 nbsphinx
 recommonmark
 sphinx-markdown-tables
-numpydoc
-nbconvert
-ipython
+jupyter

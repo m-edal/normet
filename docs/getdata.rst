@@ -1,7 +1,7 @@
 normet.getdata.
 ==========================
 
-.. function:: download_era5(lat_list, lon_list, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)], day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)], time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))], var_list=['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_dewpoint_temperature','2m_temperature','boundary_layer_height', 'surface_pressure','surface_solar_radiation_downwards', 'total_cloud_cover','total_precipitation'], path='./')
+.. function:: download_era5(lat_list, lon_list, year_range, month_range, day_range, time_range, var_list, path='./')
 
     Downloads ERA5 weather data in parallel.
 
@@ -34,7 +34,7 @@ Example usage:
     download_era5(lat_list=latitudes, lon_list=longitudes, year_range=years)
 
 
-.. function:: download_era5_area(lat_lim, lon_lim, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)], day_range=[str(num).zfill(2) for num in list(np.arange(31)+1)], time_range=[str(num).zfill(2)+ ':00' for num in list(np.arange(24))], var_list=['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_dewpoint_temperature','2m_temperature','boundary_layer_height', 'surface_pressure','surface_solar_radiation_downwards', 'total_cloud_cover','total_precipitation'], path='./')
+.. function:: download_era5_area(lat_lim, lon_lim, year_range, month_range, day_range, time_range, var_list, path='./')
 
     Downloads ERA5 weather data for a specified area in parallel.
 
@@ -68,7 +68,7 @@ Example usage:
 
 
 
-.. function:: era5_dataframe(lat_list, lon_list, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)], path='./', n_cores=-1)
+.. function:: era5_dataframe(lat_list, lon_list, year_range, month_range, path='./', n_cores=-1)
 
     Reads ERA5 weather data in parallel and converts it to a DataFrame.
 
@@ -101,7 +101,7 @@ Example usage:
 
 
 
-.. function:: era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, month_range=[str(num).zfill(2) for num in list(np.arange(12)+1)], path='./', n_cores=-1)
+.. function:: era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, month_range, path='./', n_cores=-1)
 
     Reads ERA5 weather data for a specified area in parallel and converts it to a DataFrame.
 
@@ -140,7 +140,7 @@ Example usage:
 
 
 
-.. function:: era5_extract_data(ds, lat, lon, data_vars=['u10', 'v10', 'd2m', 't2m', 'blh', 'sp', 'ssrd', 'tcc', 'tp'])
+.. function:: era5_extract_data(ds, lat, lon, data_vars)
 
     Extracts specified variables from an ERA5 dataset for a given latitude and longitude.
 
