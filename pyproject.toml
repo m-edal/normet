@@ -31,7 +31,7 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "ruptures",
-    "scikit-learn",
+    "scikit-learn>=1.5.0",
     "statsmodels",
     "cdsapi",
     "pyreadr",

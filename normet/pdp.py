@@ -51,7 +51,7 @@ def pdp_worker(model, X_train, variable,training_only=True):
                                  features=variable,kind='individual')
 
     # Alter names and add variable
-    df_predict = pd.DataFrame({"value": results['values'][0],
+    df_predict = pd.DataFrame({"value": results['grid_values'][0],
                                 "pdp_mean": np.mean(results['individual'][0],axis=0),
                                'pdp_std':np.std(results['individual'][0],axis=0)})
     df_predict["variable"] = variable
