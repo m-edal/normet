@@ -50,6 +50,30 @@ normet.autodew.
     - The `seed` parameter ensures reproducibility in random operations, particularly useful when `split_method` is 'random'.
 
 
+.. function:: process_df(df, variables_col)
+
+    Processes the DataFrame to ensure it contains necessary date and selected feature columns.
+
+    This function checks if the date is present in the index or columns, selects the necessary features and
+    the date column, and prepares the DataFrame for further analysis.
+
+    :param df: Input DataFrame.
+    :type df: pd.DataFrame
+    :param variables_col: List of variable names to be included in the DataFrame.
+    :type variables_col: list of str
+    :returns: Processed DataFrame containing the date and selected feature columns.
+    :rtype: pd.DataFrame
+    :raises ValueError: If no datetime information is found in index or 'date' column.
+
+    **Example:**
+
+    .. code-block:: python
+
+        df = pd.read_csv('data.csv')
+        variables_col = ['feature1', 'feature2', 'feature3']
+        processed_df = process_df(df, variables_col)
+
+
 .. function:: check_data(df, value, feature_names)
 
     Validates and preprocesses the input DataFrame for subsequent analysis or modeling.
@@ -220,9 +244,50 @@ normet.autodew.
     - Adjustments to the default model configuration can be made by passing a dictionary through `model_config`.
 
 
-.. function:: normalise_worker(index, df, model, variables, replace, n_samples, n_cores, seed, verbose)
+.. function:: prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed)
 
-    Worker function for parallel normalization of data.
+    Prepares the data and trains a machine learning model using the specified configuration.
+
+    This function combines data preparation and model training steps. It prepares the input DataFrame
+    for training by selecting relevant columns and splitting the data, then trains a machine learning
+    model using the provided configuration.
+
+    :param df: The input DataFrame containing the data to be used for training.
+    :type df: pandas.DataFrame
+    :param value: The name of the target variable (column) to be predicted.
+    :type value: str
+    :param feature_names: A list of feature column names to be used in the training.
+    :type feature_names: list of str
+    :param split_method: The method to split the data ('random' or other supported methods).
+    :type split_method: str
+    :param fraction: The fraction of data to be used for training.
+    :type fraction: float
+    :param model_config: The configuration dictionary for the AutoML model training.
+    :type model_config: dict
+    :param seed: The random seed for reproducibility.
+    :type seed: int
+    :returns: The prepared DataFrame ready for model training and the trained machine learning model.
+    :rtype: tuple (pandas.DataFrame, object)
+
+    **Example:**
+
+    .. code-block:: python
+
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        split_method = 'random'
+        fraction = 0.75
+        model_config = {...}
+        seed = 7654321
+        df_prepared, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed)
+
+
+.. function:: normalise_worker(index, df, model, variables_resample, replace, seed, verbose, weather_df=None)
+
+    Worker function for parallel normalization of data using randomly resampled meteorological parameters
+    from another weather DataFrame within its date range. If no weather DataFrame is provided,
+    it defaults to using the input DataFrame.
 
     :param index: Index of the worker.
     :type index: int
@@ -230,28 +295,27 @@ normet.autodew.
     :type df: pd.DataFrame
     :param model: Trained ML model.
     :type model: object
-    :param variables: List of feature variables.
-    :type variables: list of str
+    :param variables_resample: List of resampling variables.
+    :type variables_resample: list of str
     :param replace: Whether to sample with replacement.
     :type replace: bool
-    :param n_samples: Number of samples to normalize.
-    :type n_samples: int
-    :param n_cores: Number of CPU cores to use.
-    :type n_cores: int
     :param seed: Random seed.
     :type seed: int
     :param verbose: Whether to print progress messages.
     :type verbose: bool
+    :param weather_df: Weather DataFrame containing the meteorological parameters, defaults to None.
+    :type weather_df: pd.DataFrame, optional
     :returns: DataFrame containing normalized predictions.
     :rtype: pd.DataFrame
 
     **Details:**
 
     - Prints progress messages every fifth prediction if `verbose` is True.
-    - Samples observations from the DataFrame using the specified `seed` and `replace` parameters.
-    - If `variables` is not provided, all columns except 'date_unix' are selected.
-    - Uses the provided `model` to make predictions on the sampled data.
-    - Returns a DataFrame containing the dates, observed values, normalized predictions, and seed used for sampling.
+    - Uses the `weather_df` to sample meteorological parameters, or the input `df` if `weather_df` is not provided.
+    - Randomly samples observations within the weather DataFrame using the specified `seed` and `replace` parameters.
+    - Applies the sampled meteorological parameters to the `df`.
+    - Uses the provided `model` to make predictions on the adjusted `df`.
+    - Constructs a DataFrame containing the dates, observed values, normalized predictions, and seed information.
 
     **Example Usage:**
 
@@ -261,12 +325,11 @@ normet.autodew.
             index=1,
             df=my_dataframe,
             model=my_model,
-            variables=['feature1', 'feature2'],
+            variables_resample=['temperature', 'humidity'],
             replace=False,
-            n_samples=100,
-            n_cores=4,
             seed=42,
-            verbose=True
+            verbose=True,
+            weather_df=my_weather_dataframe
         )
 
     **Notes:**
@@ -276,7 +339,8 @@ normet.autodew.
     - Facilitates monitoring of progress during the normalization process.
 
 
-.. function:: normalise(df, model, feature_names, variables, n_samples=300, replace=True, aggregate=True, seed=7654321, n_cores=None, verbose=True)
+.. function:: normalise(df, model, feature_names, variables_resample=None, n_samples=300, replace=True,
+              aggregate=True, seed=7654321, n_cores=None, verbose=True, weather_df=None)
 
     Normalizes the dataset using the trained model.
 
@@ -286,8 +350,8 @@ normet.autodew.
     :type model: object
     :param feature_names: List of feature names.
     :type feature_names: list of str
-    :param variables: List of feature variables.
-    :type variables: list of str
+    :param variables_resample: List of resampling variables. If None, all feature_names except 'date_unix' are used.
+    :type variables_resample: list of str, optional
     :param n_samples: Number of samples to normalize. Default is 300.
     :type n_samples: int, optional
     :param replace: Whether to replace existing data. Default is True.
@@ -300,39 +364,44 @@ normet.autodew.
     :type n_cores: int, optional
     :param verbose: Whether to print progress messages. Default is True.
     :type verbose: bool, optional
+    :param weather_df: DataFrame containing weather data for resampling. If None, `df` is used.
+    :type weather_df: pd.DataFrame, optional
     :returns: DataFrame containing normalized predictions.
     :rtype: pd.DataFrame
 
-    **Details:**
-
-    - Prints progress messages if `verbose` is True.
-    - Uses all feature variables if `variables` is not provided.
-    - Resamples the dataset and normalizes predictions using parallel processing.
-    - Aggregates the normalized predictions if `aggregate` is True.
-    - Returns a DataFrame with normalized predictions, either aggregated or detailed by samples.
-
-    **Example Usage:**
+    **Example:**
 
     .. code-block:: python
 
         df = pd.read_csv('timeseries_data.csv')
         model = train_model(df, 'target', feature_names)
         feature_names = ['feature1', 'feature2', 'feature3']
-        variables = ['feature1', 'feature2']
-        normalized_df = normalise(df, model, feature_names, variables)
+        variables_resample = ['feature1', 'feature2']
+        normalized_df = normalise(df, model, feature_names, variables_resample)
+
+    **Details:**
+
+    - Uses `variables_resample` to resample meteorological parameters, or defaults to using `df` if `weather_df` is not provided.
+    - Randomly samples observations within the `weather_df` using the specified `seed` and `replace` parameters.
+    - Applies the sampled meteorological parameters to the `df`.
+    - Uses the provided `model` to make predictions on the adjusted `df`.
+    - Constructs a DataFrame containing the dates, observed values, normalized predictions, and seed information.
+    - Aggregates the results if `aggregate` is True, otherwise returns detailed predictions.
 
     **Notes:**
 
-    - Facilitates the normalization of predictions across multiple samples using parallel processing.
-    - Ensures reproducibility with a specified random `seed`.
-    - Provides the option to aggregate results for a summary view or detailed individual predictions.
+    - Useful for normalizing predictions using parallel processing.
+    - Ensures reproducibility by using the specified random `seed`.
+    - Facilitates monitoring of progress during the normalization process.
 
 
-.. function:: do_all(df=None, model=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75, model_config=None, n_samples=300, seed=7654321, n_cores=-1)
+.. function:: do_all(df=None, model=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
+                     model_config=None, n_samples=300, seed=7654321, n_cores=-1, aggregate=True, weather_df=None)
 
     Conducts data preparation, model training, and normalization, returning the transformed dataset and model statistics.
 
-    This function performs the entire pipeline from data preparation to model training and normalization using specified parameters and returns the transformed dataset along with model statistics.
+    This function performs the entire pipeline from data preparation to model training and normalization using
+    specified parameters and returns the transformed dataset along with model statistics.
 
     :param df: Input DataFrame containing the dataset.
     :type df: pd.DataFrame
@@ -356,8 +425,12 @@ normet.autodew.
     :type seed: int, optional
     :param n_cores: Number of CPU cores to be used for normalization (-1 for all available cores). Default is -1.
     :type n_cores: int, optional
-    :returns: Transformed dataset with normalized values and a DataFrame containing model statistics.
-    :rtype: tuple (pd.DataFrame, pd.DataFrame)
+    :param weather_df: DataFrame containing weather data for resampling. Default is None.
+    :type weather_df: pd.DataFrame, optional
+    :param aggregate: Whether to aggregate results. Default is True.
+    :type aggregate: bool, optional
+    :returns: Transformed dataset with normalized values and model statistics.
+    :rtype: tuple(pd.DataFrame, pd.DataFrame)
 
     **Example:**
 
@@ -369,18 +442,22 @@ normet.autodew.
         variables_resample = ['feature1', 'feature2']
         df_dew, mod_stats = do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
-    **Details:**
+    **Notes:**
 
-    - If `model` is None, the function prepares the data, trains a new model using AutoML, and collects model statistics.
-    - The function normalizes the data using the trained model and specified parameters.
-    - Returns a transformed DataFrame with normalized values and a DataFrame with model statistics for the testing, training, and entire dataset.
+    - Uses specified parameters to prepare data, train the model, and normalize the dataset.
+    - Ensures reproducibility by using the specified random `seed`.
+    - Facilitates monitoring of progress during the normalization process if `verbose` is True.
+    - If no pre-trained `model` is provided, a new model will be trained using the provided configuration.
 
 
-.. function:: do_all_unc(df=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75, model_config=None, n_samples=300, n_models=10, confidence_level=0.95, seed=7654321, n_cores=-1)
+.. function:: do_all_unc(df=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
+                         model_config=None, n_samples=300, n_models=10, confidence_level=0.95, seed=7654321, n_cores=-1, weather_df=None)
 
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
 
-    This function performs the entire pipeline from data preparation to model training and normalization, with an added step to quantify uncertainty by training multiple models using different random seeds. It returns a dataframe containing observed values, mean, standard deviation, median, confidence bounds, and weighted values, as well as a dataframe with model statistics.
+    This function performs the entire pipeline from data preparation to model training and normalization, with an added step
+    to quantify uncertainty by training multiple models using different random seeds. It returns a dataframe containing observed
+    values, mean, standard deviation, median, confidence bounds, and weighted values, as well as a dataframe with model statistics.
 
     :param df: Input dataframe containing the time series data.
     :type df: pd.DataFrame
@@ -406,8 +483,10 @@ normet.autodew.
     :type seed: int, optional
     :param n_cores: Number of cores to be used (-1 for all available cores). Default is -1.
     :type n_cores: int, optional
-    :returns: A tuple containing a dataframe with observed values, mean, standard deviation, median, lower and upper bounds, and weighted values, and a dataframe with model statistics.
-    :rtype: tuple (pd.DataFrame, pd.DataFrame)
+    :param weather_df: DataFrame containing weather data for resampling. Default is None.
+    :type weather_df: pd.DataFrame, optional
+    :returns: Dataframe with observed values, mean, standard deviation, median, lower and upper bounds, and weighted values, and model statistics.
+    :rtype: tuple(pd.DataFrame, pd.DataFrame)
 
     **Example:**
 
@@ -417,13 +496,15 @@ normet.autodew.
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
         variables_resample = ['feature1', 'feature2']
-        df_dew, mod_stats = do_all_unc(df, value, feature_names, variables_resample)
+        df_dew, mod_stats = do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
-    **Details:**
+    **Notes:**
 
-    - This function trains multiple models using different random seeds to quantify the uncertainty in the predictions.
-    - It prepares the data, trains each model, and then aggregates the results to calculate mean, standard deviation, median, confidence bounds, and weighted values.
-    - The results are returned as a dataframe with the aggregated statistics and a dataframe with the model statistics for further analysis.
+    - Uses specified parameters to prepare data, train the model, and normalize the dataset with uncertainty quantification.
+    - Ensures reproducibility by using the specified random `seed`.
+    - Facilitates monitoring of progress during the normalization process.
+    - Trains multiple models with different random seeds to quantify uncertainty.
+    - Calculates statistical metrics including mean, standard deviation, median, confidence bounds, and weighted values.
 
 
 .. function:: decom_emi(df=None, model=None, value=None, feature_names=None, split_method='random', fraction=0.75, model_config=None, n_samples=300, seed=7654321, n_cores=-1)
@@ -696,24 +777,54 @@ normet.autodew.
     :type mod: str
     :param obs: Column name of the observed values.
     :type obs: str
-    :param statistic: List of statistics to calculate. Default is ["n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA", "R2"].
+    :param statistic: List of statistics to calculate.
     :type statistic: list of str, optional
-    :return: DataFrame containing calculated statistics.
+    :returns: DataFrame containing calculated statistics.
     :rtype: pd.DataFrame
 
-    **Example Usage:**
+    **Details:**
 
-    Calculates statistics for a set of metrics based on model predictions ('mod') and observed values ('obs'):
+    This function calculates a range of statistical metrics to evaluate the model predictions against the observed values. The following statistics can be calculated:
+
+    - **n**: Number of observations.
+    - **FAC2**: Factor of 2.
+    - **MB**: Mean Bias.
+    - **MGE**: Mean Gross Error.
+    - **NMB**: Normalized Mean Bias.
+    - **NMGE**: Normalized Mean Gross Error.
+    - **RMSE**: Root Mean Square Error.
+    - **r**: Pearson correlation coefficient.
+    - **COE**: Coefficient of Efficiency.
+    - **IOA**: Index of Agreement.
+    - **R2**: Coefficient of Determination (R-squared).
+
+    The significance level of the correlation coefficient (p-value) is also evaluated and indicated with symbols:
+
+    - `""` : p >= 0.1 (not significant)
+    - `"+"` : 0.1 > p >= 0.05 (marginally significant)
+    - `"*"` : 0.05 > p >= 0.01 (significant)
+    - `"**"` : 0.01 > p >= 0.001 (highly significant)
+    - `"***"` : p < 0.001 (very highly significant)
+
+    **Example Usage:**
 
     .. code-block:: python
 
         import pandas as pd
-        from your_module import Stats
 
-        # Assuming df, mod, and obs are defined
-        statistics = Stats(df, mod, obs, statistic=["RMSE", "r", "R2"])
+        # Example DataFrame
+        data = {
+            'observed': [1, 2, 3, 4, 5],
+            'predicted': [1.1, 1.9, 3.2, 3.8, 5.1]
+        }
+        df = pd.DataFrame(data)
+
+        # Calculate statistics
+        stats = Stats(df, mod='predicted', obs='observed')
+        print(stats)
 
     **Notes:**
 
-    - Computes various metrics such as 'n', 'FAC2', 'MB', 'MGE', 'NMB', 'NMGE', 'RMSE', 'r', 'COE', 'IOA', 'R2' based on model predictions and observed values.
-    - Provides flexibility to calculate specific metrics of interest for model evaluation and comparison.
+    - Each statistical metric has a specific function that calculates its value.
+    - The function returns a DataFrame with the calculated statistics.
+    - Significance levels for the correlation coefficient are marked with appropriate symbols.

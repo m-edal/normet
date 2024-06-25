@@ -30,11 +30,12 @@ def prepare_data(df, value, feature_names, na_rm=True, split_method='random', re
 
     # Perform the data preparation steps
     df = (df
-          .pipe(check_data, value=value,feature_names=feature_names)
-          .pipe(impute_values, na_rm=na_rm)
-          .pipe(add_date_variables, replace=replace)
-          .pipe(split_into_sets, split_method=split_method, fraction=fraction, seed=seed)
-          .reset_index(drop=True))
+            .pipe(process_df, variables_col=feature_names + [value])
+            .pipe(check_data, value=value)
+            .pipe(impute_values, na_rm=na_rm)
+            .pipe(add_date_variables, replace=replace)
+            .pipe(split_into_sets, split_method=split_method, fraction=fraction, seed=seed)
+            .reset_index(drop=True))
 
     return df
 
@@ -64,10 +65,19 @@ def process_df(df, variables_col):
     # Check if the date is in the index or columns
     if isinstance(df.index, pd.DatetimeIndex):
         date_in_index = True
-    elif 'date' in df.columns:
+    elif any(df.dtypes == 'datetime64[ns]'):
         date_in_index = False
     else:
         raise ValueError("No datetime information found in index or 'date' column.")
+
+    if date_in_index:
+        df = df.reset_index()
+
+    time_column = df.select_dtypes(include='datetime64').columns.tolist()
+
+    # Ensure there is exactly one datetime column
+    if len(time_column) > 1:
+        raise ValueError("More than one datetime column found.")
 
     # Select features and the target variable
     if variables_col:
@@ -75,21 +85,14 @@ def process_df(df, variables_col):
     else:
         selected_columns = df.columns.tolist()
 
-    # Ensure date column is included
-    if not date_in_index:
-        selected_columns = list(set(selected_columns).union(set(['date'])))
+    selected_columns = list(set(selected_columns).union(set(time_column)))
 
-    # Select only the necessary columns
-    df = df[selected_columns]
-
-    # If the date is in the index, reset the index to a column for processing
-    if date_in_index:
-        df = df.reset_index().rename(columns={'index': 'date'})
+    df = df[selected_columns].rename(columns={time_column[0]: 'date'})
 
     return df
 
 
-def check_data(df, value, feature_names):
+def check_data(df, value):
     """
     Validates and preprocesses the input DataFrame for subsequent analysis or modeling.
 
@@ -99,8 +102,6 @@ def check_data(df, value, feature_names):
         The input DataFrame containing the data to be checked.
     value : str
         The name of the target variable (column) to be used in the analysis.
-    feature_names : list of str
-        A list of feature names to be included in the analysis. If empty, all columns are used.
 
     Returns:
     --------
@@ -120,10 +121,7 @@ def check_data(df, value, feature_names):
     ------
     - If the DataFrame's index is a DatetimeIndex, it is reset to a column named 'date'.
     - The target column (`value`) is renamed to 'value'.
-    - If `feature_names` is provided, only those columns (along with 'date' and the target column) are selected.
     """
-
-    df=process_df(df, variables_col=feature_names + [value])
 
     # Rename the target column to 'value'
     df = df.rename(columns={value: "value"})
@@ -288,8 +286,44 @@ def train_model(df, value, variables, model_config=None, seed=7654321):
 
 
 def prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed):
+    """
+    Prepares the data and trains a machine learning model using the specified configuration.
+
+    This function combines data preparation and model training steps. It prepares the input DataFrame
+    for training by selecting relevant columns and splitting the data, then trains a machine learning
+    model using the provided configuration.
+
+    Parameters:
+    -----------
+    df (pandas.DataFrame): The input DataFrame containing the data to be used for training.
+    value (str): The name of the target variable (column) to be predicted.
+    feature_names (list of str): A list of feature column names to be used in the training.
+    split_method (str): The method to split the data ('random' or other supported methods).
+    fraction (float): The fraction of data to be used for training.
+    model_config (dict): The configuration dictionary for the AutoML model training.
+    seed (int): The random seed for reproducibility.
+
+    Returns:
+    --------
+    tuple:
+        - pandas.DataFrame: The prepared DataFrame ready for model training.
+        - object: The trained machine learning model.
+
+    Example:
+    --------
+    >>> df = pd.read_csv('timeseries_data.csv')
+    >>> value = 'target'
+    >>> feature_names = ['feature1', 'feature2', 'feature3']
+    >>> split_method = 'random'
+    >>> fraction = 0.75
+    >>> model_config = {...}
+    >>> seed = 7654321
+    >>> df_prepared, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed)
+    """
+
     # Prepare the data
     df = prepare_data(df, value=value, feature_names=feature_names, split_method=split_method, fraction=fraction, seed=seed)
+
     # Train the model using AutoML
     model = train_model(df, value='value', variables=feature_names, model_config=model_config, seed=seed)
 
