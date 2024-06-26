@@ -440,62 +440,79 @@ def UK_AURN_download(year_lst, list_authorities=None, molarv=23.235, path='./'):
         year_lst (list or int): List of years or a single year for which the data is to be downloaded.
         list_authorities (list): List of local authorities for which the data is to be downloaded.
                                  If None, data for all authorities will be downloaded.
+        molarv (float): Molar volume value to use for calculating Ox and NOx entries.
+                        Defaults to 23.235.
         path (str): Path to the directory where the data files will be saved.
 
     Returns:
         None
 
     Example:
-        >>> UK_AURN_download([2020, 2021])
+        >>> UK_AURN_download([2020, 2021], list_authorities=['Birmingham', 'Manchester'])
     """
     download_path = path + "AURN_data_download"
     os.makedirs(download_path, exist_ok=True)
-    years = year_lst
-    if isinstance(years, int):
-        years = [years]
+
+    # Ensure year_lst is a list even if only one year is provided
+    years = year_lst if isinstance(year_lst, list) else [year_lst]
     years = sorted(years)
     current_year = datetime.datetime.now().year
+
+    # If list_authorities is None, download for all authorities
     if list_authorities is None:
         list_authorities = UK_AURN_metadata(path=path)[1]
+
+    # Retrieve metadata
     metadata = UK_AURN_metadata(path=path)[0]
 
     for local_authority in list_authorities:
         if local_authority not in UK_AURN_metadata(path=path)[1]:
-            print("Please select the authorities from the list: ", UK_AURN_metadata(path=path)[1])
+            print("Please select authorities from the list: ", UK_AURN_metadata(path=path)[1])
             continue
 
+        # Create path for each authority's data
         data_path = download_path + "/" + str(local_authority) + "/"
         subset_df = metadata['AURN_metadata'][metadata['AURN_metadata'].local_authority == local_authority]
+
+        # Convert start_date and end_date to datetime objects
         datetime_start = pd.to_datetime(subset_df['start_date'].values).year
         end_date_values = subset_df['end_date'].apply(lambda x: datetime.datetime.now() if x == 'ongoing' else x)
         datetime_end_temp = pd.to_datetime(end_date_values)
         datetime_end = datetime_end_temp.dt.year
 
+        # Determine valid year range for the current local_authority
         earliest_year = np.min(datetime_start)
         latest_year = np.max(datetime_end)
         proceed = True
+
+        # Validate years range
         if latest_year < np.min(years):
             print("Invalid end year, out of range for ", local_authority)
             proceed = False
         if earliest_year > np.max(years):
             print("Invalid start year, out of range for ", local_authority)
             proceed = False
+
         years_temp = years
+        # Adjust years range if out of metadata's range
         if np.min(years) < earliest_year:
             print("Invalid start year. The earliest you can select for ", local_authority, " is ", str(earliest_year))
             try:
                 years_temp = years_temp[np.where(np.array(years_temp) == earliest_year)[0][0]::]
             except:
                 pass
+
         if np.max(years) > latest_year:
             print("Invalid end year. The latest you can select for ", local_authority, " is ", str(latest_year))
             try:
                 years_temp = years_temp[0:np.where(np.array(years_temp) == latest_year)[0][0]]
             except:
                 pass
+
         if not years_temp:
             print("No valid year range")
             proceed = False
+
         clean_site_data = True
         if proceed:
             os.makedirs(data_path, exist_ok=True)
@@ -522,6 +539,7 @@ def UK_AURN_download(year_lst, list_authorities=None, molarv=23.235, path='./'):
                         downloaded_site_data.append(downloaded_data[site + "_" + str(year)])
                     except:
                         print("Could not download data from", year, "for", station_name)
+
                 if not downloaded_site_data:
                     print("No data could be downloaded for", station_name)
                 else:
@@ -536,9 +554,11 @@ def UK_AURN_download(year_lst, list_authorities=None, molarv=23.235, path='./'):
                         final_dataframe['NOx'] = final_dataframe['NO2'] * molarv / 46 + final_dataframe['NO'] * molarv / 30
                     except:
                         print("Could not create NOx entry for", site)
+
+                    # Clean data if flag is True and create .csv file
                     if clean_site_data is True:
                         for entry in ['O3', 'NO2', 'NO', 'PM2.5', 'Ox', 'NOx', 'temp', 'ws', 'wd']:
                             if entry in final_dataframe.columns.values:
                                 final_dataframe = final_dataframe.dropna(subset=[entry])
                         print("Creating .csv file for", station_name)
-                        final_dataframe.to_csv(download_path + "/" + local_authority + "/" + site + '.csv', index=False, header=True)
+                        final_dataframe.to_csv(download_path + "/" + local_authority + "/" + site + '.csv', index=True, header=True)
