@@ -6,7 +6,7 @@ from joblib import Parallel, delayed
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
 
-def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores = -1):
+def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=-1):
     """
     Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
 
@@ -21,6 +21,11 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for all treatment targets.
+
+    Example Usage:
+        # Perform SCM in parallel for multiple treatment targets
+        synthetic_all = scm_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
+                                     control_pool=['A', 'B', 'C'], post_col='Post', n_cores=4)
     """
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(scm)(
@@ -49,36 +54,41 @@ def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for the specified treatment target.
+
+    Example Usage:
+        # Perform SCM for a single treatment target
+        synthetic_data = scm(df, poll_col='Poll', date_col='Date', code_col='Code',
+                             treat_target='T1', control_pool=['C1', 'C2'], post_col='Post')
     """
-    x_pre_control = (df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
+    x_pre_control = (df[(df[code_col] != treat_target) & (df[code_col].isin(control_pool))]
                      .query(f"~{post_col}")
                      .pivot_table(index=date_col, columns=code_col, values=poll_col)
                      .values)
 
     y_pre_treat_mean = (df
-                        .query(f"~{post_col}")[df[code_col]==treat_target].groupby(date_col)
+                        .query(f"~{post_col}")[df[code_col] == treat_target].groupby(date_col)
                         [poll_col]
                         .mean())
-    param_grid = {'alpha': [i/10 for i in range(1, 101)]}
+    param_grid = {'alpha': [i / 10 for i in range(1, 101)]}
     ridge = Ridge()
     grid_search = GridSearchCV(ridge, param_grid, cv=5)
     grid_search.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
     best_alpha = grid_search.best_params_['alpha']
-    ridge_final = Ridge(alpha=best_alpha,fit_intercept=False)
+    ridge_final = Ridge(alpha=best_alpha, fit_intercept=False)
     ridge_final.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
     w = ridge_final.coef_.flatten()
-    sc = (df[(df[code_col]!=treat_target)&(df[code_col].isin(control_pool))]
-      .pivot_table(index=date_col, columns=code_col, values=poll_col)
-      .values) @ w
+    sc = (df[(df[code_col] != treat_target) & (df[code_col].isin(control_pool))]
+          .pivot_table(index=date_col, columns=code_col, values=poll_col)
+          .values) @ w
 
-    data=(df
-            [df[code_col]==treat_target][[date_col, code_col, poll_col]]
+    data = (df
+            [df[code_col] == treat_target][[date_col, code_col, poll_col]]
             .assign(synthetic=sc)).set_index(date_col)
-    data['effects']=data[poll_col]-data['synthetic']
+    data['effects'] = data[poll_col] - data['synthetic']
     return data
 
 
-def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date,training_time=60):
+def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date, training_time=60):
     """
     Performs synthetic control using machine learning regression models.
 
@@ -94,30 +104,34 @@ def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for the specified treatment target.
+
+    Example Usage:
+        # Perform synthetic control using ML regression models
+        synthetic_data = ml_syn(df, poll_col='Poll', date_col='Date', code_col='Code',
+                                treat_target='T1', control_pool=['C1', 'C2'], cutoff_date='2020-01-01')
     """
     from flaml import AutoML
     automl = AutoML()
-    from sklearn.metrics import r2_score
-    dfp=(df[df[code_col].isin(control_pool+[treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
-    pre_dataset=dfp[dfp.index<cutoff_date]
-    post_dataset=dfp[dfp.index>=cutoff_date]
+    dfp = (df[df[code_col].isin(control_pool + [treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
+    pre_dataset = dfp[dfp.index < cutoff_date]
+    post_dataset = dfp[dfp.index >= cutoff_date]
     settings = {
-    "time_budget": training_time,  # total running time in seconds
-    "metric": "r2",  # primary metric
-    "task": "regression",  # task type
-    "eval_method": "cv",
-    'seed':987654321}
-    automl.fit(dataframe=pre_dataset, label=treat_target,**settings)
-    pre_pred=automl.predict(pre_dataset)
+        "time_budget": training_time,  # total running time in seconds
+        "metric": "r2",  # primary metric
+        "task": "regression",  # task type
+        "eval_method": "cv",
+        'seed': 987654321}
+    automl.fit(dataframe=pre_dataset, label=treat_target, **settings)
+    pre_pred = automl.predict(pre_dataset)
 
-    data=(df
-        [df[code_col]==treat_target][[date_col, code_col, poll_col]]
-        .assign(synthetic=automl.predict(dfp))).set_index(date_col)
-    data['effects']=data[poll_col]-data['synthetic']
+    data = (df
+            [df[code_col] == treat_target][[date_col, code_col, poll_col]]
+            .assign(synthetic=automl.predict(dfp))).set_index(date_col)
+    data['effects'] = data[poll_col] - data['synthetic']
     return data
 
 
-def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,training_time=60, n_cores = -1):
+def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=-1):
     """
     Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
@@ -133,6 +147,11 @@ def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for all treatment targets.
+
+    Example Usage:
+        # Perform synthetic control using ML regression models in parallel
+        synthetic_all = ml_syn_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
+                                        control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=120, n_cores=4)
     """
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
