@@ -6,12 +6,12 @@ import matplotlib.pyplot as plt
 from sklearn.inspection import PartialDependenceDisplay
 from sklearn.base import clone
 
-def pdp_all(model, df, feature_names=None,variables=None, training_only=True,n_cores = -1):
+def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n_cores=-1):
     """
     Computes partial dependence plots for all specified features.
 
     Parameters:
-        automl: AutoML model object.
+        model: AutoML model object.
         df (DataFrame): Input DataFrame containing the dataset.
         feature_names (list): List of feature names to compute partial dependence plots for.
         variables (list, optional): List of variables to compute partial dependence plots for. If None, defaults to feature_names.
@@ -20,6 +20,10 @@ def pdp_all(model, df, feature_names=None,variables=None, training_only=True,n_c
 
     Returns:
         DataFrame: DataFrame containing the computed partial dependence plots for all specified features.
+
+    Example Usage:
+        # Compute Partial Dependence Plots for All Features
+        df_predict = pdp_all(model, df, feature_names=['feature1', 'feature2', 'feature3'])
     """
     if variables is None:
         variables = feature_names
@@ -27,13 +31,13 @@ def pdp_all(model, df, feature_names=None,variables=None, training_only=True,n_c
         df = df[df["set"] == "training"]
     X_train, y_train = df[feature_names], df['value']
 
-    results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(model,X_train,var) for var in variables)
+    results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(model, X_train, var) for var in variables)
     df_predict = pd.concat(results)
     df_predict.reset_index(drop=True, inplace=True)
     return df_predict
 
 
-def pdp_worker(model, X_train, variable,training_only=True):
+def pdp_worker(model, X_train, variable, training_only=True):
     """
     Worker function for computing partial dependence plots for a single feature.
 
@@ -46,21 +50,18 @@ def pdp_worker(model, X_train, variable,training_only=True):
     Returns:
         DataFrame: DataFrame containing the computed partial dependence plot for the specified feature.
     """
-    # Filter only to training set
-    results = partial_dependence(estimator=model, X=X_train,
-                                 features=variable,kind='individual')
+    results = partial_dependence(estimator=model, X=X_train, features=variable, kind='individual')
 
-    # Alter names and add variable
     df_predict = pd.DataFrame({"value": results['grid_values'][0],
-                                "pdp_mean": np.mean(results['individual'][0],axis=0),
-                               'pdp_std':np.std(results['individual'][0],axis=0)})
+                               "pdp_mean": np.mean(results['individual'][0], axis=0),
+                               'pdp_std': np.std(results['individual'][0], axis=0)})
     df_predict["variable"] = variable
-    df_predict = df_predict[["variable", "value", "pdp_mean","pdp_std"]]
+    df_predict = df_predict[["variable", "value", "pdp_mean", "pdp_std"]]
 
     return df_predict
 
 
-def pdp_plot(model,df,feature_names,variables=None,kind='average',n_cores=-1,training_only=True,figsize=(8,8),hspace=0.5):
+def pdp_plot(model, df, feature_names, variables=None, kind='average', n_cores=-1, training_only=True, figsize=(8, 8), hspace=0.5):
     """
     Plots partial dependence plots for specified features.
 
@@ -77,6 +78,11 @@ def pdp_plot(model,df,feature_names,variables=None,kind='average',n_cores=-1,tra
 
     Returns:
         PartialDependenceDisplay: Partial dependence plot display object.
+
+    Example Usage:
+        # Plot Partial Dependence Plots for Specified Features
+        result = pdp_plot(model, df, feature_names=['feature1', 'feature2'])
+        plt.show()
     """
     if variables is None:
         variables = feature_names
@@ -84,13 +90,9 @@ def pdp_plot(model,df,feature_names,variables=None,kind='average',n_cores=-1,tra
     if training_only:
         df = df[df["set"] == "training"]
     X_train, y_train = df[feature_names], df['value']
-    fig, ax = plt.subplots(figsize=figsize)
-    result = PartialDependenceDisplay.from_estimator(model, X_train, variables,kind=kind,n_jobs=n_cores,ax=ax)
-    plt.subplots_adjust(hspace=hspace)
-    return result
 
 
-def pdp_interaction(model,df,variables,kind='average',training_only=True,ncols=3,figsize=(8,4),constrained_layout=True):
+def pdp_interaction(model, df, variables, kind='average', training_only=True, ncols=3, figsize=(8, 4), constrained_layout=True):
     """
     Plots interaction partial dependence plots for specified features.
 
@@ -106,15 +108,20 @@ def pdp_interaction(model,df,variables,kind='average',training_only=True,ncols=3
 
     Returns:
         PartialDependenceDisplay: Interaction partial dependence plot display object.
+
+    Example Usage:
+        # Plot Interaction Partial Dependence Plots
+        result = pdp_interaction(model, df, variables=[['feature1', 'feature2'], ['feature3', 'feature4']])
+        plt.show()
     """
     if training_only:
         df = df[df["set"] == "training"]
     fig, ax = plt.subplots(ncols=ncols, figsize=figsize, constrained_layout=constrained_layout)
-    result = PartialDependenceDisplay.from_estimator(model, df, features=variables,kind=kind,ax=ax)
+    result = PartialDependenceDisplay.from_estimator(model, df, features=variables, kind=kind, ax=ax)
     return result
 
 
-def pdp_nointeraction(model,df,feature_names,variables=None,kind='average',training_only=True,ncols=3,figsize=(8,4),constrained_layout=True):
+def pdp_nointeraction(model, df, feature_names, variables=None, kind='average', training_only=True, ncols=3, figsize=(8, 4), constrained_layout=True):
     """
     Plots partial dependence plots without interaction effects for specified features.
 
@@ -131,22 +138,26 @@ def pdp_nointeraction(model,df,feature_names,variables=None,kind='average',train
 
     Returns:
         PartialDependenceDisplay: Partial dependence plot display object.
+
+    Example Usage:
+        # Plot Partial Dependence Plots Without Interaction Effects
+        result = pdp_nointeraction(model, df, feature_names=['feature1', 'feature2'])
+        plt.show()
     """
     if training_only:
         df = df[df["set"] == "training"]
-    #factorize category variables
     category_cols = df.select_dtypes(['category']).columns.tolist()
-    for i,cat_col in enumerate(category_cols):
+    for i, cat_col in enumerate(category_cols):
         codes, uniques = pd.factorize(df[cat_col])
-        df.loc[:,cat_col]=codes
+        df.loc[:, cat_col] = codes
 
     X_train, y_train = df[feature_names], df['value']
     interaction_cst = [[name] for name in feature_names]
 
     model_without_interactions = (
         clone(model.model.estimator)
-        .set_params(interaction_constraints = interaction_cst)
+        .set_params(interaction_constraints=interaction_cst)
         .fit(X_train, y_train))
     fig, ax = plt.subplots(ncols=ncols, figsize=figsize, constrained_layout=constrained_layout)
-    result = PartialDependenceDisplay.from_estimator(model_without_interactions, X_train, features=variables,kind=kind,ax=ax)
+    result = PartialDependenceDisplay.from_estimator(model_without_interactions, X_train, features=variables, kind=kind, ax=ax)
     return result
