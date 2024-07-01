@@ -1,4 +1,4 @@
-normet.autodew.
+normet.autodew
 ==========================
 
 .. function:: prepare_data(df, value, feature_names, na_rm=True, split_method='random', replace=False, fraction=0.75, seed=7654321)
@@ -31,17 +31,16 @@ normet.autodew.
     - **Date Variables:** Adds or replaces date-related variables in the dataset using the `add_date_variables` function.
     - **Data Splitting:** Splits the data into training and testing sets using the `split_into_sets` function based on the specified `split_method`.
 
-    **Example Usage:**
+    **Example:**
 
     .. code-block:: python
 
-        import pandas as pd
-        from your_module import prepare_data
-
-        df = pd.read_csv('timeseries_data.csv')
-        value = 'target'
-        feature_names = ['feature1', 'feature2', 'feature3']
-        prepared_df = prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
+        >>> import pandas as pd
+        >>> from normet.autodew import prepare_data
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> prepared_df = prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
 
     **Notes:**
 
@@ -69,9 +68,11 @@ normet.autodew.
 
     .. code-block:: python
 
-        df = pd.read_csv('data.csv')
-        variables_col = ['feature1', 'feature2', 'feature3']
-        processed_df = process_df(df, variables_col)
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('data.csv')
+        >>> variables_col = ['feature1', 'feature2', 'feature3']
+        >>> processed_df = ad.process_df(df, variables_col)
 
 
 .. function:: check_data(df, value)
@@ -101,12 +102,13 @@ normet.autodew.
     .. code-block:: python
 
         >>> import pandas as pd
+        >>> import normet.autodew as ad
         >>> data = {
         ...     'timestamp': pd.date_range(start='1/1/2020', periods=5, freq='D'),
         ...     'target': [1, 2, 3, 4, 5]
         ... }
         >>> df = pd.DataFrame(data).set_index('timestamp')
-        >>> df_checked = check_data(df, 'target')
+        >>> df_checked = ad.check_data(df, 'target')
         >>> print(df_checked)
 
 
@@ -127,14 +129,15 @@ normet.autodew.
     - Numeric Variables: Missing values in numeric columns are filled with the median of each column.
     - Categorical Variables: Missing values in categorical columns (object or category dtype) are filled with the mode (most frequent value) of each column.
 
-    **Example Usage:**
+    **Example:**
 
     .. code-block:: python
 
-        df = pd.read_csv('data.csv')
-        cleaned_df = impute_values(df, na_rm=True)
-
-        print(cleaned_df.head())
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('data.csv')
+        >>> cleaned_df = ad.impute_values(df, na_rm=True)
+        >>> print(cleaned_df.head())
 
 
 .. function:: add_date_variables(df, replace)
@@ -154,14 +157,15 @@ normet.autodew.
     - Replace Existing Variables: If `replace=True`, existing date-related variables are overwritten with new values.
     - Non-replacement Logic: If `replace=False`, new date-related variables are added only if they do not already exist in the DataFrame.
 
-    **Example Usage:**
+    **Example:**
 
     .. code-block:: python
 
-        df = pd.read_csv('data.csv')
-        enriched_df = add_date_variables(df, replace=True)
-
-        print(enriched_df.head())
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('data.csv')
+        >>> enriched_df = ad.add_date_variables(df, replace=True)
+        >>> print(enriched_df.head())
 
 
 .. function:: split_into_sets(df, split_method, fraction, seed)
@@ -180,18 +184,18 @@ normet.autodew.
     :returns: DataFrame with a 'set' column indicating the training or testing set.
     :rtype: pandas.DataFrame
 
-    **Example Usage:**
+    **Example:**
 
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from some_module import split_into_sets
+        >>> import normet.autodew as ad
         >>> data = {
         ...     'date': pd.date_range(start='2020-01-01', periods=365),
         ...     'value': range(365)
         ... }
         >>> df = pd.DataFrame(data)
-        >>> df_split = split_into_sets(df, split_method='season', fraction=0.8, seed=12345)
+        >>> df_split = ad.split_into_sets(df, split_method='season', fraction=0.8, seed=12345)
 
     **Notes:**
 
@@ -230,7 +234,7 @@ normet.autodew.
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from some_module import train_model
+        >>> import normet.autodew as ad
         >>> data = {
         ...     'feature1': [1, 2, 3, 4, 5],
         ...     'feature2': [5, 4, 3, 2, 1],
@@ -238,7 +242,7 @@ normet.autodew.
         ...     'set': ['training', 'training', 'training', 'validation', 'validation']
         ... }
         >>> df = pd.DataFrame(data)
-        >>> model = train_model(df, value='target', variables=['feature1', 'feature2'])
+        >>> model = ad.train_model(df, value='target', variables=['feature1', 'feature2'])
 
     **Notes:**
 
@@ -285,7 +289,7 @@ normet.autodew.
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from some_module import prepare_train_model
+        >>> import normet.autodew as ad
         >>> data = {
         ...     'feature1': [1, 2, 3, 4, 5],
         ...     'feature2': [5, 4, 3, 2, 1],
@@ -298,7 +302,7 @@ normet.autodew.
         >>> fraction = 0.75
         >>> model_config = {'time_budget': 60, 'metric': 'rmse'}
         >>> seed = 7654321
-        >>> df_prepared, model = prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
+        >>> df_prepared, model = ad.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
 
     **Notes:**
 
@@ -344,7 +348,7 @@ normet.autodew.
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from some_module import normalise_worker
+        >>> import normet.autodew as ad
         >>> data = {
         ...     'date': pd.date_range(start='2020-01-01', periods=365),
         ...     'value': range(365),
@@ -358,7 +362,7 @@ normet.autodew.
         >>> df = pd.DataFrame(data)
         >>> weather_df = pd.DataFrame(weather_data)
         >>> model = trained_model  # Assuming a trained model is available
-        >>> predictions = normalise_worker(
+        >>> predictions = ad.normalise_worker(
         ...     index=0,
         ...     df=df,
         ...     model=model,
@@ -412,7 +416,7 @@ normet.autodew.
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from some_module import normalise, train_model
+        >>> import normet.autodew as ad
         >>> data = {
         ...     'date': pd.date_range(start='2020-01-01', periods=5, freq='D'),
         ...     'feature1': [1, 2, 3, 4, 5],
@@ -421,9 +425,9 @@ normet.autodew.
         ... }
         >>> df = pd.DataFrame(data)
         >>> feature_names = ['feature1', 'feature2']
-        >>> model = train_model(df, value='value', variables=feature_names)
+        >>> model = ad.train_model(df, value='value', variables=feature_names)
         >>> variables_resample = ['feature1', 'feature2']
-        >>> normalised_df = normalise(df, model, feature_names, variables_resample)
+        >>> normalised_df = ad.normalise(df, model, feature_names, variables_resample)
 
     **Notes:**
 
@@ -474,12 +478,12 @@ normet.autodew.
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from some_module import do_all
+        >>> import normet.autodew as ad
         >>> df = pd.read_csv('timeseries_data.csv')
         >>> value = 'target'
         >>> feature_names = ['feature1', 'feature2', 'feature3']
         >>> variables_resample = ['feature1', 'feature2']
-        >>> df_dew, mod_stats = do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
+        >>> df_dew, mod_stats = ad.do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
     **Notes:**
 
@@ -530,11 +534,13 @@ normet.autodew.
 
     .. code-block:: python
 
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
         >>> df = pd.read_csv('timeseries_data.csv')
         >>> value = 'target'
         >>> feature_names = ['feature1', 'feature2', 'feature3']
         >>> variables_resample = ['feature1', 'feature2']
-        >>> df_dew, mod_stats = do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
+        >>> df_dew, mod_stats = ad.do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
     Notes:
 
@@ -579,10 +585,12 @@ normet.autodew.
 
     .. code-block:: python
 
-        df = pd.read_csv('timeseries_data.csv')
-        value = 'target'
-        feature_names = ['feature1', 'feature2', 'feature3']
-        df_dewc, mod_stats = decom_emi(df, value, feature_names)
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> df_dewc, mod_stats = decom_emi(df, value, feature_names)
 
     **Details:**
 
@@ -630,10 +638,12 @@ normet.autodew.
 
     .. code-block:: python
 
-        df = pd.read_csv('timeseries_data.csv')
-        value = 'target'
-        feature_names = ['feature1', 'feature2', 'feature3']
-        df_dewwc, mod_stats = decom_met(df, value, feature_names)
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> df_dewwc, mod_stats = ad.decom_met(df, value, feature_names)
 
     **Details:**
 
@@ -693,18 +703,20 @@ normet.autodew.
     - Feature normalisation: Normalises the data within each rolling window using `normalise` function.
     - Returns decomposed data (`dfr`) and model statistics (`mod_stats`) for evaluation and analysis.
 
-    **Example Usage:**
+    **Example:**
 
     - Useful for analyzing time series data with varying patterns over time and decomposing it into interpretable components.
     - Supports dynamic assessment of feature contributions to the target variable across different rolling windows.
 
     .. code-block:: python
 
-        df = pd.read_csv('timeseries_data.csv')
-        value = 'target'
-        feature_names = ['feature1', 'feature2', 'feature3']
-        variables_resample = ['feature1', 'feature2']
-        dfr, mod_stats = rolling_dew(df, value, feature_names, variables_resample)
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> variables_resample = ['feature1', 'feature2']
+        >>> dfr, mod_stats = ad.rolling_dew(df, value, feature_names, variables_resample)
 
     **Notes:**
 
@@ -759,17 +771,19 @@ normet.autodew.
     - Component Calculation: Calculates mean and standard deviation of the rolling window to derive short-term and seasonal components.
     - Returns decomposed data (`df_dew`) including observed, short-term, seasonal components, and statistics (`mod_stats`) for evaluation.
 
-    **Example Usage:**
+    **Example:**
 
     - Useful for analyzing time series data with varying patterns over time and decomposing it into interpretable components.
     - Supports dynamic assessment of feature contributions to the target variable across different rolling windows.
 
     .. code-block:: python
 
-        df = pd.read_csv('timeseries_data.csv')
-        value = 'target'
-        feature_names = ['feature1', 'feature2', 'feature3']
-        df_dew, mod_stats = rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> value = 'target'
+        >>> feature_names = ['feature1', 'feature2', 'feature3']
+        >>> df_dew, mod_stats = ad.rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
 
     **Notes:**
 
@@ -792,18 +806,17 @@ normet.autodew.
     :return: DataFrame containing calculated statistics.
     :rtype: pandas.DataFrame
 
-    **Example Usage:**
+    **Example:**
 
     Calculates statistics for a trained model on testing dataset:
 
     .. code-block:: python
 
-        import pandas as pd
-        from your_module import modStats, train_model
-
-        df = pd.read_csv('timeseries_data.csv')
-        model = train_model(df, 'target', feature_names)
-        stats = modStats(df, model, set='testing')
+        >>> import pandas as pd
+        >>> from normet.autodew import modStats, train_model
+        >>> df = pd.read_csv('timeseries_data.csv')
+        >>> model = train_model(df, 'target', feature_names)
+        >>> stats = ad.modStats(df, model, set='testing')
 
     **Notes:**
 
@@ -851,22 +864,19 @@ normet.autodew.
     - `"**"` : 0.01 > p >= 0.001 (highly significant)
     - `"***"` : p < 0.001 (very highly significant)
 
-    **Example Usage:**
+    **Example:**
 
     .. code-block:: python
 
-        import pandas as pd
-
-        # Example DataFrame
-        data = {
-            'observed': [1, 2, 3, 4, 5],
-            'predicted': [1.1, 1.9, 3.2, 3.8, 5.1]
-        }
-        df = pd.DataFrame(data)
-
-        # Calculate statistics
-        stats = Stats(df, mod='predicted', obs='observed')
-        print(stats)
+        >>> import pandas as pd
+        >>> import normet.autodew as ad
+        >>> data = {
+        ...         'observed': [1, 2, 3, 4, 5],
+        ...         'predicted': [1.1, 1.9, 3.2, 3.8, 5.1]
+        ... }
+        >>> df = pd.DataFrame(data)
+        >>> stats = ad.Stats(df, mod='predicted', obs='observed')
+        >>> print(stats)
 
     **Notes:**
 

@@ -1,4 +1,4 @@
-normet.intervention.
+normet.intervention
 ==========================
 
 .. function:: scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col)
@@ -22,11 +22,12 @@ normet.intervention.
     :return: DataFrame containing synthetic control results for the specified treatment target.
     :rtype: pandas.DataFrame
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    synthetic_result = scm(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], post_col='post')
+        >>> import normet.intervention as inv
+        >>> synthetic_result = inv.scm(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], post_col='post')
 
 
 .. function:: scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=-1)
@@ -50,11 +51,12 @@ Example usage:
     :return: DataFrame containing synthetic control results for all treatment targets.
     :rtype: pandas.DataFrame
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    synthetic_results = scm_parallel(df, poll_col='poll', date_col='date', code_col='code', control_pool=['A', 'B', 'C'], post_col='post')
+        >>> import normet.intervention as inv
+        >>> synthetic_results = inv.scm_parallel(df, poll_col='poll', date_col='date', code_col='code', control_pool=['A', 'B', 'C'], post_col='post')
 
 
 
@@ -81,11 +83,12 @@ Example usage:
     :return: DataFrame containing synthetic control results for the specified treatment target.
     :rtype: pandas.DataFrame
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    synthetic_result = ml_syn(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01')
+        >>> import normet.intervention as inv
+        >>> synthetic_result = inv.ml_syn(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01')
 
 
 
@@ -112,8 +115,9 @@ Example usage:
     :return: DataFrame containing synthetic control results for all treatment targets.
     :rtype: pandas.DataFrame
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    synthetic_results = ml_syn_parallel(df, poll_col='poll', date_col='date', code_col='code', control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=60)
+        >>> import normet.intervention as inv
+        >>> synthetic_results = inv.ml_syn_parallel(df, poll_col='poll', date_col='date', code_col='code', control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=60)

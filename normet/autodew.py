@@ -8,8 +8,6 @@ from joblib import Parallel, delayed
 import statsmodels.api as sm
 import os
 import time
-import warnings
-warnings.filterwarnings('ignore')
 
 
 def prepare_data(df, value, feature_names, na_rm=True, split_method='random', replace=False, fraction=0.75, seed=7654321):

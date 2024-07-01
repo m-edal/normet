@@ -1,4 +1,4 @@
-normet.pdp.
+normet.pdp
 ==========================
 
 .. function:: pdp_all(automl, df, feature_names=None, variables=None, training_only=True, n_cores=-1)
@@ -19,11 +19,12 @@ normet.pdp.
     :return: DataFrame containing the computed partial dependence plots for all specified features.
     :rtype: pandas.DataFrame
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    df_predict = pdp_all(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
+        >>> import normet.pdp as pdp
+        >>> df_predict = pdp.pdp_all(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
 
 
 
@@ -51,11 +52,12 @@ Example usage:
     :return: Partial dependence plot display object.
     :rtype: PartialDependenceDisplay
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    pdp_display = pdp_plot(automl, df, feature_names=['feature1', 'feature2'])
+        >>> import normet.pdp as pdp
+        >>> pdp_display = pdp.pdp_plot(automl, df, feature_names=['feature1', 'feature2'])
 
 
 
@@ -81,11 +83,12 @@ Example usage:
     :return: Interaction partial dependence plot display object.
     :rtype: PartialDependenceDisplay
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    interaction_pdp = pdp_interaction(automl, df, variables=['feature1', 'feature2'])
+        >>> import normet.pdp as pdp
+        >>> interaction_pdp = pdp.pdp_interaction(automl, df, variables=['feature1', 'feature2'])
 
 
 
@@ -113,8 +116,9 @@ Example usage:
     :return: Partial dependence plot display object.
     :rtype: PartialDependenceDisplay
 
-Example usage:
+    **Example:**
 
-.. code-block:: python
+    .. code-block:: python
 
-    no_interaction_pdp = pdp_nointeraction(automl, df, feature_names=['feature1', 'feature2'])
+        >>> import normet.pdp as pdp
+        >>> no_interaction_pdp = pdp.pdp_nointeraction(automl, df, feature_names=['feature1', 'feature2'])
