@@ -36,11 +36,11 @@ normet.autodew
     .. code-block:: python
 
         >>> import pandas as pd
-        >>> from normet.autodew import prepare_data
+        >>> import normet.autodew as ad
         >>> df = pd.read_csv('timeseries_data.csv')
         >>> value = 'target'
         >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> prepared_df = prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
+        >>> prepared_df = ad.prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
 
     **Notes:**
 
@@ -361,7 +361,7 @@ normet.autodew
         ... }
         >>> df = pd.DataFrame(data)
         >>> weather_df = pd.DataFrame(weather_data)
-        >>> model = trained_model  # Assuming a trained model is available
+        >>> model = ad.trained_model  # Assuming a trained model is available
         >>> predictions = ad.normalise_worker(
         ...     index=0,
         ...     df=df,
@@ -590,7 +590,7 @@ normet.autodew
         >>> df = pd.read_csv('timeseries_data.csv')
         >>> value = 'target'
         >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dewc, mod_stats = decom_emi(df, value, feature_names)
+        >>> df_dewc, mod_stats = ad.decom_emi(df, value, feature_names)
 
     **Details:**
 
@@ -815,7 +815,7 @@ normet.autodew
         >>> import pandas as pd
         >>> from normet.autodew import modStats, train_model
         >>> df = pd.read_csv('timeseries_data.csv')
-        >>> model = train_model(df, 'target', feature_names)
+        >>> model = ad.train_model(df, 'target', feature_names)
         >>> stats = ad.modStats(df, model, set='testing')
 
     **Notes:**

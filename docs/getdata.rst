@@ -230,7 +230,7 @@ normet.getdata
         >>> ds = xr.open_dataset('path_to_era5_data.nc')
         >>> lat = 40.0
         >>> lon = -75.0
-        >>> extracted_data = era5_extract_data(ds, lat, lon)
+        >>> extracted_data = gd.era5_extract_data(ds, lat, lon)
         >>> print(extracted_data)
 
 
