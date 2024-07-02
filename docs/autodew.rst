@@ -247,11 +247,11 @@ normet.autodew
     **Notes:**
 
     - If the 'set' column is present in the DataFrame, only rows where `set` is 'training' are used for training.
-    - The `default_model_config` includes:
+    - The default `model_config` includes:
 
     .. code-block:: python
 
-        default_model_config = {
+        model_config = {
         'time_budget': 60,                     # Total running time in seconds
         'metric': 'rmse',                      # Primary metric for regression
         'estimator_list': [
@@ -318,11 +318,20 @@ normet.autodew
     - The `prepare_data` function is called to preprocess and split the data based on the given `split_method` and `fraction`.
     - The `train_model` function is then used to train the model using the prepared data and specified `model_config`.
     - The default `model_config` includes:
-        - 'time_budget': 60 (Total running time in seconds)
-        - 'metric': 'rmse' (Primary metric for regression)
-        - 'estimator_list': ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"] (List of ML learners)
-        - 'task': 'regression' (Task type)
-        - 'verbose': False (Print progress messages)
+
+    .. code-block:: python
+
+        model_config = {
+        'time_budget': 60,                     # Total running time in seconds
+        'metric': 'rmse',                      # Primary metric for regression
+        'estimator_list': [
+            "lgbm", "rf", "xgboost",
+            "extra_tree", "xgb_limitdepth"
+        ],                                     # List of ML learners
+        'task': 'regression',                  # Task type
+        'verbose': verbose                     # Print progress messages
+        }
+
     - The configuration for ML can be updated with user-provided `model_config`.
     - Any columns named 'date_unix', 'day_julian', 'weekday', or 'hour' are excluded from the feature variables before preparing the data.
 
