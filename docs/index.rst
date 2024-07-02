@@ -14,8 +14,8 @@ Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
   :maxdepth: 2
   :caption: Examples
 
-  notebooks/Case2_autodew.ipynb
-  notebooks/Case3_Intervention.ipynb
+  notebooks/Case1.ipynb
+  notebooks/Case2.ipynb
 
 
 .. toctree::

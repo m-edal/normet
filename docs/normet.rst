@@ -1,4 +1,4 @@
-normet.autodew
+normet
 ==========================
 
 .. function:: prepare_data(df, value, feature_names, na_rm=True, split_method='random', replace=False, fraction=0.75, seed=7654321)
