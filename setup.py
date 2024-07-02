@@ -7,7 +7,7 @@ def install_with_pip(package):
 
 required_packages = [
     "pandas", "numpy", "scipy", "joblib", "flaml", "matplotlib", "seaborn",
-    "ruptures", "scikit-learn>=1.5.0", "statsmodels", "cdsapi", "pyreadr", "wget",
+    "ruptures", "scikit-learn>=1.3.0", "statsmodels", "cdsapi", "pyreadr", "wget",
     "xarray"
 ]
 
@@ -16,7 +16,7 @@ for package in required_packages:
 
 setup(
     name="normet",
-    version="0.1.6",
+    version="0.1.7",
     description="Normet for automated air quality intervention studies",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",
