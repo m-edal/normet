@@ -28,11 +28,11 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> latitudes = [50.0, 51.0]
-        >>> longitudes = [-0.1, 0.0]
-        >>> years = [2020, 2021]
-        >>> gd.download_era5(lat_list=latitudes, lon_list=longitudes, year_range=years)
+        import normet.getdata as gd
+        latitudes = [50.0, 51.0]
+        longitudes = [-0.1, 0.0]
+        years = [2020, 2021]
+        gd.download_era5(lat_list=latitudes, lon_list=longitudes, year_range=years)
 
 
 .. function:: download_era5_worker(lat, lon, var_list, year, month, day_range, time_range, path='./')
@@ -65,8 +65,8 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> gd.download_era5_worker(50.0, -0.1, ['2m_temperature'], 2020, '01', ['01', '02'], ['00:00', '12:00'])
+        import normet.getdata as gd
+        gd.download_era5_worker(50.0, -0.1, ['2m_temperature'], 2020, '01', ['01', '02'], ['00:00', '12:00'])
 
 
 .. function:: download_era5_area_worker(lat_lim, lon_lim, var_list, year, month, day_range, time_range, path='./')
@@ -99,8 +99,8 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> gd.download_era5_area_worker([49.5, 50.5], [-0.5, 0.5], ['2m_temperature'], 2020, '01', ['01', '02'], ['00:00', '12:00'])
+        import normet.getdata as gd
+        gd.download_era5_area_worker([49.5, 50.5], [-0.5, 0.5], ['2m_temperature'], 2020, '01', ['01', '02'], ['00:00', '12:00'])
 
 
 .. function:: download_era5_area(lat_lim, lon_lim, year_range, month_range, day_range, time_range, var_list, path='./')
@@ -130,11 +130,11 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> lat_lim = [49.0, 51.0]
-        >>> lon_lim = [-1.0, 1.0]
-        >>> year_range = [2020, 2021]
-        >>> gd.download_era5_area(lat_lim, lon_lim, year_range)
+        import normet.getdata as gd
+        lat_lim = [49.0, 51.0]
+        lon_lim = [-1.0, 1.0]
+        year_range = [2020, 2021]
+        gd.download_era5_area(lat_lim, lon_lim, year_range)
 
 
 .. function:: era5_dataframe(lat_list, lon_list, year_range, month_range, path='./', n_cores=-1)
@@ -160,11 +160,11 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> lat_list = [50.0, 51.0]
-        >>> lon_list = [-0.1, 0.0]
-        >>> year_range = [2020, 2021]
-        >>> df = gd.era5_dataframe(lat_list, lon_list, year_range)
+        import normet.getdata as gd
+        lat_list = [50.0, 51.0]
+        lon_list = [-0.1, 0.0]
+        year_range = [2020, 2021]
+        df = gd.era5_dataframe(lat_list, lon_list, year_range)
 
 
 .. function:: era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, month_range, path='./', n_cores=-1)
@@ -194,16 +194,16 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> lat_list = [30.0, 35.0, 40.0]
-        >>> lon_list = [-120.0, -115.0, -110.0]
-        >>> lat_lim = [20.0, 50.0]
-        >>> lon_lim = [-130.0, -100.0]
-        >>> year_range = [2020, 2021]
-        >>> path = './data/'
+        import normet.getdata as gd
+        lat_list = [30.0, 35.0, 40.0]
+        lon_list = [-120.0, -115.0, -110.0]
+        lat_lim = [20.0, 50.0]
+        lon_lim = [-130.0, -100.0]
+        year_range = [2020, 2021]
+        path = './data/'
 
-        >>> df = gd.era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, path)
-        >>> print(df.head())
+        df = gd.era5_area_dataframe(lat_list, lon_list, lat_lim, lon_lim, year_range, path)
+        print(df.head())
 
 
 .. function:: era5_extract_data(ds, lat, lon, data_vars)
@@ -225,13 +225,13 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> import xarray as xr
-        >>> ds = xr.open_dataset('path_to_era5_data.nc')
-        >>> lat = 40.0
-        >>> lon = -75.0
-        >>> extracted_data = gd.era5_extract_data(ds, lat, lon)
-        >>> print(extracted_data)
+        import normet.getdata as gd
+        import xarray as xr
+        ds = xr.open_dataset('path_to_era5_data.nc')
+        lat = 40.0
+        lon = -75.0
+        extracted_data = gd.era5_extract_data(ds, lat, lon)
+        print(extracted_data)
 
 
 .. function:: UK_AURN_metadata(path='./')
@@ -247,10 +247,10 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> metadata, authorities = gd.UK_AURN_metadata()
-        >>> print(metadata)
-        >>> print(authorities
+        import normet.getdata as gd
+        metadata, authorities = gd.UK_AURN_metadata()
+        print(metadata)
+        print(authorities
 
 
 .. function:: UK_AURN_download(year_lst, list_authorities=None, molarv=23.235, path='./')
@@ -271,8 +271,8 @@ normet.getdata
 
     .. code-block:: python
 
-        >>> import normet.getdata as gd
-        >>> gd.UK_AURN_download([2020, 2021], list_authorities=['Birmingham', 'Manchester'])
+        import normet.getdata as gd
+        gd.UK_AURN_download([2020, 2021], list_authorities=['Birmingham', 'Manchester'])
 
     **Details:**
 

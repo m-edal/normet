@@ -32,10 +32,10 @@ normet.cpd.
 
     .. code-block:: python
 
-        >>> import normet.cpd as cpd
-        >>> change_points_rupture = cpd.pd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
-        >>> print("Change points detected using cpd_rupture function:")
-        >>> print(change_points_rupture)
+        import normet.cpd as cpd
+        change_points_rupture = cpd.pd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
+        print("Change points detected using cpd_rupture function:")
+        print(change_points_rupture)
 
     This function can be used to detect change points in a time series, providing insights into structural shifts in the data.
 
@@ -70,10 +70,10 @@ normet.cpd.
 
     .. code-block:: python
 
-        >>> import normet.cpd as cpd
-        >>> change_points_cumsum = cpd.cpd_cumsum(df, col_name='Normalised', threshold_mean=10, threshold_std=3000)
-        >>> print("Change points detected using cpd_cumsum function:")
-        >>> print(change_points_cumsum)
+        import normet.cpd as cpd
+        change_points_cumsum = cpd.cpd_cumsum(df, col_name='Normalised', threshold_mean=10, threshold_std=3000)
+        print("Change points detected using cpd_cumsum function:")
+        print(change_points_cumsum)
 
 
     This function is useful for identifying significant changes in a time series based on deviations in mean and standard deviation.

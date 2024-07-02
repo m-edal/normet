@@ -35,12 +35,12 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> prepared_df = ad.prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        prepared_df = ad.prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
 
     **Notes:**
 
@@ -68,11 +68,11 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('data.csv')
-        >>> variables_col = ['feature1', 'feature2', 'feature3']
-        >>> processed_df = ad.process_df(df, variables_col)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('data.csv')
+        variables_col = ['feature1', 'feature2', 'feature3']
+        processed_df = ad.process_df(df, variables_col)
 
 
 .. function:: check_data(df, value)
@@ -101,15 +101,15 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...     'timestamp': pd.date_range(start='1/1/2020', periods=5, freq='D'),
-        ...     'target': [1, 2, 3, 4, 5]
-        ... }
-        >>> df = pd.DataFrame(data).set_index('timestamp')
-        >>> df_checked = ad.check_data(df, 'target')
-        >>> print(df_checked)
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+             'timestamp': pd.date_range(start='1/1/2020', periods=5, freq='D'),
+             'target': [1, 2, 3, 4, 5]
+         }
+        df = pd.DataFrame(data).set_index('timestamp')
+        df_checked = ad.check_data(df, 'target')
+        print(df_checked)
 
 
 .. function:: impute_values(df, na_rm)
@@ -133,11 +133,11 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('data.csv')
-        >>> cleaned_df = ad.impute_values(df, na_rm=True)
-        >>> print(cleaned_df.head())
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('data.csv')
+        cleaned_df = ad.impute_values(df, na_rm=True)
+        print(cleaned_df.head())
 
 
 .. function:: add_date_variables(df, replace)
@@ -161,11 +161,11 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('data.csv')
-        >>> enriched_df = ad.add_date_variables(df, replace=True)
-        >>> print(enriched_df.head())
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('data.csv')
+        enriched_df = ad.add_date_variables(df, replace=True)
+        print(enriched_df.head())
 
 
 .. function:: split_into_sets(df, split_method, fraction, seed)
@@ -188,14 +188,14 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...     'date': pd.date_range(start='2020-01-01', periods=365),
-        ...     'value': range(365)
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> df_split = ad.split_into_sets(df, split_method='season', fraction=0.8, seed=12345)
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+             'date': pd.date_range(start='2020-01-01', periods=365),
+             'value': range(365)
+         }
+        df = pd.DataFrame(data)
+        df_split = ad.split_into_sets(df, split_method='season', fraction=0.8, seed=12345)
 
     **Notes:**
 
@@ -233,16 +233,16 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...     'feature1': [1, 2, 3, 4, 5],
-        ...     'feature2': [5, 4, 3, 2, 1],
-        ...     'target': [10, 20, 30, 40, 50],
-        ...     'set': ['training', 'training', 'training', 'validation', 'validation']
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> model = ad.train_model(df, value='target', variables=['feature1', 'feature2'])
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+             'feature1': [1, 2, 3, 4, 5],
+             'feature2': [5, 4, 3, 2, 1],
+             'target': [10, 20, 30, 40, 50],
+             'set': ['training', 'training', 'training', 'validation', 'validation']
+         }
+        df = pd.DataFrame(data)
+        model = ad.train_model(df, value='target', variables=['feature1', 'feature2'])
 
     **Notes:**
 
@@ -288,21 +288,21 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...     'feature1': [1, 2, 3, 4, 5],
-        ...     'feature2': [5, 4, 3, 2, 1],
-        ...     'target': [2, 3, 4, 5, 6],
-        ...     'set': ['training', 'training', 'training', 'testing', 'testing']
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> feature_names = ['feature1', 'feature2']
-        >>> split_method = 'random'
-        >>> fraction = 0.75
-        >>> model_config = {'time_budget': 60, 'metric': 'rmse'}
-        >>> seed = 7654321
-        >>> df_prepared, model = ad.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+             'feature1': [1, 2, 3, 4, 5],
+             'feature2': [5, 4, 3, 2, 1],
+             'target': [2, 3, 4, 5, 6],
+             'set': ['training', 'training', 'training', 'testing', 'testing']
+         }
+        df = pd.DataFrame(data)
+        feature_names = ['feature1', 'feature2']
+        split_method = 'random'
+        fraction = 0.75
+        model_config = {'time_budget': 60, 'metric': 'rmse'}
+        seed = 7654321
+        df_prepared, model = ad.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
 
     **Notes:**
 
@@ -347,32 +347,32 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...     'date': pd.date_range(start='2020-01-01', periods=365),
-        ...     'value': range(365),
-        ...     'temp': np.random.rand(365),
-        ...     'humidity': np.random.rand(365)
-        ... }
-        >>> weather_data = {
-        ...     'temp': np.random.rand(100),
-        ...     'humidity': np.random.rand(100)
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> weather_df = pd.DataFrame(weather_data)
-        >>> model = ad.trained_model  # Assuming a trained model is available
-        >>> predictions = ad.normalise_worker(
-        ...     index=0,
-        ...     df=df,
-        ...     model=model,
-        ...     variables_resample=['temp', 'humidity'],
-        ...     replace=True,
-        ...     seed=42,
-        ...     verbose=True,
-        ...     weather_df=weather_df
-        ... )
-        >>> print(predictions)
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+             'date': pd.date_range(start='2020-01-01', periods=365),
+             'value': range(365),
+             'temp': np.random.rand(365),
+             'humidity': np.random.rand(365)
+         }
+        weather_data = {
+             'temp': np.random.rand(100),
+             'humidity': np.random.rand(100)
+         }
+        df = pd.DataFrame(data)
+        weather_df = pd.DataFrame(weather_data)
+        model = ad.trained_model  # Assuming a trained model is available
+        predictions = ad.normalise_worker(
+             index=0,
+             df=df,
+             model=model,
+             variables_resample=['temp', 'humidity'],
+             replace=True,
+             seed=42,
+             verbose=True,
+             weather_df=weather_df
+         )
+        print(predictions)
 
     **Notes:**
 
@@ -415,19 +415,19 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...     'date': pd.date_range(start='2020-01-01', periods=5, freq='D'),
-        ...     'feature1': [1, 2, 3, 4, 5],
-        ...     'feature2': [5, 4, 3, 2, 1],
-        ...     'value': [2, 3, 4, 5, 6]
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> feature_names = ['feature1', 'feature2']
-        >>> model = ad.train_model(df, value='value', variables=feature_names)
-        >>> variables_resample = ['feature1', 'feature2']
-        >>> normalised_df = ad.normalise(df, model, feature_names, variables_resample)
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+             'date': pd.date_range(start='2020-01-01', periods=5, freq='D'),
+             'feature1': [1, 2, 3, 4, 5],
+             'feature2': [5, 4, 3, 2, 1],
+             'value': [2, 3, 4, 5, 6]
+         }
+        df = pd.DataFrame(data)
+        feature_names = ['feature1', 'feature2']
+        model = ad.train_model(df, value='value', variables=feature_names)
+        variables_resample = ['feature1', 'feature2']
+        normalised_df = ad.normalise(df, model, feature_names, variables_resample)
 
     **Notes:**
 
@@ -477,13 +477,13 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> variables_resample = ['feature1', 'feature2']
-        >>> df_dew, mod_stats = ad.do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        variables_resample = ['feature1', 'feature2']
+        df_dew, mod_stats = ad.do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
     **Notes:**
 
@@ -534,13 +534,13 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> variables_resample = ['feature1', 'feature2']
-        >>> df_dew, mod_stats = ad.do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        variables_resample = ['feature1', 'feature2']
+        df_dew, mod_stats = ad.do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
     Notes:
 
@@ -585,12 +585,12 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dewc, mod_stats = ad.decom_emi(df, value, feature_names)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        df_dewc, mod_stats = ad.decom_emi(df, value, feature_names)
 
     **Details:**
 
@@ -638,12 +638,12 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dewwc, mod_stats = ad.decom_met(df, value, feature_names)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        df_dewwc, mod_stats = ad.decom_met(df, value, feature_names)
 
     **Details:**
 
@@ -710,13 +710,13 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> variables_resample = ['feature1', 'feature2']
-        >>> dfr, mod_stats = ad.rolling_dew(df, value, feature_names, variables_resample)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        variables_resample = ['feature1', 'feature2']
+        dfr, mod_stats = ad.rolling_dew(df, value, feature_names, variables_resample)
 
     **Notes:**
 
@@ -778,12 +778,12 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dew, mod_stats = ad.rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
+        import pandas as pd
+        import normet.autodew as ad
+        df = pd.read_csv('timeseries_data.csv')
+        value = 'target'
+        feature_names = ['feature1', 'feature2', 'feature3']
+        df_dew, mod_stats = ad.rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
 
     **Notes:**
 
@@ -812,11 +812,11 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> from normet.autodew import modStats, train_model
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> model = ad.train_model(df, 'target', feature_names)
-        >>> stats = ad.modStats(df, model, set='testing')
+        import pandas as pd
+        from normet.autodew import modStats, train_model
+        df = pd.read_csv('timeseries_data.csv')
+        model = ad.train_model(df, 'target', feature_names)
+        stats = ad.modStats(df, model, set='testing')
 
     **Notes:**
 
@@ -868,15 +868,15 @@ normet.autodew
 
     .. code-block:: python
 
-        >>> import pandas as pd
-        >>> import normet.autodew as ad
-        >>> data = {
-        ...         'observed': [1, 2, 3, 4, 5],
-        ...         'predicted': [1.1, 1.9, 3.2, 3.8, 5.1]
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> stats = ad.Stats(df, mod='predicted', obs='observed')
-        >>> print(stats)
+        import pandas as pd
+        import normet.autodew as ad
+        data = {
+                 'observed': [1, 2, 3, 4, 5],
+                 'predicted': [1.1, 1.9, 3.2, 3.8, 5.1]
+         }
+        df = pd.DataFrame(data)
+        stats = ad.Stats(df, mod='predicted', obs='observed')
+        print(stats)
 
     **Notes:**
 

@@ -23,8 +23,8 @@ normet.pdp
 
     .. code-block:: python
 
-        >>> import normet.pdp as pdp
-        >>> df_predict = pdp.pdp_all(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
+        import normet.pdp as pdp
+        df_predict = pdp.pdp_all(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
 
 
 
@@ -56,8 +56,8 @@ normet.pdp
 
     .. code-block:: python
 
-        >>> import normet.pdp as pdp
-        >>> pdp_display = pdp.pdp_plot(automl, df, feature_names=['feature1', 'feature2'])
+        import normet.pdp as pdp
+        pdp_display = pdp.pdp_plot(automl, df, feature_names=['feature1', 'feature2'])
 
 
 
@@ -87,8 +87,8 @@ normet.pdp
 
     .. code-block:: python
 
-        >>> import normet.pdp as pdp
-        >>> interaction_pdp = pdp.pdp_interaction(automl, df, variables=['feature1', 'feature2'])
+        import normet.pdp as pdp
+        interaction_pdp = pdp.pdp_interaction(automl, df, variables=['feature1', 'feature2'])
 
 
 
@@ -120,5 +120,5 @@ normet.pdp
 
     .. code-block:: python
 
-        >>> import normet.pdp as pdp
-        >>> no_interaction_pdp = pdp.pdp_nointeraction(automl, df, feature_names=['feature1', 'feature2'])
+        import normet.pdp as pdp
+        no_interaction_pdp = pdp.pdp_nointeraction(automl, df, feature_names=['feature1', 'feature2'])
