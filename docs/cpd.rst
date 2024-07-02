@@ -1,4 +1,4 @@
-normet.cpd.
+normet.cpd
 ==========================
 
 .. function:: cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
