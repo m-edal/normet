@@ -1,11 +1,5 @@
 Installation
 ======================================================================================
-Create a Python3.9 environment:
-
-.. code-block:: bash
-
-   conda create -n normet python=3.9 jupyter
-   conda activate normet
 
 This package depends on AutoML from flaml. Install FLAML first:
 
