@@ -248,11 +248,20 @@ normet.autodew
 
     - If the 'set' column is present in the DataFrame, only rows where `set` is 'training' are used for training.
     - The `default_model_config` includes:
-        - 'time_budget': 60 (Total running time in seconds)
-        - 'metric': 'rmse' (Primary metric for regression)
-        - 'estimator_list': ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"] (List of ML learners)
-        - 'task': 'regression' (Task type)
-        - 'verbose': False (Print progress messages)
+
+    .. code-block:: python
+
+        default_model_config = {
+        'time_budget': 60,                     # Total running time in seconds
+        'metric': 'rmse',                      # Primary metric for regression
+        'estimator_list': [
+            "lgbm", "rf", "xgboost",
+            "extra_tree", "xgb_limitdepth"
+        ],                                     # List of ML learners
+        'task': 'regression',                  # Task type
+        'verbose': verbose                     # Print progress messages
+        }
+
     - This configuration can be updated with user-provided `model_config`.
 
 
