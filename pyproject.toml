@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "normet"
-version = "0.1.8"
-description = "Normet for automated air quality intervention studies"
+version = "0.1.9"
+description = "Normet: AutoML-based normalising meteorolgy"
 readme = "README.rst"
 license = {text = "MIT"}
 requires-python = ">=3.9"
@@ -28,16 +28,9 @@ dependencies = [
     "scipy",
     "joblib",
     "flaml",
-    "matplotlib",
-    "seaborn",
     "ruptures",
     "scikit-learn>=1.3.0",
     "statsmodels",
-    "multiurl",
-    "cdsapi",
-    "pyreadr",
-    "wget",
-    "xarray"
 ]
 
 [project.urls]

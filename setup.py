@@ -6,9 +6,8 @@ def install_with_pip(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 required_packages = [
-    "pandas", "numpy", "scipy", "joblib", "flaml", "matplotlib", "seaborn",
-    "ruptures", "scikit-learn>=1.3.0", "statsmodels","multiurl", "cdsapi", "pyreadr", "wget",
-    "xarray"
+    "pandas", "numpy", "scipy", "joblib", "flaml", 
+    "ruptures", "scikit-learn>=1.3.0", "statsmodels"
 ]
 
 for package in required_packages:
@@ -16,7 +15,7 @@ for package in required_packages:
 
 setup(
     name="normet",
-    version="0.1.8",
+    version="0.1.9",
     description="Normet for automated air quality intervention studies",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",

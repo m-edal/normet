@@ -36,7 +36,6 @@ Main Features
 
 Here are a few of the functions that normet implemented:
 
-  - Automated data curation. Download air quality data and re-analysis data at any time in any area.
   - Automated machine learning. Help to select the 'best' ML model for the dataset and model training.
   - Partial dependency. Look at the drivers (both interactive and noninteractive) of changes in air pollutant concentrations and feature importance.
   - Weather normalisation. Decoupling emission-related air pollutant concentrations from meteorological effects.

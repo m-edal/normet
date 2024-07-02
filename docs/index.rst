@@ -14,7 +14,6 @@ Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
   :maxdepth: 2
   :caption: Examples
 
-  notebooks/Case1_getdata.ipynb
   notebooks/Case2_autodew.ipynb
   notebooks/Case3_Intervention.ipynb
 
@@ -23,8 +22,4 @@ Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
   :maxdepth: 2
   :caption: API Reference
 
-  getdata
-  autodew
-  cpd
-  pdp
-  intervention
+  normet

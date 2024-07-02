@@ -36,11 +36,11 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
-        prepared_df = ad.prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
+        prepared_df = normet.prepare_data(df, value, feature_names, split_method='time_series', fraction=0.8)
 
     **Notes:**
 
@@ -69,10 +69,10 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('data.csv')
         variables_col = ['feature1', 'feature2', 'feature3']
-        processed_df = ad.process_df(df, variables_col)
+        processed_df = normet.process_df(df, variables_col)
 
 
 .. function:: check_data(df, value)
@@ -102,13 +102,13 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
              'timestamp': pd.date_range(start='1/1/2020', periods=5, freq='D'),
              'target': [1, 2, 3, 4, 5]
          }
         df = pd.DataFrame(data).set_index('timestamp')
-        df_checked = ad.check_data(df, 'target')
+        df_checked = normet.check_data(df, 'target')
         print(df_checked)
 
 
@@ -134,9 +134,9 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('data.csv')
-        cleaned_df = ad.impute_values(df, na_rm=True)
+        cleaned_df = normet.impute_values(df, na_rm=True)
         print(cleaned_df.head())
 
 
@@ -162,9 +162,9 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('data.csv')
-        enriched_df = ad.add_date_variables(df, replace=True)
+        enriched_df = normet.add_date_variables(df, replace=True)
         print(enriched_df.head())
 
 
@@ -189,13 +189,13 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
              'date': pd.date_range(start='2020-01-01', periods=365),
              'value': range(365)
          }
         df = pd.DataFrame(data)
-        df_split = ad.split_into_sets(df, split_method='season', fraction=0.8, seed=12345)
+        df_split = normet.split_into_sets(df, split_method='season', fraction=0.8, seed=12345)
 
     **Notes:**
 
@@ -217,12 +217,11 @@ normet.autodew
     :type value: str, optional
     :param variables: List of feature variables. Default is None.
     :type variables: list of str
-
-    :keyword model_config: Configuration dictionary for model training parameters.
+    :param model_config: Configuration dictionary for model training parameters.
     :type model_config: dict, optional
-    :keyword seed: Random seed for reproducibility. Default is 7654321.
+    :param seed: Random seed for reproducibility. Default is 7654321.
     :type seed: int, optional
-    :keyword verbose: If True, print progress messages. Default is True.
+    :param verbose: If True, print progress messages. Default is True.
     :type verbose: bool, optional
 
     :returns: Trained ML model object.
@@ -234,7 +233,7 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
              'feature1': [1, 2, 3, 4, 5],
              'feature2': [5, 4, 3, 2, 1],
@@ -242,7 +241,7 @@ normet.autodew
              'set': ['training', 'training', 'training', 'validation', 'validation']
          }
         df = pd.DataFrame(data)
-        model = ad.train_model(df, value='target', variables=['feature1', 'feature2'])
+        model = normet.train_model(df, value='target', variables=['feature1', 'feature2'])
 
     **Notes:**
 
@@ -298,7 +297,7 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
              'feature1': [1, 2, 3, 4, 5],
              'feature2': [5, 4, 3, 2, 1],
@@ -311,7 +310,7 @@ normet.autodew
         fraction = 0.75
         model_config = {'time_budget': 60, 'metric': 'rmse'}
         seed = 7654321
-        df_prepared, model = ad.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
+        df_prepared, model = normet.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
 
     **Notes:**
 
@@ -366,7 +365,7 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
              'date': pd.date_range(start='2020-01-01', periods=365),
              'value': range(365),
@@ -379,8 +378,8 @@ normet.autodew
          }
         df = pd.DataFrame(data)
         weather_df = pd.DataFrame(weather_data)
-        model = ad.trained_model  # Assuming a trained model is available
-        predictions = ad.normalise_worker(
+        model = normet.trained_model  # Assuming a trained model is available
+        predictions = normet.normalise_worker(
              index=0,
              df=df,
              model=model,
@@ -434,7 +433,7 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
              'date': pd.date_range(start='2020-01-01', periods=5, freq='D'),
              'feature1': [1, 2, 3, 4, 5],
@@ -443,9 +442,9 @@ normet.autodew
          }
         df = pd.DataFrame(data)
         feature_names = ['feature1', 'feature2']
-        model = ad.train_model(df, value='value', variables=feature_names)
+        model = normet.train_model(df, value='value', variables=feature_names)
         variables_resample = ['feature1', 'feature2']
-        normalised_df = ad.normalise(df, model, feature_names, variables_resample)
+        normalised_df = normet.normalise(df, model, feature_names, variables_resample)
 
     **Notes:**
 
@@ -496,12 +495,12 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
         variables_resample = ['feature1', 'feature2']
-        df_dew, mod_stats = ad.do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
+        df_dew, mod_stats = normet.do_all(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
     **Notes:**
 
@@ -553,12 +552,12 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
         variables_resample = ['feature1', 'feature2']
-        df_dew, mod_stats = ad.do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
+        df_dew, mod_stats = normet.do_all_unc(df, value=value, feature_names=feature_names, variables_resample=variables_resample)
 
     Notes:
 
@@ -604,11 +603,11 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
-        df_dewc, mod_stats = ad.decom_emi(df, value, feature_names)
+        df_dewc, mod_stats = normet.decom_emi(df, value, feature_names)
 
     **Details:**
 
@@ -657,11 +656,11 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
-        df_dewwc, mod_stats = ad.decom_met(df, value, feature_names)
+        df_dewwc, mod_stats = normet.decom_met(df, value, feature_names)
 
     **Details:**
 
@@ -729,12 +728,12 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
         variables_resample = ['feature1', 'feature2']
-        dfr, mod_stats = ad.rolling_dew(df, value, feature_names, variables_resample)
+        dfr, mod_stats = normet.rolling_dew(df, value, feature_names, variables_resample)
 
     **Notes:**
 
@@ -797,11 +796,11 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         df = pd.read_csv('timeseries_data.csv')
         value = 'target'
         feature_names = ['feature1', 'feature2', 'feature3']
-        df_dew, mod_stats = ad.rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
+        df_dew, mod_stats = normet.rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
 
     **Notes:**
 
@@ -831,10 +830,10 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        from normet.autodew import modStats, train_model
+        import normet
         df = pd.read_csv('timeseries_data.csv')
-        model = ad.train_model(df, 'target', feature_names)
-        stats = ad.modStats(df, model, set='testing')
+        model = normet.train_model(df, 'target', feature_names)
+        stats = normet.modStats(df, model, set='testing')
 
     **Notes:**
 
@@ -887,13 +886,13 @@ normet.autodew
     .. code-block:: python
 
         import pandas as pd
-        import normet.autodew as ad
+        import normet
         data = {
                  'observed': [1, 2, 3, 4, 5],
                  'predicted': [1.1, 1.9, 3.2, 3.8, 5.1]
          }
         df = pd.DataFrame(data)
-        stats = ad.Stats(df, mod='predicted', obs='observed')
+        stats = normet.Stats(df, mod='predicted', obs='observed')
         print(stats)
 
     **Notes:**
@@ -901,3 +900,209 @@ normet.autodew
     - Each statistical metric has a specific function that calculates its value.
     - The function returns a DataFrame with the calculated statistics.
     - Significance levels for the correlation coefficient are marked with appropriate symbols.
+
+
+.. function:: cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
+
+    Detects change points in a time series using the ruptures package.
+
+    :param df: Input DataFrame containing the time series data.
+    :type df: DataFrame
+    :param col_name: Name of the column containing the time series data. Default is 'Normalised'.
+    :type col_name: str, optional
+    :param window: Width of the sliding window. Default is 12.
+    :type window: int, optional
+    :param n: Number of change points to detect. Default is 5.
+    :type n: int, optional
+    :param model: Type of cost function model for the ruptures package. Default is "l2".
+    :type model: str, optional
+    :returns: Datetime indices of detected change points.
+    :rtype: DatetimeIndex
+
+    **Details:**
+
+    - **Change Point Detection:** Detects change points in a time series using the ruptures package.
+    - **Sliding Window:** Uses a sliding window approach with a specified width to detect change points.
+    - **Model Selection:** Allows for selecting different cost function models such as "l1", "rbf", "linear", "normal", or "ar".
+
+    **Returns:**
+
+    - Datetime indices of detected change points.
+
+    **Example:**
+
+    .. code-block:: python
+
+        import normet
+        change_points_rupture = normet.pd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
+        print("Change points detected using cpd_rupture function:")
+        print(change_points_rupture)
+
+    This function can be used to detect change points in a time series, providing insights into structural shifts in the data.
+
+
+.. function:: pdp_all(automl, df, feature_names=None, variables=None, training_only=True, n_cores=-1)
+
+    Computes partial dependence plots for all specified features.
+
+    :param automl: AutoML model object.
+    :param df: Input DataFrame containing the dataset.
+    :type df: pandas.DataFrame
+    :param feature_names: List of feature names to compute partial dependence plots for.
+    :type feature_names: list
+    :param variables: List of variables to compute partial dependence plots for. If None, defaults to feature_names.
+    :type variables: list, optional
+    :param training_only: If True, computes partial dependence plots only for the training set. Default is True.
+    :type training_only: bool, optional
+    :param n_cores: Number of CPU cores to use for parallel computation. Default is -1 (uses all available cores).
+    :type n_cores: int, optional
+    :return: DataFrame containing the computed partial dependence plots for all specified features.
+    :rtype: pandas.DataFrame
+
+    **Example:**
+
+    .. code-block:: python
+
+        import normet
+        df_predict = normet.pdp_all(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
+
+
+.. function:: scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col)
+
+    Performs Synthetic Control Method (SCM) for a single treatment target.
+
+    :param df: Input DataFrame containing the dataset.
+    :type df: pandas.DataFrame
+    :param poll_col: Name of the column containing the poll data.
+    :type poll_col: str
+    :param date_col: Name of the column containing the date data.
+    :type date_col: str
+    :param code_col: Name of the column containing the code data.
+    :type code_col: str
+    :param treat_target: Code of the treatment target.
+    :type treat_target: str
+    :param control_pool: List of control pool codes.
+    :type control_pool: list
+    :param post_col: Name of the column indicating the post-treatment period.
+    :type post_col: str
+    :return: DataFrame containing synthetic control results for the specified treatment target.
+    :rtype: pandas.DataFrame
+
+    **Example:**
+
+    .. code-block:: python
+
+        import normet
+        synthetic_result = normet.scm(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], post_col='post')
+
+
+.. function:: scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=-1)
+
+    Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
+
+    :param df: Input DataFrame containing the dataset.
+    :type df: pandas.DataFrame
+    :param poll_col: Name of the column containing the poll data.
+    :type poll_col: str
+    :param date_col: Name of the column containing the date data.
+    :type date_col: str
+    :param code_col: Name of the column containing the code data.
+    :type code_col: str
+    :param control_pool: List of control pool codes.
+    :type control_pool: list
+    :param post_col: Name of the column indicating the post-treatment period.
+    :type post_col: str
+    :param n_cores: Number of CPU cores to use. Default is -1 (uses all available cores).
+    :type n_cores: int, optional
+    :return: DataFrame containing synthetic control results for all treatment targets.
+    :rtype: pandas.DataFrame
+
+    **Example:**
+
+    .. code-block:: python
+
+        import normet
+        synthetic_results = normet.scm_parallel(df, poll_col='poll', date_col='date', code_col='code', control_pool=['A', 'B', 'C'], post_col='post')
+
+
+
+.. function:: ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date, model_config)
+
+    Performs synthetic control using machine learning regression models.
+
+    :param df: Input DataFrame containing the dataset.
+    :type df: pandas.DataFrame
+    :param poll_col: Name of the column containing the poll data.
+    :type poll_col: str
+    :param date_col: Name of the column containing the date data.
+    :type date_col: str
+    :param code_col: Name of the column containing the code data.
+    :type code_col: str
+    :param treat_target: Code of the treatment target.
+    :type treat_target: str
+    :param control_pool: List of control pool codes.
+    :type control_pool: list
+    :param cutoff_date: Date for splitting pre- and post-treatment datasets.
+    :type cutoff_date: str
+    :param model_config: Configuration dictionary for model training parameters.
+    :type model_config: dict, optional
+    :return: DataFrame containing synthetic control results for the specified treatment target.
+    :rtype: pandas.DataFrame
+
+    **Example:**
+
+    .. code-block:: python
+
+        import normet
+        synthetic_result = normet.ml_syn(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01')
+
+    **Notes:**
+
+    - The default `model_config` includes:
+
+    .. code-block:: python
+
+        model_config = {
+        'time_budget': 60,                     # Total running time in seconds
+        'metric': 'rmse',                      # Primary metric for regression
+        'estimator_list': [
+            "lgbm", "rf", "xgboost",
+            "extra_tree", "xgb_limitdepth"
+        ],                                     # List of ML learners
+        'task': 'regression',                  # Task type
+        'verbose': verbose                     # Print progress messages
+        }
+
+    - This configuration can be updated with user-provided `model_config`.
+
+
+
+.. function:: ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=-1)
+
+    Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
+
+    :param df: Input DataFrame containing the dataset.
+    :type df: pandas.DataFrame
+    :param poll_col: Name of the column containing the poll data.
+    :type poll_col: str
+    :param date_col: Name of the column containing the date data.
+    :type date_col: str
+    :param code_col: Name of the column containing the code data.
+    :type code_col: str
+    :param control_pool: List of control pool codes.
+    :type control_pool: list
+    :param cutoff_date: Date for splitting pre- and post-treatment datasets.
+    :type cutoff_date: str
+    :param training_time: Total running time in seconds for the AutoML model. Default is 60.
+    :type training_time: int, optional
+    :param n_cores: Number of CPU cores to use. Default is -1 (uses all available cores).
+    :type n_cores: int, optional
+    :return: DataFrame containing synthetic control results for all treatment targets.
+    :rtype: pandas.DataFrame
+
+    **Example:**
+
+    .. code-block:: python
+
+        import normet
+        synthetic_results = normet.ml_syn_parallel(df, poll_col='poll', date_col='date', code_col='code', control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=60)

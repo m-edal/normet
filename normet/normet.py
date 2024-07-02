@@ -6,6 +6,9 @@ from scipy import stats
 from flaml import AutoML
 from joblib import Parallel, delayed
 import statsmodels.api as sm
+from sklearn.inspection import partial_dependence
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import GridSearchCV
 import os
 import time
 
@@ -668,14 +671,13 @@ def do_all_unc(df=None, value=None, feature_names=None, variables_resample=None,
 
     # Calculate weighted R2
     test_stats = mod_stats[mod_stats['set'] == 'testing']
-    test_stats['R2'] = test_stats['R2'].replace([np.inf, -np.inf], np.nan)
+    test_stats.loc[:, 'R2'] = test_stats['R2'].replace([np.inf, -np.inf], np.nan)
     normalised_R2 = (test_stats['R2'] - test_stats['R2'].min()) / (test_stats['R2'].max() - test_stats['R2'].min())
     weighted_R2 = normalised_R2 / normalised_R2.sum()
 
-    # Apply weighted R2 to df_dew (excluding 'observed' column)
     df_dew_weighted = df_dew.copy()
-    df_dew_weighted.iloc[:, 1:n_models + 1] = df_dew.iloc[:, 1:n_models + 1].values * weighted_R2.values
-    df_dew['weighted'] = df_dew_weighted.iloc[:, 1:n_models + 1].sum(axis=1)
+    df_dew_weighted.iloc[:, 1:n_models + 1] = (df_dew.iloc[:, 1:n_models + 1].values * weighted_R2.values[np.newaxis, :]).astype(np.float32)
+    df_dew.loc[:,'weighted'] = df_dew_weighted.iloc[:, 1:n_models + 1].sum(axis=1)
 
     return df_dew, mod_stats
 
@@ -1060,8 +1062,9 @@ def modStats(df, model, set=None, statistic=None):
         else:
             raise ValueError(f"The DataFrame does not contain the 'set' column but 'set' parameter was provided as '{set}'.")
 
-    df.loc[:, 'value_predict'] = model.predict(df)
+    df = df.assign(value_predict=model.predict(df))
     df_stats = Stats(df, mod="value_predict", obs="value", statistic=statistic).assign(set=set)
+
     return df_stats
 
 
@@ -1124,6 +1127,251 @@ def Stats(df, mod, obs,
     results = pd.DataFrame([results])
 
     return results
+
+
+def cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2"):
+    """
+    Detects change points in a time series using the ruptures package.
+
+    Parameters:
+        df (DataFrame): Input DataFrame containing the time series data.
+        col_name (str, optional): Name of the column containing the time series data. Default is 'Normalised'.
+        window (int, optional): Width of the sliding window. Default is 12.
+        n (int, optional): Number of change points to detect. Default is 5.
+        model (str, optional): Type of cost function model for the ruptures package. Default is "l2".
+
+    Returns:
+        DatetimeIndex: Datetime indices of detected change points.
+
+    Example Usage:
+        # Detect Change Points using the Ruptures Package
+        change_points = cpd_rupture(df, col_name='TimeSeries', window=24, n=3, model="l1")
+    """
+    import ruptures as rpt
+    # Convert to numpy array
+    values = np.array(df[col_name])
+
+    # Perform changepoint detection
+    model = rpt.Window(width=window, model=model).fit(values)  # "l1", "rbf", "linear", "normal", "ar"
+    result = model.predict(n_bkps=n)
+    result = [x-1 for x in list(result)][:-1]
+
+    # Convert changepoint indices to dates
+    dates = df.iloc[result, :].index
+
+    return dates
+
+def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n_cores=-1):
+    """
+    Computes partial dependence plots for all specified features.
+
+    Parameters:
+        model: AutoML model object.
+        df (DataFrame): Input DataFrame containing the dataset.
+        feature_names (list): List of feature names to compute partial dependence plots for.
+        variables (list, optional): List of variables to compute partial dependence plots for. If None, defaults to feature_names.
+        training_only (bool, optional): If True, computes partial dependence plots only for the training set. Default is True.
+        n_cores (int, optional): Number of CPU cores to use for parallel computation. Default is -1 (uses all available cores).
+
+    Returns:
+        DataFrame: DataFrame containing the computed partial dependence plots for all specified features.
+
+    Example Usage:
+        # Compute Partial Dependence Plots for All Features
+        df_predict = pdp_all(model, df, feature_names=['feature1', 'feature2', 'feature3'])
+    """
+    if variables is None:
+        variables = feature_names
+    if training_only:
+        df = df[df["set"] == "training"]
+    X_train, y_train = df[feature_names], df['value']
+
+    results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(model, X_train, var) for var in variables)
+    df_predict = pd.concat(results)
+    df_predict.reset_index(drop=True, inplace=True)
+    return df_predict
+
+
+def pdp_worker(model, X_train, variable, training_only=True):
+    """
+    Worker function for computing partial dependence plots for a single feature.
+
+    Parameters:
+        model: AutoML model object.
+        X_train (DataFrame): Input DataFrame containing the training data.
+        variable (str): Name of the feature to compute partial dependence plot for.
+        training_only (bool, optional): If True, computes partial dependence plot only for the training set. Default is True.
+
+    Returns:
+        DataFrame: DataFrame containing the computed partial dependence plot for the specified feature.
+    """
+    results = partial_dependence(estimator=model, X=X_train, features=variable, kind='individual')
+
+    df_predict = pd.DataFrame({"value": results['grid_values'][0],
+                               "pdp_mean": np.mean(results['individual'][0], axis=0),
+                               'pdp_std': np.std(results['individual'][0], axis=0)})
+    df_predict["variable"] = variable
+    df_predict = df_predict[["variable", "value", "pdp_mean", "pdp_std"]]
+
+    return df_predict
+
+
+def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=-1):
+    """
+    Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
+
+    Parameters:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        control_pool (list): List of control pool codes.
+        post_col (str): Name of the column indicating the post-treatment period.
+        n_cores (int, optional): Number of CPU cores to use. Default is -1 (uses all available cores).
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for all treatment targets.
+
+    Example Usage:
+        # Perform SCM in parallel for multiple treatment targets
+        synthetic_all = scm_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
+                                     control_pool=['A', 'B', 'C'], post_col='Post', n_cores=4)
+    """
+    treatment_pool = df[code_col].unique()
+    synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(scm)(
+                    df=df,
+                    poll_col=poll_col,
+                    date_col=date_col,
+                    code_col=code_col,
+                    treat_target=code,
+                    control_pool=control_pool,
+                    post_col=post_col) for code in treatment_pool))
+    return synthetic_all
+
+
+def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
+    """
+    Performs Synthetic Control Method (SCM) for a single treatment target.
+
+    Parameters:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        treat_target (str): Code of the treatment target.
+        control_pool (list): List of control pool codes.
+        post_col (str): Name of the column indicating the post-treatment period.
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for the specified treatment target.
+
+    Example Usage:
+        # Perform SCM for a single treatment target
+        synthetic_data = scm(df, poll_col='Poll', date_col='Date', code_col='Code',
+                             treat_target='T1', control_pool=['C1', 'C2'], post_col='Post')
+    """
+    x_pre_control = (df.loc[(df[code_col] != treat_target) & (df[code_col].isin(control_pool)) & (~df[post_col])]
+                 .pivot(index=date_col, columns=code_col, values=poll_col)
+                 .values)
+
+    y_pre_treat_mean = (df
+                    .loc[~df[post_col] & (df[code_col] == treat_target)]
+                    .groupby(date_col)[poll_col]
+                    .mean())
+
+    param_grid = {'alpha': [i / 10 for i in range(1, 101)]}
+    ridge = Ridge()
+    grid_search = GridSearchCV(ridge, param_grid, cv=5)
+    grid_search.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
+    best_alpha = grid_search.best_params_['alpha']
+    ridge_final = Ridge(alpha=best_alpha, fit_intercept=False)
+    ridge_final.fit(x_pre_control, y_pre_treat_mean.values.reshape(-1, 1))
+    w = ridge_final.coef_.flatten()
+    sc = (df[(df[code_col] != treat_target) & (df[code_col].isin(control_pool))]
+          .pivot_table(index=date_col, columns=code_col, values=poll_col)
+          .values) @ w
+
+    data = (df
+            [df[code_col] == treat_target][[date_col, code_col, poll_col]]
+            .assign(synthetic=sc)).set_index(date_col)
+    data['effects'] = data[poll_col] - data['synthetic']
+    return data
+
+
+def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date, model_config):
+    """
+    Performs synthetic control using machine learning regression models.
+
+    Parameters:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        treat_target (str): Code of the treatment target.
+        control_pool (list): List of control pool codes.
+        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
+        training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for the specified treatment target.
+
+    Example Usage:
+        # Perform synthetic control using ML regression models
+        synthetic_data = ml_syn(df, poll_col='Poll', date_col='Date', code_col='Code',
+                                treat_target='T1', control_pool=['C1', 'C2'], cutoff_date='2020-01-01')
+    """
+    from flaml import AutoML
+    automl = AutoML()
+    dfp = (df[df[code_col].isin(control_pool + [treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
+    pre_dataset = dfp[dfp.index < cutoff_date]
+    post_dataset = dfp[dfp.index >= cutoff_date]
+    # Update default configuration with user-provided config
+    if model_config is not None:
+        default_model_config.update(model_config)
+
+    automl.fit(dataframe=pre_dataset, label=treat_target, **default_model_config)
+    pre_pred = automl.predict(pre_dataset)
+
+    data = (df
+            [df[code_col] == treat_target][[date_col, code_col, poll_col]]
+            .assign(synthetic=automl.predict(dfp))).set_index(date_col)
+    data['effects'] = data[poll_col] - data['synthetic']
+    return data
+
+
+def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=-1):
+    """
+    Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
+
+    Parameters:
+        df (DataFrame): Input DataFrame containing the dataset.
+        poll_col (str): Name of the column containing the poll data.
+        date_col (str): Name of the column containing the date data.
+        code_col (str): Name of the column containing the code data.
+        control_pool (list): List of control pool codes.
+        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
+        training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
+        n_cores (int, optional): Number of CPU cores to use. Default is -1 (uses all available cores).
+
+    Returns:
+        DataFrame: DataFrame containing synthetic control results for all treatment targets.
+
+    Example Usage:
+        # Perform synthetic control using ML regression models in parallel
+        synthetic_all = ml_syn_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
+                                        control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=120, n_cores=4)
+    """
+    treatment_pool = df[code_col].unique()
+    synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
+                    df=df,
+                    poll_col=poll_col,
+                    date_col=date_col,
+                    code_col=code_col,
+                    treat_target=code,
+                    control_pool=control_pool,
+                    cutoff_date=cutoff_date,
+                    training_time=training_time) for code in treatment_pool))
+    return synthetic_all
 
 
 ## number of valid readings
