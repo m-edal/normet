@@ -1,7 +1,7 @@
-NORmet for Automated Air Quality Intervention Studies
+Normalising meteorology on air quality
 =====================================================
 
-Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
+Author: `Congbo Song and other MEDAL member <https://github.com/dsncas/normet>`_
 
 .. toctree::
   :maxdepth: 2

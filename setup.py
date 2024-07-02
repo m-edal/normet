@@ -1,39 +1,42 @@
+from setuptools import setup, find_packages
 import subprocess
 import sys
-from setuptools import setup, find_packages
+
+required_packages = [
+    "pandas", "numpy", "scipy", "joblib", "flaml","flaml[automl]",
+    "ruptures", "scikit-learn>=1.3.0", "statsmodels",
+]
 
 def install_with_pip(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
-required_packages = [
-    "pandas", "numpy", "scipy", "joblib", "flaml",
-    "ruptures", "scikit-learn>=1.3.0", "statsmodels"
-]
-
 for package in required_packages:
     install_with_pip(package)
+
+classifiers=[
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Atmospheric Science"
+]
 
 setup(
     name="normet",
     version="0.1.10",
-    description="Normet: Normalising meteorolgy on air quality data",
+    description="Normet: Normalising meteorology on air quality",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",
     author="Dr. Congbo Song and other MEDAL group members",
+    author_email="congbo.song@ncas.ac.uk",
     license="MIT",
-    python_requires=">=2.6",
-    classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        "Natural Language :: English",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3",
-        "Topic :: Scientific/Engineering :: Atmospheric Science"
-    ],
+    classifiers=classifiers,
     keywords=[
         "Atmospheric Science", "Air Quality", "Machine Learning", "Causal Analysis"
     ],
+    python_requires='>=3.9',
     install_requires=required_packages,
     packages=find_packages(),
     package_data={"normet": ["docs/notebooks/data/*/*"]},
