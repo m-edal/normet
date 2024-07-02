@@ -16,7 +16,7 @@ for package in required_packages:
 
 setup(
     name="normet",
-    version="0.1.7",
+    version="0.1.8",
     description="Normet for automated air quality intervention studies",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",
