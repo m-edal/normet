@@ -1,4 +1,4 @@
-normet.cpd.
+normet.cpd
 ==========================
 
 .. function:: cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
@@ -28,11 +28,12 @@ normet.cpd.
 
     - Datetime indices of detected change points.
 
-    Example:
+    **Example:**
 
     .. code-block:: python
 
-        change_points_rupture = cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
+        import normet.cpd as cpd
+        change_points_rupture = cpd.pd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
         print("Change points detected using cpd_rupture function:")
         print(change_points_rupture)
 
@@ -65,11 +66,12 @@ normet.cpd.
 
     - Datetime indices of detected change points.
 
-    Example:
+    **Example:**
 
     .. code-block:: python
 
-        change_points_cumsum = cpd_cumsum(df, col_name='Normalised', threshold_mean=10, threshold_std=3000)
+        import normet.cpd as cpd
+        change_points_cumsum = cpd.cpd_cumsum(df, col_name='Normalised', threshold_mean=10, threshold_std=3000)
         print("Change points detected using cpd_cumsum function:")
         print(change_points_cumsum)
 
