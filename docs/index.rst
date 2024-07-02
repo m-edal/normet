@@ -12,7 +12,7 @@ Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
 
 .. toctree::
   :maxdepth: 2
-  :caption: Tutorials
+  :caption: Examples
 
   notebooks/Case1_getdata.ipynb
   notebooks/Case2_autodew.ipynb
@@ -21,7 +21,7 @@ Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
 
 .. toctree::
   :maxdepth: 2
-  :caption: Modules
+  :caption: API Reference
 
   getdata
   autodew
