@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "normet"
-version = "0.1.9"
-description = "Normet: AutoML-based normalising meteorolgy"
+version = "0.1.10"
+description = "Normet: Normalising meteorolgy on air quality data"
 readme = "README.rst"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=2.6"
 authors = [
     {name = "Dr. Congbo Song and other MEDAL group members"}
 ]
