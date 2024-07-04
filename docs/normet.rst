@@ -252,11 +252,11 @@ normet
 
         model_config = {
         'time_budget': 60,                     # Total running time in seconds
-        'metric': 'rmse',                      # Primary metric for regression
+        'metric': 'r2',                      # Primary metric for regression
         'estimator_list': [
-            "lgbm", "rf", "xgboost",
-            "extra_tree", "xgb_limitdepth"
-        ],                                     # List of ML learners
+            "lgbm", "xgboost",
+            "xgb_limitdepth"
+        ],                                     # List of ML learners: ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"]
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
         }
@@ -308,7 +308,7 @@ normet
         feature_names = ['feature1', 'feature2']
         split_method = 'random'
         fraction = 0.75
-        model_config = {'time_budget': 60, 'metric': 'rmse'}
+        model_config = {'time_budget': 60, 'metric': 'r2'}
         seed = 7654321
         df_prepared, model = normet.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
 
@@ -322,11 +322,11 @@ normet
 
         model_config = {
         'time_budget': 60,                     # Total running time in seconds
-        'metric': 'rmse',                      # Primary metric for regression
+        'metric': 'r2',                      # Primary metric for regression
         'estimator_list': [
-            "lgbm", "rf", "xgboost",
-            "extra_tree", "xgb_limitdepth"
-        ],                                     # List of ML learners
+            "lgbm", "xgboost",
+            "xgb_limitdepth"
+        ],                                     # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
         }
@@ -902,46 +902,7 @@ normet
     - Significance levels for the correlation coefficient are marked with appropriate symbols.
 
 
-.. function:: cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
-
-    Detects change points in a time series using the ruptures package.
-
-    :param df: Input DataFrame containing the time series data.
-    :type df: DataFrame
-    :param col_name: Name of the column containing the time series data. Default is 'Normalised'.
-    :type col_name: str, optional
-    :param window: Width of the sliding window. Default is 12.
-    :type window: int, optional
-    :param n: Number of change points to detect. Default is 5.
-    :type n: int, optional
-    :param model: Type of cost function model for the ruptures package. Default is "l2".
-    :type model: str, optional
-    :returns: Datetime indices of detected change points.
-    :rtype: DatetimeIndex
-
-    **Details:**
-
-    - **Change Point Detection:** Detects change points in a time series using the ruptures package.
-    - **Sliding Window:** Uses a sliding window approach with a specified width to detect change points.
-    - **Model Selection:** Allows for selecting different cost function models such as "l1", "rbf", "linear", "normal", or "ar".
-
-    **Returns:**
-
-    - Datetime indices of detected change points.
-
-    **Example:**
-
-    .. code-block:: python
-
-        import normet
-        change_points_rupture = normet.pd_rupture(df, col_name='Normalised', window=12, n=5, model="l2")
-        print("Change points detected using cpd_rupture function:")
-        print(change_points_rupture)
-
-    This function can be used to detect change points in a time series, providing insights into structural shifts in the data.
-
-
-.. function:: pdp_all(automl, df, feature_names=None, variables=None, training_only=True, n_cores=-1)
+.. function:: pdp_all(automl, df, feature_names=None, variables=None, training_only=True, n_cores=None)
 
     Computes partial dependence plots for all specified features.
 
@@ -954,7 +915,7 @@ normet
     :type variables: list, optional
     :param training_only: If True, computes partial dependence plots only for the training set. Default is True.
     :type training_only: bool, optional
-    :param n_cores: Number of CPU cores to use for parallel computation. Default is -1 (uses all available cores).
+    :param n_cores: Number of CPU cores to use. Default is total CPU cores minus one.
     :type n_cores: int, optional
     :return: DataFrame containing the computed partial dependence plots for all specified features.
     :rtype: pandas.DataFrame
@@ -996,7 +957,7 @@ normet
         synthetic_result = normet.scm(df, poll_col='poll', date_col='date', code_col='code', treat_target='X', control_pool=['A', 'B', 'C'], post_col='post')
 
 
-.. function:: scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=-1)
+.. function:: scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=None)
 
     Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
 
@@ -1012,7 +973,7 @@ normet
     :type control_pool: list
     :param post_col: Name of the column indicating the post-treatment period.
     :type post_col: str
-    :param n_cores: Number of CPU cores to use. Default is -1 (uses all available cores).
+    :param n_cores: Number of CPU cores to use. Default is total CPU cores minus one.
     :type n_cores: int, optional
     :return: DataFrame containing synthetic control results for all treatment targets.
     :rtype: pandas.DataFrame
@@ -1064,11 +1025,11 @@ normet
 
         model_config = {
         'time_budget': 60,                     # Total running time in seconds
-        'metric': 'rmse',                      # Primary metric for regression
+        'metric': 'r2',                      # Primary metric for regression
         'estimator_list': [
-            "lgbm", "rf", "xgboost",
-            "extra_tree", "xgb_limitdepth"
-        ],                                     # List of ML learners
+            "lgbm", "xgboost",
+            "xgb_limitdepth"
+        ],                                     # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
         }
@@ -1077,7 +1038,7 @@ normet
 
 
 
-.. function:: ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=-1)
+.. function:: ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=None)
 
     Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
@@ -1095,7 +1056,7 @@ normet
     :type cutoff_date: str
     :param training_time: Total running time in seconds for the AutoML model. Default is 60.
     :type training_time: int, optional
-    :param n_cores: Number of CPU cores to use. Default is -1 (uses all available cores).
+    :param n_cores: Number of CPU cores to use. Default is total CPU cores minus one.
     :type n_cores: int, optional
     :return: DataFrame containing synthetic control results for all treatment targets.
     :rtype: pandas.DataFrame

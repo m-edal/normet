@@ -314,11 +314,11 @@ def train_model(df, value='value', variables=None, model_config=None, seed=76543
     # Default configuration for model training
     default_model_config = {
         'time_budget': 60,                     # Total running time in seconds
-        'metric': 'rmse',                      # Primary metric for regression
+        'metric': 'r2',                      # Primary metric for regression
         'estimator_list': [
-            "lgbm", "rf", "xgboost",
-            "extra_tree", "xgb_limitdepth"
-        ],                                     # List of ML learners
+            "lgbm","xgboost",
+            "xgb_limitdepth"
+        ],                                     # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
     }
@@ -375,7 +375,7 @@ def prepare_train_model(df, value, feature_names, split_method, fraction, model_
         >>> feature_names = ['feature1', 'feature2']
         >>> split_method = 'random'
         >>> fraction = 0.75
-        >>> model_config = {'time_budget': 60, 'metric': 'rmse'}
+        >>> model_config = {'time_budget': 60, 'metric': 'r2'}
         >>> seed = 7654321
         >>> df_prepared, model = prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
     """
@@ -1129,39 +1129,7 @@ def Stats(df, mod, obs,
     return results
 
 
-def cpd_rupture(df, col_name='Normalised', window=12, n=5, model="l2"):
-    """
-    Detects change points in a time series using the ruptures package.
-
-    Parameters:
-        df (DataFrame): Input DataFrame containing the time series data.
-        col_name (str, optional): Name of the column containing the time series data. Default is 'Normalised'.
-        window (int, optional): Width of the sliding window. Default is 12.
-        n (int, optional): Number of change points to detect. Default is 5.
-        model (str, optional): Type of cost function model for the ruptures package. Default is "l2".
-
-    Returns:
-        DatetimeIndex: Datetime indices of detected change points.
-
-    Example Usage:
-        # Detect Change Points using the Ruptures Package
-        change_points = cpd_rupture(df, col_name='TimeSeries', window=24, n=3, model="l1")
-    """
-    import ruptures as rpt
-    # Convert to numpy array
-    values = np.array(df[col_name])
-
-    # Perform changepoint detection
-    model = rpt.Window(width=window, model=model).fit(values)  # "l1", "rbf", "linear", "normal", "ar"
-    result = model.predict(n_bkps=n)
-    result = [x-1 for x in list(result)][:-1]
-
-    # Convert changepoint indices to dates
-    dates = df.iloc[result, :].index
-
-    return dates
-
-def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n_cores=-1):
+def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n_cores=None):
     """
     Computes partial dependence plots for all specified features.
 
@@ -1171,7 +1139,7 @@ def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n
         feature_names (list): List of feature names to compute partial dependence plots for.
         variables (list, optional): List of variables to compute partial dependence plots for. If None, defaults to feature_names.
         training_only (bool, optional): If True, computes partial dependence plots only for the training set. Default is True.
-        n_cores (int, optional): Number of CPU cores to use for parallel computation. Default is -1 (uses all available cores).
+        n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
 
     Returns:
         DataFrame: DataFrame containing the computed partial dependence plots for all specified features.
@@ -1185,6 +1153,9 @@ def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n
     if training_only:
         df = df[df["set"] == "training"]
     X_train, y_train = df[feature_names], df['value']
+
+    # Default logic for cpu cores
+    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
 
     results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(model, X_train, var) for var in variables)
     df_predict = pd.concat(results)
@@ -1216,7 +1187,7 @@ def pdp_worker(model, X_train, variable, training_only=True):
     return df_predict
 
 
-def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=-1):
+def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=None):
     """
     Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
 
@@ -1227,7 +1198,7 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
         code_col (str): Name of the column containing the code data.
         control_pool (list): List of control pool codes.
         post_col (str): Name of the column indicating the post-treatment period.
-        n_cores (int, optional): Number of CPU cores to use. Default is -1 (uses all available cores).
+        n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for all treatment targets.
@@ -1237,6 +1208,8 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
         synthetic_all = scm_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
                                      control_pool=['A', 'B', 'C'], post_col='Post', n_cores=4)
     """
+    # Default logic for cpu cores
+    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(scm)(
                     df=df,
@@ -1339,7 +1312,7 @@ def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_
     return data
 
 
-def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=-1):
+def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=None):
     """
     Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
@@ -1351,7 +1324,7 @@ def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,
         control_pool (list): List of control pool codes.
         cutoff_date (str): Date for splitting pre- and post-treatment datasets.
         training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
-        n_cores (int, optional): Number of CPU cores to use. Default is -1 (uses all available cores).
+        n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for all treatment targets.
@@ -1361,6 +1334,8 @@ def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,
         synthetic_all = ml_syn_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
                                         control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=120, n_cores=4)
     """
+    # Default logic for cpu cores
+    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
     treatment_pool = df[code_col].unique()
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
                     df=df,

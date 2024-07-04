@@ -6,7 +6,7 @@ normet
 Installation
 ============
 
-. code-block:: bash
+.. code-block:: bash
 
    conda create -n normet python=3.9 jupyter
    conda activate normet
@@ -37,9 +37,8 @@ Main Features
 Here are a few of the functions that normet implemented:
 
   - Automated machine learning. Help to select the 'best' ML model for the dataset and model training.
-  - Partial dependency. Look at the drivers (both interactive and noninteractive) of changes in air pollutant concentrations and feature importance.
+  - Partial dependency. Look at the drivers of changes in air pollutant concentrations and feature importance.
   - Weather normalisation. Decoupling emission-related air pollutant concentrations from meteorological effects.
-  - Change point detection. Detect the change points caused by policy interventions.
   - Causal inference for air quality interventions. Attribution of changes in air pollutant concentrations to air quality policy interventions.
 
 Documentation

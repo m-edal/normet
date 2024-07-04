@@ -1,7 +1,7 @@
 Installation
 ======================================================================================
 
-. code-block:: bash
+.. code-block:: bash
 
    conda create -n normet python=3.9 jupyter
    conda activate normet

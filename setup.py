@@ -1,17 +1,9 @@
 from setuptools import setup, find_packages
-import subprocess
-import sys
 
 required_packages = [
-    "pandas", "numpy", "scipy", "joblib", "flaml","flaml[automl]",
-    "ruptures", "scikit-learn>=1.3.0", "statsmodels",
+    "pandas", "numpy", "scipy", "joblib", "flaml",
+     "scikit-learn>=1.3.0", "statsmodels",
 ]
-
-def install_with_pip(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-for package in required_packages:
-    install_with_pip(package)
 
 classifiers=[
     "Development Status :: 2 - Pre-Alpha",
