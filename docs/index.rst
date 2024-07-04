@@ -1,7 +1,7 @@
-NORmet for Automated Air Quality Intervention Studies
+Normalising meteorology on air quality
 =====================================================
 
-Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
+Author: `Congbo Song and other MEDAL member <https://github.com/dsncas/normet>`_
 
 .. toctree::
   :maxdepth: 2
@@ -14,17 +14,12 @@ Author: `Congbo Song and other MEDAL member <https://github.com/dsncas>`_
   :maxdepth: 2
   :caption: Examples
 
-  notebooks/Case1_getdata.ipynb
-  notebooks/Case2_autodew.ipynb
-  notebooks/Case3_Intervention.ipynb
+  notebooks/Case1.ipynb
+  notebooks/Case2.ipynb
 
 
 .. toctree::
   :maxdepth: 2
   :caption: API Reference
 
-  getdata
-  autodew
-  cpd
-  pdp
-  intervention
+  normet
