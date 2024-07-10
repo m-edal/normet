@@ -313,13 +313,11 @@ def train_model(df, value='value', variables=None, model_config=None, seed=76543
 
     # Default configuration for model training
     default_model_config = {
-        'time_budget': 60,                     # Total running time in seconds
-        'metric': 'r2',                      # Primary metric for regression
-        'estimator_list': [
-            "lgbm","xgboost",
-            "xgb_limitdepth"
-        ],                                     # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
+        'time_budget': 90,                     # Total running time in seconds
+        'metric': 'r2',                        # Primary metric for regression, 'mae', 'mse', 'r2', 'mape',...
+        'estimator_list': ["lgbm"],            # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
         'task': 'regression',                  # Task type
+        'eval_method': 'auto',                 # A string of resampling strategy, one of ['auto', 'cv', 'holdout'].
         'verbose': verbose                     # Print progress messages
     }
 
@@ -375,7 +373,7 @@ def prepare_train_model(df, value, feature_names, split_method, fraction, model_
         >>> feature_names = ['feature1', 'feature2']
         >>> split_method = 'random'
         >>> fraction = 0.75
-        >>> model_config = {'time_budget': 60, 'metric': 'r2'}
+        >>> model_config = {'time_budget': 90, 'metric': 'r2'}
         >>> seed = 7654321
         >>> df_prepared, model = prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
     """
@@ -412,7 +410,7 @@ def normalise_worker(index, df, model, variables_resample, replace, seed, verbos
         pd.DataFrame: DataFrame containing normalised predictions.
     """
 
-    # Print progress message every fifth prediction
+    # Print progress message every fifth prediction if verbose is enabled
     if verbose and index % 5 == 0:
         # Calculate and format the progress percentage
         message_percent = round((index / len(df)) * 100, 2)
@@ -420,24 +418,30 @@ def normalise_worker(index, df, model, variables_resample, replace, seed, verbos
         print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
               ": Predicting", index, "of", len(df), "times (", message_percent, ")...")
 
-    # Randomly sample observations within the weather DataFrame
+    # Set the random seed for reproducibility
     np.random.seed(seed)
 
-    # Sample meteorological parameters from weather_df
-    sampled_meteorological_params = weather_df[variables_resample].sample(n=len(weather_df), replace=replace).reset_index(drop=True)
+    # If the weather_df is the same length as the input df
+    if len(weather_df) == len(df):
+        # Randomly sample indices from the input DataFrame
+        index_rows = np.random.choice(len(df), size=len(df), replace=replace)
+        # Resample the specified variables using the sampled indices
+        df[variables_resample] = df[variables_resample].iloc[index_rows].reset_index(drop=True)
+    else:
+        # Sample meteorological parameters from the provided weather DataFrame
+        sampled_meteorological_params = weather_df[variables_resample].sample(n=len(weather_df), replace=replace).reset_index(drop=True)
+        # Use the sampled parameters to resample the specified variables in the input DataFrame
+        df[variables_resample] = sampled_meteorological_params.sample(n=len(df), replace=replace).reset_index(drop=True)
 
-    # Use the sampled parameters directly (without modifying df)
-    df[variables_resample] = sampled_meteorological_params.sample(n=len(df), replace=True).reset_index(drop=True)
-
-    # Predict using the model
+    # Predict values using the model
     value_predict = model.predict(df)
 
-    # Build DataFrame of predictions
+    # Build a DataFrame containing the predictions along with the original dates, observed values, and seed
     predictions = pd.DataFrame({
         'date': df['date'],
         'observed': df['value'],
         'normalised': value_predict,
-        'seed' : seed
+        'seed': seed
     })
 
     return predictions
@@ -1129,7 +1133,7 @@ def Stats(df, mod, obs,
     return results
 
 
-def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n_cores=None):
+def pdp(model, df, feature_names=None, variables=None, training_only=True, n_cores=None):
     """
     Computes partial dependence plots for all specified features.
 
@@ -1146,7 +1150,7 @@ def pdp_all(model, df, feature_names=None, variables=None, training_only=True, n
 
     Example Usage:
         # Compute Partial Dependence Plots for All Features
-        df_predict = pdp_all(model, df, feature_names=['feature1', 'feature2', 'feature3'])
+        df_predict = pdp(model, df, feature_names=['feature1', 'feature2', 'feature3'])
     """
     if variables is None:
         variables = feature_names

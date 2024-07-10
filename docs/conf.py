@@ -2,9 +2,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'NORmet'
+project = 'normet'
 author = 'Dr. Congbo Song and other MEDAL group members'
-release = 'v0.1.11'
+release = 'v0.1.12'
 
 # -- General configuration ---------------------------------------------------
 

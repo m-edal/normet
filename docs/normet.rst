@@ -251,12 +251,9 @@ normet
     .. code-block:: python
 
         model_config = {
-        'time_budget': 60,                     # Total running time in seconds
-        'metric': 'r2',                      # Primary metric for regression
-        'estimator_list': [
-            "lgbm", "xgboost",
-            "xgb_limitdepth"
-        ],                                     # List of ML learners: ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"]
+        'time_budget': 90,                     # Total running time in seconds
+        'metric': 'r2',                        # Primary metric for regression, 'mae', 'mse', 'r2', 'mape',...
+        'estimator_list': ["lgbm"],            # List of ML learners: ["lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"]
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
         }
@@ -308,7 +305,7 @@ normet
         feature_names = ['feature1', 'feature2']
         split_method = 'random'
         fraction = 0.75
-        model_config = {'time_budget': 60, 'metric': 'r2'}
+        model_config = {'time_budget': 90, 'metric': 'r2'}
         seed = 7654321
         df_prepared, model = normet.prepare_train_model(df, value='target', feature_names=feature_names, split_method=split_method, fraction=fraction, model_config=model_config, seed=seed, verbose=True)
 
@@ -321,12 +318,9 @@ normet
     .. code-block:: python
 
         model_config = {
-        'time_budget': 60,                     # Total running time in seconds
-        'metric': 'r2',                      # Primary metric for regression
-        'estimator_list': [
-            "lgbm", "xgboost",
-            "xgb_limitdepth"
-        ],                                     # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
+        'time_budget': 90,                     # Total running time in seconds
+        'metric': 'r2',                        # Primary metric for regression, 'mae', 'mse', 'r2', 'mape',...
+        'estimator_list': ["lgbm"],            # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
         }
@@ -902,7 +896,7 @@ normet
     - Significance levels for the correlation coefficient are marked with appropriate symbols.
 
 
-.. function:: pdp_all(automl, df, feature_names=None, variables=None, training_only=True, n_cores=None)
+.. function:: pdp(automl, df, feature_names=None, variables=None, training_only=True, n_cores=None)
 
     Computes partial dependence plots for all specified features.
 
@@ -925,7 +919,7 @@ normet
     .. code-block:: python
 
         import normet
-        df_predict = normet.pdp_all(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
+        df_predict = normet.pdp(automl, df, feature_names=['feature1', 'feature2', 'feature3'])
 
 
 .. function:: scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col)
@@ -1024,12 +1018,9 @@ normet
     .. code-block:: python
 
         model_config = {
-        'time_budget': 60,                     # Total running time in seconds
-        'metric': 'r2',                      # Primary metric for regression
-        'estimator_list': [
-            "lgbm", "xgboost",
-            "xgb_limitdepth"
-        ],                                     # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
+        'time_budget': 90,                     # Total running time in seconds
+        'metric': 'r2',                        # Primary metric for regression
+        'estimator_list': ["lgbm"],            # List of ML learners: "lgbm", "rf", "xgboost", "extra_tree", "xgb_limitdepth"
         'task': 'regression',                  # Task type
         'verbose': verbose                     # Print progress messages
         }
