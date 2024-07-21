@@ -5,8 +5,6 @@ NORmet
    :align: right
    :height: 131.5
 
-`GitHub Repository <https://github.com/dsncas/NORmet>`_
-
 **normet** is a Python and R package to conduct automated data curation, automated machine learning-based meteorology/weather normalisation and causal analysis on air quality interventions for atmospheric science, air pollution and policy analysis. The main aim of this package is to provide a Swiss army knife enabling rapid automated-air quality intervention studies, and contributing to cross-disciplinary studies with public health, economics, policy, etc.
 
 Python Installation
