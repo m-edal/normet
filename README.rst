@@ -1,7 +1,7 @@
 NORmet
 ======
 
-.. image:: statics/logo.png
+.. image:: statics/logo.svg
    :align: right
    :height: 131.5
 
