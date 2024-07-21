@@ -1,0 +1,31 @@
+Package: normet
+Type: Package
+Title: Normalising Meteorology on Air Quality
+Version: 0.0.1
+Date: 2024-07-17
+Authors@R: person("Congbo", "Song", email = "congbo.song@ncas.ac.uk",
+    role = c("cre", "aut"), comment = c(ORCID = "0000-0001-7948-4834"))
+Maintainer: Congbo Song <congbo.song@ncas.ac.uk>
+Description: normet: Normalising meteorology on air quality.
+License: GPL-3 | file LICENSE
+ByteCompile: true
+Depends:
+    R (>= 4.3.0)
+Imports:
+    h2o,
+    dplyr,
+    lubridate,
+    pdp,
+    tibble,
+    lmtest,
+    stats,
+    parallel,
+    foreach,
+    doParallel
+Suggests:
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
