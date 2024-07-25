@@ -2,7 +2,7 @@
 % Please edit documentation in R/nm_normalise.r
 \name{nm_normalise}
 \alias{nm_normalise}
-\title{Normalize the Dataset Using the Trained Model}
+\title{normalise the Dataset Using the Trained Model}
 \usage{
 nm_normalise(
   df = NULL,
@@ -23,9 +23,9 @@ nm_normalise(
 
 \item{model}{The trained model object.}
 
-\item{feature_names}{The names of the features used for normalization.}
+\item{feature_names}{The names of the features used for normalisation.}
 
-\item{variables_resample}{The names of the variables to be resampled for normalization.}
+\item{variables_resample}{The names of the variables to be resampled for normalisation.}
 
 \item{n_samples}{Number of samples to generate. Default is 300.}
 
@@ -42,21 +42,22 @@ nm_normalise(
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }
 \value{
-A data frame containing the normalized data.
+A data frame containing the normalised data.
 }
 \description{
-\code{nm_normalise} normalizes the dataset using the trained model and generates resampled data in parallel.
+\code{nm_normalise} normalises the dataset using the trained model and generates resampled data in parallel.
 }
 \examples{
 \dontrun{
 library(dplyr)
 library(lubridate)
+library(progress)
 df <- data.frame(
   date = Sys.time() + seq(1, 100, by = 1),
   temp = rnorm(100),
   humidity = rnorm(100)
 )
 model <- lm(temp ~ humidity, data = df)
-normalized_df <- nm_normalise(df, model, feature_names = c("temp", "humidity"), n_samples = 300, replace = TRUE, seed = 12345)
+normalised_df <- nm_normalise(df, model, feature_names = c("temp", "humidity"), n_samples = 300, replace = TRUE, seed = 12345)
 }
 }

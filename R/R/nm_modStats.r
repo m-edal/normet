@@ -13,7 +13,6 @@
 #' @examples
 #' \dontrun{
 #' library(dplyr)
-#' library(magrittr)
 #' df <- data.frame(
 #'   set = rep(c("train", "test"), each = 50),
 #'   value = rnorm(100)
@@ -90,7 +89,6 @@ nm_modStats <- function(df, model, obs = "value", set = NULL, statistic = NULL) 
 #'
 #' @export
 nm_Stats <- function(df, mod, obs, statistic = NULL) {
-  library(dplyr)
   if (is.null(statistic)) {
     statistic <- c("n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA", "R2")
   }

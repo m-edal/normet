@@ -2,7 +2,7 @@
 % Please edit documentation in R/nm_do_all_unc.r
 \name{nm_do_all_unc}
 \alias{nm_do_all_unc}
-\title{Perform All Steps for Meteorological Normalization with Uncertainty Estimation}
+\title{Perform All Steps for Meteorological normalisation with Uncertainty Estimation}
 \usage{
 nm_do_all_unc(
   df = NULL,
@@ -26,9 +26,9 @@ nm_do_all_unc(
 
 \item{value}{The target variable name as a string.}
 
-\item{feature_names}{The names of the features used for training and normalization.}
+\item{feature_names}{The names of the features used for training and normalisation.}
 
-\item{variables_resample}{The names of the variables to be resampled for normalization. Default is NULL (all feature names except date_unix).}
+\item{variables_resample}{The names of the variables to be resampled for normalisation. Default is NULL (all feature names except date_unix).}
 
 \item{split_method}{The method for splitting data into training and testing sets. Default is 'random'.}
 
@@ -36,7 +36,7 @@ nm_do_all_unc(
 
 \item{model_config}{A list containing configuration parameters for model training.}
 
-\item{n_samples}{Number of samples to generate for normalization. Default is 300.}
+\item{n_samples}{Number of samples to generate for normalisation. Default is 300.}
 
 \item{n_models}{Number of models to train for uncertainty estimation. Default is 10.}
 
@@ -51,16 +51,17 @@ nm_do_all_unc(
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }
 \value{
-A list containing the normalized data frame with uncertainty estimation and model statistics.
+A list containing the normalised data frame with uncertainty estimation and model statistics.
 }
 \description{
-\code{nm_do_all_unc} performs the entire process of training multiple models, normalizing the data, and collecting model statistics with uncertainty estimation.
+\code{nm_do_all_unc} performs the entire process of training multiple models, normalising the data, and collecting model statistics with uncertainty estimation.
 }
 \examples{
 \dontrun{
 library(dplyr)
 library(lubridate)
 library(progress)
+library(purrr)
 df <- data.frame(date = Sys.time() + seq(1, 100, by = 1),
                  pollutant = rnorm(100), temp = rnorm(100), humidity = rnorm(100))
 result <- nm_do_all_unc(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, n_models = 10, seed = 12345)

@@ -7,7 +7,6 @@
 nm_mlsc(
   df,
   poll_col,
-  date_col,
   code_col,
   treat_target,
   control_pool,
@@ -21,8 +20,6 @@ nm_mlsc(
 \item{df}{Data frame containing the input data.}
 
 \item{poll_col}{The name of the column containing the pollutant data.}
-
-\item{date_col}{The name of the column containing the date data.}
 
 \item{code_col}{The name of the column containing the unit codes.}
 
@@ -52,7 +49,7 @@ df <- data.frame(
   pollutant = rnorm(100),
   unit_code = rep(c("A", "B", "C", "D"), each = 25)
 )
-result <- nm_mlsc(df, poll_col = "pollutant", date_col = "date",
+result <- nm_mlsc(df, poll_col = "pollutant",
                   code_col = "unit_code", treat_target = "A",
                   control_pool = c("B", "C", "D"), cutoff_date = "2020-01-01",
                   model_config = list(max_models = 5, time_budget = 600))

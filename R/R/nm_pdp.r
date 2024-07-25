@@ -4,7 +4,6 @@
 #'
 #' @param df Data frame containing the input data.
 #' @param model The trained model object.
-#' @param feature_names The names of the features used for training the model.
 #' @param variables A vector of feature names for which PDPs are to be generated. Default is NULL (all feature names will be used).
 #' @param training_only Logical indicating whether to use only training data for generating PDPs. Default is TRUE.
 #' @param grid.resolution The number of points to evaluate on the grid for each feature. Default is 20.
@@ -21,37 +20,69 @@
 #'   feature2 = rnorm(100)
 #' )
 #' model <- lm(feature1 ~ feature2, data = df)
-#' pdp_results <- nm_pdp(df, model, feature_names = c("feature1", "feature2"))
+#' pdp_results <- nm_pdp(df, model, varibales = c("feature1", "feature2"))
 #' }
 #' @export
-nm_pdp <- function(df, model, feature_names, variables = NULL, training_only = TRUE, grid.resolution = 20, n_cores = NULL) {
+nm_pdp <- function(df, model, variables = NULL, training_only = TRUE, grid.resolution = 20, n_cores = NULL) {
+  feature_names <- h2o.varimp(model)$variable
+
   if (is.null(variables)) {
     variables <- feature_names
   }
 
   if (training_only) {
-    df <- df[df$set == "training", ]
+    df <- df %>% filter(set == "training")
   }
 
-  X_train <- df[, feature_names, drop = FALSE]
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
 
-  if (is.null(n_cores)) {
-    n_cores <- parallel::detectCores() - 1
-  }
+  cl <- makeCluster(n_cores, type = "SOCK")
+  clusterEvalQ(cl, {
+    library(h2o)
+    library(pdp)
+    library(dplyr)
+    nm_init_h2o <- function(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G") {
+      if (is.null(n_cores)) {
+        n_cores <- parallel::detectCores() - 1
+      }
 
-  cl <- parallel::makeCluster(n_cores)
-  doParallel::registerDoParallel(cl)
-
-  results <- foreach(var = variables, .packages = c('pdp', 'h2o'), .export = c("nm_pdp_worker", "nm_predict", "nm_init_h2o")) %dopar% {
+      tryCatch({
+        conn <- h2o.getConnection()
+        if (!h2o.clusterIsUp()) {
+          stop("H2O cluster is not up")
+        }
+      }, error = function(e) {
+        message("H2O is not running. Starting H2O...")
+        h2o::h2o.init(nthreads = n_cores, min_mem_size = min_mem_size, max_mem_size = max_mem_size)
+        h2o::h2o.no_progress()
+      })
+    }
     nm_init_h2o()
-    nm_pdp_worker(model, X_train, var, grid.resolution)
+  })
+  doSNOW::registerDoSNOW(cl)
+
+  # Create a progress bar
+  pb <- progress_bar$new(
+    format = "  Processing [:bar] :percent eta: :eta",
+    total = length(variables),
+    width = 80
+  )
+
+  # Progress function
+  progress <- function(n) pb$tick()
+  opts <- list(progress = progress)
+
+  results <- foreach(var = variables, .packages = c('pdp', 'h2o', 'dplyr'), .export = c("nm_pdp_worker", "nm_predict", "nm_init_h2o"), .options.snow = opts) %dopar% {
+    nm_init_h2o()
+    nm_pdp_worker(model, df, var, grid.resolution)
   }
 
-  parallel::stopCluster(cl)
+  snow::stopCluster(cl)
 
-  df_predict <- dplyr::bind_rows(results)
+  df_predict <- bind_rows(results)
   return(df_predict)
 }
+
 
 #' Worker function for generating PDP
 #'

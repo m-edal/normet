@@ -1,12 +1,20 @@
 Package: normet
 Type: Package
-Title: Normalising Meteorology on Air Quality
+Title: NORmalising METeorology on Air Quality
 Version: 0.0.1
 Date: 2024-07-17
 Authors@R: person("Congbo", "Song", email = "congbo.song@ncas.ac.uk",
     role = c("cre", "aut"), comment = c(ORCID = "0000-0001-7948-4834"))
 Maintainer: Congbo Song <congbo.song@ncas.ac.uk>
-Description: normet: Normalising meteorology on air quality.
+Description: The package provides tools for automated data curation, machine learning-based meteorology/weather normalization, and causal analysis of air quality interventions.
+    Key features include:
+    - Automated machine learning: Helps to select the 'best' ML model for the dataset and model training.
+    - Partial dependency analysis: Identifies the drivers of changes in air pollutant concentrations and feature importance.
+    - Weather normalization: Decouples emission-related air pollutant concentrations from meteorological effects.
+    - Causal inference: Attributes changes in air pollutant concentrations to air quality policy interventions.
+    The package is designed to facilitate rapid and automated air quality intervention studies, contributing to cross-disciplinary research in atmospheric science, public health, economics, and policy analysis.
+URL: https://github.com/m-edal/normet
+BugReports: https://github.com/m-edal/normet/issues
 License: GPL-3 | file LICENSE
 ByteCompile: true
 Depends:
@@ -15,16 +23,19 @@ Imports:
     h2o,
     dplyr,
     lubridate,
+    purrr,
+    tidyr,
     pdp,
-    tibble,
     lmtest,
     stats,
+    glmnet,
     parallel,
     foreach,
-    doParallel
+    doSNOW,
+    progress
 Suggests:
-    knitr,
-    rmarkdown
+    testthat,
+    knitr
 VignetteBuilder: knitr
 Encoding: UTF-8
 LazyData: true

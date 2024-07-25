@@ -20,7 +20,6 @@
 #' @export
 nm_generate_resampled <- function(df_batch, variables_resample, replace, seed, weather_df=NULL) {
     # Set the random seed for reproducibility
-    library(dplyr)
     set.seed(seed)
 
     # Resample variables
@@ -44,14 +43,14 @@ nm_generate_resampled <- function(df_batch, variables_resample, replace, seed, w
     return(df_batch)
 }
 
-#' Normalize the Dataset Using the Trained Model
+#' normalise the Dataset Using the Trained Model
 #'
-#' \code{nm_normalise} normalizes the dataset using the trained model and generates resampled data in parallel.
+#' \code{nm_normalise} normalises the dataset using the trained model and generates resampled data in parallel.
 #'
 #' @param df Input data frame.
 #' @param model The trained model object.
-#' @param feature_names The names of the features used for normalization.
-#' @param variables_resample The names of the variables to be resampled for normalization.
+#' @param feature_names The names of the features used for normalisation.
+#' @param variables_resample The names of the variables to be resampled for normalisation.
 #' @param n_samples Number of samples to generate. Default is 300.
 #' @param replace Logical indicating whether to sample with replacement. Default is TRUE.
 #' @param aggregate Logical indicating whether to aggregate the results. Default is TRUE.
@@ -60,25 +59,28 @@ nm_generate_resampled <- function(df_batch, variables_resample, replace, seed, w
 #' @param weather_df Optional data frame containing weather data for resampling.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
-#' @return A data frame containing the normalized data.
+#' @return A data frame containing the normalised data.
 #'
 #' @examples
 #' \dontrun{
 #' library(dplyr)
 #' library(lubridate)
+#' library(progress)
 #' df <- data.frame(
 #'   date = Sys.time() + seq(1, 100, by = 1),
 #'   temp = rnorm(100),
 #'   humidity = rnorm(100)
 #' )
 #' model <- lm(temp ~ humidity, data = df)
-#' normalized_df <- nm_normalise(df, model, feature_names = c("temp", "humidity"), n_samples = 300, replace = TRUE, seed = 12345)
+#' normalised_df <- nm_normalise(df, model, feature_names = c("temp", "humidity"), n_samples = 300, replace = TRUE, seed = 12345)
 #' }
 #' @export
 nm_normalise <- function(df=NULL, model=NULL, feature_names=NULL, variables_resample=NULL, n_samples=300, replace=TRUE,
                          aggregate=TRUE, seed=7654321, n_cores=NULL, weather_df=NULL, verbose=TRUE) {
     # Process input DataFrames
-    df <- nm_process_df(df, variables_col=c(feature_names, 'value'))
+    df <- df %>%
+      nm_process_date() %>%
+      nm_check_data(feature_names, 'value')
 
     # If no weather_df is provided, use df as the weather data
     if (is.null(weather_df)) {
@@ -113,8 +115,8 @@ nm_normalise <- function(df=NULL, model=NULL, feature_names=NULL, variables_resa
     }
 
     # Perform data generation using parallel processing
-    cluster <- makeCluster(n_cores)
-    registerDoSNOW(cluster)
+    cl <- snow::makeCluster(n_cores, type = "SOCK")
+    doSNOW::registerDoSNOW(cl)
 
     # Define a progress function to be called in the main thread
     progress <- function(n) {
@@ -125,7 +127,7 @@ nm_normalise <- function(df=NULL, model=NULL, feature_names=NULL, variables_resa
     opts <- list(progress = progress)
 
     # Ensure model is available in each worker
-    clusterEvalQ(cluster, {
+    clusterEvalQ(cl, {
         library(h2o)
         nm_init_h2o <- function(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G") {
           if (is.null(n_cores)) {
@@ -166,7 +168,7 @@ nm_normalise <- function(df=NULL, model=NULL, feature_names=NULL, variables_resa
     result
     }
 
-    stopCluster(cluster)
+    snow::stopCluster(cl)
 
     generated_dfs <- generated_dfs[!sapply(generated_dfs, is.null)]
 

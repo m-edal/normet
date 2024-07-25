@@ -33,8 +33,8 @@ def prepare_data(df, value, feature_names, na_rm=True, split_method='random', re
 
     # Perform the data preparation steps
     df = (df
-            .pipe(process_df, variables_col = feature_names + [value])
-            .pipe(check_data, value = value)
+            .pipe(process_date)
+            .pipe(check_data, feature_names = feature_names, value = value)
             .pipe(impute_values, na_rm = na_rm)
             .pipe(add_date_variables, replace = replace)
             .pipe(split_into_sets, split_method = split_method, fraction = fraction, seed = seed)
@@ -43,7 +43,7 @@ def prepare_data(df, value, feature_names, na_rm=True, split_method='random', re
     return df
 
 
-def process_df(df, variables_col):
+def process_date(df):
     """
     Processes the DataFrame to ensure it contains necessary date and selected feature columns.
 
@@ -64,23 +64,19 @@ def process_df(df, variables_col):
     if isinstance(df.index, pd.DatetimeIndex):
         df = df.reset_index()
 
-    time_column = df.select_dtypes(include = 'datetime64').columns
+    time_columns = df.select_dtypes(include = 'datetime64').columns
 
-    if len(time_column) == 0:
+    if len(time_columns) == 0:
         raise ValueError("No datetime information found in index or columns.")
-    elif len(time_column) > 1:
+    elif len(time_columns) > 1:
         raise ValueError("More than one datetime column found.")
 
-    # Select features and the date column
-    selected_columns = list(set(variables_col) & set(df.columns))
-    selected_columns.append(time_column[0])
-
-    df = df[selected_columns].rename(columns = {time_column[0]: 'date'})
+    df = df.rename(columns = {time_columns[0]: 'date'})
 
     return df
 
 
-def check_data(df, value):
+def check_data(df, feature_names, value):
     """
     Validates and preprocesses the input DataFrame for subsequent analysis or modeling.
 
@@ -114,10 +110,14 @@ def check_data(df, value):
         >>> df_checked = check_data(df, 'target')
         >>> print(df_checked)
     """
-
     # Check if the target variable is in the DataFrame
     if value not in df.columns:
         raise ValueError(f"The target variable `{value}` is not in the DataFrame columns.")
+
+    # Select features and the date column
+    selected_columns = list(set(feature_names) & set(df.columns))
+    selected_columns.extend(['date', value])
+    df = df[selected_columns]
 
     # Rename the target column to 'value'
     df = df.rename(columns={value: "value"})
@@ -483,7 +483,8 @@ def normalise(df, model, feature_names, variables_resample=None, n_samples=300, 
     """
 
     # Process input DataFrames
-    df = process_df(df, variables_col=feature_names + ['value'])
+    df = (df.pipe(process_date)
+            .pipe(check_data, feature_names, 'value'))
 
     # If no weather_df is provided, use df as the weather data
     if weather_df is None:
@@ -844,93 +845,8 @@ def decom_met(df=None, model=None, value=None, feature_names=None, split_method=
     return df_dewwc, mod_stats
 
 
-def rolling_dew(df=None, model=None, value=None, feature_names=None, variables_resample=None, split_method='random',
-                fraction=0.75, model_config=None, n_samples=300, window_days=14, rollingevery=7, seed=7654321, n_cores=None, verbose=True):
-    """
-    Applies a rolling window approach to decompose the time series into different components using machine learning models.
-
-    Parameters:
-        df (pandas.DataFrame): Input dataframe containing the time series data.
-        model (object, optional): Pre-trained model to use for decomposition. If None, a new model will be trained. Default is None.
-        value (str): Column name of the target variable.
-        feature_names (list of str): List of feature column names.
-        variables_resample (list of str): List of sampled feature names for normalisation.
-        split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
-        fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
-        model_config (dict, optional): Configuration dictionary for model training parameters.
-        n_samples (int, optional): Number of samples for normalisation. Default is 300.
-        window_days (int, optional): Number of days for the rolling window. Default is 14.
-        rollingevery (int, optional): Rolling interval in days. Default is 7.
-        seed (int, optional): Random seed for reproducibility. Default is 7654321.
-        n_cores (int, optional): Number of cores to be used. Default is total CPU cores minus one.
-        verbose (bool, optional): Whether to print progress messages. Default is True.
-
-    Returns:
-        dfr (pandas.DataFrame): Dataframe with rolling decomposed components.
-        mod_stats (pandas.DataFrame): Dataframe with model statistics.
-
-    Example:
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> variables_resample = ['feature1', 'feature2']
-        >>> dfr, mod_stats = rolling_dew(df, value, feature_names, variables_resample)
-    """
-    if model is None:
-        df, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose=True)
-
-    # Collect model statistics
-    mod_stats = modStats(df, model)
-
-    # Create an initial dataframe to store observed values
-    dfr = pd.DataFrame(index=df['date'], data={'observed': list(df['value'])})
-    df['date_d'] = df['date'].dt.date
-
-    # Define the rolling window range
-    date_max = df['date_d'].max() - pd.DateOffset(days=window_days - 1)
-    date_min = df['date_d'].min() + pd.DateOffset(days=window_days - 1)
-
-    # Default logic for cpu cores
-    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
-
-    # Iterate over the rolling windows
-    for i, ds in enumerate(pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rollingevery]):
-
-        dfa = df[df['date_d'] >= ds.date()]
-        dfa = dfa[dfa['date_d'] <= (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
-
-        # Normalise the data within the rolling window
-        dfar = normalise(df=dfa, model=model, feature_names=feature_names, variables_resample=variables_resample,
-                         n_samples=n_samples, n_cores=n_cores, seed=seed, verbose=False)
-        dfar.rename(columns={'normalised': 'rolling_' + str(i)}, inplace=True)
-
-        # Concatenate the results
-        dfr = pd.concat([dfr, dfar['rolling_' + str(i)]], axis=1)
-
-        # Calculate ETA for the current rolling window iteration
-        if verbose:
-            if i==0:
-                start_time = time.time()  # Initialize start time before the loop
-                print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), f": Rolling window {i} from",dfa['date'].min().strftime('%Y-%m-%d'),
-                    "to", dfa['date'].max().strftime('%Y-%m-%d'))
-
-            elif i % 10 == 0:
-                elapsed_time = time.time() - start_time
-                remaining_time = elapsed_time / i * (len(pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rollingevery]) - i)
-                if remaining_time < 60:
-                    eta_str = "ETA: {:.2f} seconds".format(remaining_time)
-                elif remaining_time < 3600:
-                    eta_str = "ETA: {:.2f} minutes".format(remaining_time / 60)
-                else:
-                    eta_str = "ETA: {:.2f} hours".format(remaining_time / 3600)
-                print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), f": Rolling window {i} from",dfa['date'].min().strftime('%Y-%m-%d'),
-                    "to", dfa['date'].max().strftime('%Y-%m-%d'), f"{eta_str}")
-
-    return dfr, mod_stats
-
-
-def rolling_met(df=None, model=None, value=None, feature_names=None, split_method='random', fraction=0.75,
-                model_config=None, n_samples=300, window_days=14, rollingevery=7, seed=7654321, n_cores=None, verbose=True):
+def rolling(df=None, model=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
+            model_config=None, n_samples=300, window_days=14, rolling_every=7, seed=7654321, n_cores=None, verbose=True):
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
@@ -944,20 +860,20 @@ def rolling_met(df=None, model=None, value=None, feature_names=None, split_metho
         model_config (dict, optional): Configuration dictionary for model training parameters.
         n_samples (int, optional): Number of samples for normalisation. Default is 300.
         window_days (int, optional): Number of days for the rolling window. Default is 14.
-        rollingevery (int, optional): Rolling interval in days. Default is 7.
+        rolling_every (int, optional): Rolling interval in days. Default is 7.
         seed (int, optional): Random seed for reproducibility. Default is 7654321.
         n_cores (int, optional): Number of cores to be used. Default is total CPU cores minus one.
         verbose (bool, optional): Whether to print progress messages. Default is True.
 
     Returns:
-        df_dew (pandas.DataFrame): Dataframe with decomposed components including mean and standard deviation of the rolling window.
+        df_dew (pandas.DataFrame): Dataframe with decomposed components.
         mod_stats (pandas.DataFrame): Dataframe with model statistics.
 
     Example:
         >>> df = pd.read_csv('timeseries_data.csv')
         >>> value = 'target'
         >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dew, mod_stats = rolling_met(df, value, feature_names, window_days=14, rollingevery=2)
+        >>> df_dew, mod_stats = rolling(df, value, feature_names, window_days=14, rolling_every=2)
     """
     if model is None:
         df, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose=True)
@@ -965,61 +881,47 @@ def rolling_met(df=None, model=None, value=None, feature_names=None, split_metho
     # Gather model statistics for testing, training, and all data
     mod_stats = modStats(df, model)
 
-    # Variables to be used in resampling
-    variables_resample = [item for item in feature_names if item not in ['hour', 'weekday', 'day_julian', 'date_unix']]
-
-    # Default logic for cpu cores
+    # Default logic for CPU cores
     n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
 
-    # Normalise the entire data for mean calculation
-    df_dew = normalise(df, model, feature_names=feature_names, variables_resample=variables_resample, n_samples=n_samples,
-                       n_cores=n_cores, seed=seed, verbose=False)
+    df['date_d'] =df['date'].dt.date
 
-    # Initialize the dataframe for rolling window results
-    dfr = pd.DataFrame(index=df_dew.index)
-    df['date_d'] = pd.to_datetime(df['date']).dt.date
+    # Define the rolling window range
     date_max = pd.to_datetime(df['date_d'].max() - pd.DateOffset(days=window_days - 1))
     date_min = pd.to_datetime(df['date_d'].min() + pd.DateOffset(days=window_days - 1))
 
+    rolling_dates = pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rolling_every]
+
+    # Initialize a list to store the results of each rolling window
+    combined_results = pd.DataFrame()
+
     # Apply the rolling window approach
-    for i, ds in enumerate(pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rollingevery]):
+    for i, ds in enumerate(rolling_dates):
         dfa = df[df['date_d'] >= ds.date()]
         dfa = dfa[dfa['date_d'] <= (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
-        dfar = normalise(dfa, model, feature_names=feature_names, variables_resample=variables_resample, n_samples=n_samples,
-                         n_cores=n_cores, seed=seed, verbose=False)
-        dfar.rename(columns={'normalised': 'rolling_' + str(i)}, inplace=True)
 
-        # Concatenate the results
-        dfr = pd.concat([dfr, dfar['rolling_' + str(i)]], axis=1)
+        try:
+            # Normalize the data within the rolling window
+            dfar = normalise(dfa, model, feature_names=feature_names, variables_resample=variables_resample, n_samples=n_samples,
+                             n_cores=n_cores, seed=seed, verbose=False)
 
-        # Calculate ETA for the current rolling window iteration
-        if verbose:
-            if i==0:
-                start_time = time.time()  # Initialize start time before the loop
-                print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), f": Rolling window {i} from",dfa['date'].min().strftime('%Y-%m-%d'), "to",
-                    dfa['date'].max().strftime('%Y-%m-%d'))
-            elif i % 10 == 0:
-                elapsed_time = time.time() - start_time
-                remaining_time = elapsed_time / i * (
-                    len(pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rollingevery]) - i)
-                if remaining_time < 60:
-                    eta_str = "ETA: {:.2f} seconds".format(remaining_time)
-                elif remaining_time < 3600:
-                    eta_str = "ETA: {:.2f} minutes".format(remaining_time / 60)
-                else:
-                    eta_str = "ETA: {:.2f} hours".format(remaining_time / 3600)
-                print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), f": Rolling window {i} from",dfa['date'].min().strftime('%Y-%m-%d'), "to",
-                    dfa['date'].max().strftime('%Y-%m-%d'), f"{eta_str}")
+            # Rename the 'normalised' column to include the rolling window index
+            dfar.rename(columns={'normalised': 'rolling_' + str(i)}, inplace=True)
 
-    # Calculate the mean and standard deviation for the rolling window
-    df_dew['emi_mean_' + str(window_days)] = np.mean(dfr.iloc[:, 1:], axis=1)
-    df_dew['emi_std_' + str(window_days)] = np.std(dfr.iloc[:, 1:], axis=1)
+            # Merge the results of the current rolling window with the overall results
+            if combined_results.empty:
+                combined_results = dfar
+            else:
+                combined_results = pd.concat([combined_results, dfar['rolling_' + str(i)]], axis=1)
 
-    # Calculate the short-term and seasonal components
-    df_dew['met_short'] = df_dew['observed'] - df_dew['emi_mean_' + str(window_days)]
-    df_dew['met_season'] = df_dew['emi_mean_' + str(window_days)] - df_dew['normalised']
+            if verbose and (i % 10 == 0):
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Rolling window {i} from {dfa['date'].min().strftime('%Y-%m-%d')} to {dfa['date'].max().strftime('%Y-%m-%d')}")
 
-    return df_dew, mod_stats
+        except Exception as e:
+            if verbose:
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Error during normalization for rolling window {i} from {dfa['date'].min().strftime('%Y-%m-%d')} to {dfa['date'].max().strftime('%Y-%m-%d')}: {str(e)}")
+
+    return combined_results, mod_stats
 
 
 def modStats(df, model, set=None, statistic=None):
@@ -1132,7 +1034,28 @@ def Stats(df, mod, obs,
     return results
 
 
-def pdp(df, model, feature_names=None, variables=None, training_only=True, n_cores=None):
+def extract_feature_names(model):
+    """
+    Extract feature names from the best estimator of a FLAML AutoML model.
+
+    Parameters:
+        model (AutoML): The trained AutoML model object.
+
+    Returns:
+        list: List of feature names.
+    """
+
+    # Check for feature names in various model types
+    if hasattr(model, 'feature_name_'):
+        feature_names = model.feature_name_
+    elif hasattr(model, 'feature_names_in_'):
+        feature_names = model.feature_names_in_
+    else:
+        raise AttributeError("The best estimator does not have identifiable feature names.")
+
+    return list(feature_names)
+
+def pdp(df, model, variables=None, training_only=True, n_cores=None):
     """
     Computes partial dependence plots for all specified features.
 
@@ -1151,10 +1074,16 @@ def pdp(df, model, feature_names=None, variables=None, training_only=True, n_cor
         # Compute Partial Dependence Plots for All Features
         df_predict = pdp(model, df, feature_names=['feature1', 'feature2', 'feature3'])
     """
+
+    # Extract feature names from the best estimator
+    feature_names = extract_feature_names(model)
+
     if variables is None:
         variables = feature_names
+
     if training_only:
         df = df[df["set"] == "training"]
+
     X_train, y_train = df[feature_names], df['value']
 
     # Default logic for cpu cores
@@ -1190,17 +1119,16 @@ def pdp_worker(X_train, model, variable, training_only=True):
     return df_predict
 
 
-def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cores=None):
+def scm_all(df, poll_col, code_col, control_pool, cutoff_date, n_cores=None):
     """
     Performs Synthetic Control Method (SCM) in parallel for multiple treatment targets.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
-        date_col (str): Name of the column containing the date data.
         code_col (str): Name of the column containing the code data.
         control_pool (list): List of control pool codes.
-        post_col (str): Name of the column indicating the post-treatment period.
+        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
         n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
 
     Returns:
@@ -1208,8 +1136,8 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
 
     Example Usage:
         # Perform SCM in parallel for multiple treatment targets
-        synthetic_all = scm_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
-                                     control_pool=['A', 'B', 'C'], post_col='Post', n_cores=4)
+        synthetic_all = scm_all(df, poll_col='Poll', code_col='Code',
+                                     control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', n_cores=4)
     """
     # Default logic for cpu cores
     n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
@@ -1217,43 +1145,50 @@ def scm_parallel(df, poll_col, date_col, code_col, control_pool, post_col, n_cor
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(scm)(
                     df=df,
                     poll_col=poll_col,
-                    date_col=date_col,
                     code_col=code_col,
                     treat_target=code,
                     control_pool=control_pool,
-                    post_col=post_col) for code in treatment_pool))
+                    cutoff_date=cutoff_date) for code in treatment_pool))
     return synthetic_all
 
 
-def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
+def scm(df, poll_col, code_col, treat_target, control_pool, cutoff_date):
     """
     Performs Synthetic Control Method (SCM) for a single treatment target.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
-        date_col (str): Name of the column containing the date data.
         code_col (str): Name of the column containing the code data.
         treat_target (str): Code of the treatment target.
         control_pool (list): List of control pool codes.
-        post_col (str): Name of the column indicating the post-treatment period.
+        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
 
     Returns:
         DataFrame: DataFrame containing synthetic control results for the specified treatment target.
 
     Example Usage:
         # Perform SCM for a single treatment target
-        synthetic_data = scm(df, poll_col='Poll', date_col='Date', code_col='Code',
-                             treat_target='T1', control_pool=['C1', 'C2'], post_col='Post')
+        synthetic_data = scm(df, poll_col='Poll', code_col='Code',
+                             treat_target='T1', control_pool=['C1', 'C2'], cutoff_date='2020-01-01')
     """
-    x_pre_control = (df.loc[(df[code_col] != treat_target) & (df[code_col].isin(control_pool)) & (~df[post_col])]
-                 .pivot(index=date_col, columns=code_col, values=poll_col)
-                 .values)
+    df = process_date(df)
 
-    y_pre_treat_mean = (df
-                    .loc[~df[post_col] & (df[code_col] == treat_target)]
-                    .groupby(date_col)[poll_col]
-                    .mean())
+    # Splitting the dataset into pre- and post-treatment periods
+    pre_treatment_df = df[df['date'] < cutoff_date]
+    post_treatment_df = df[df['date'] >= cutoff_date]
+
+    # Preparing pre-treatment control data
+    x_pre_control = (pre_treatment_df.loc[(pre_treatment_df[code_col] != treat_target) &
+                                          (pre_treatment_df[code_col].isin(control_pool))]
+                     .pivot(index='date', columns=code_col, values=poll_col)
+                     .values)
+
+    # Preparing pre-treatment data for the treatment target
+    y_pre_treat_mean = (pre_treatment_df
+                        .loc[(pre_treatment_df[code_col] == treat_target)]
+                        .groupby('date')[poll_col]
+                        .mean())
 
     # Grid search to find the best alpha parameter for Ridge regression
     param_grid = {'alpha': [i / 10 for i in range(1, 101)]}
@@ -1268,25 +1203,26 @@ def scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col):
     w = ridge_final.coef_.flatten()
     intercept = ridge_final.intercept_.item()
 
+    # Preparing control data for synthetic control calculation
     sc = (df[(df[code_col] != treat_target) & (df[code_col].isin(control_pool))]
-          .pivot_table(index=date_col, columns=code_col, values=poll_col)
+          .pivot_table(index='date', columns=code_col, values=poll_col)
           .values) @ w + intercept
 
-    data = (df
-            [df[code_col] == treat_target][[date_col, code_col, poll_col]]
-            .assign(synthetic=sc)).set_index(date_col)
+    # Combining synthetic control results with actual data
+    data = (df[df[code_col] == treat_target][['date', code_col, poll_col]]
+            .assign(synthetic=sc)).set_index('date')
     data['effects'] = data[poll_col] - data['synthetic']
+
     return data
 
 
-def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date, model_config):
+def mlsc(df, poll_col, code_col, treat_target, control_pool, cutoff_date, model_config):
     """
     Performs synthetic control using machine learning regression models.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
-        date_col (str): Name of the column containing the date data.
         code_col (str): Name of the column containing the code data.
         treat_target (str): Code of the treatment target.
         control_pool (list): List of control pool codes.
@@ -1298,12 +1234,13 @@ def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_
 
     Example Usage:
         # Perform synthetic control using ML regression models
-        synthetic_data = ml_syn(df, poll_col='Poll', date_col='Date', code_col='Code',
+        synthetic_data = ml_syn(df, poll_col='Poll', code_col='Code',
                                 treat_target='T1', control_pool=['C1', 'C2'], cutoff_date='2020-01-01')
     """
     from flaml import AutoML
     automl = AutoML()
-    dfp = (df[df[code_col].isin(control_pool + [treat_target])]).pivot_table(index=date_col, columns=code_col, values=poll_col)
+    df = process_date(df)
+    dfp = (df[df[code_col].isin(control_pool + [treat_target])]).pivot_table(index='date', columns=code_col, values=poll_col)
     pre_dataset = dfp[dfp.index < cutoff_date]
     post_dataset = dfp[dfp.index >= cutoff_date]
     # Update default configuration with user-provided config
@@ -1314,20 +1251,19 @@ def ml_syn(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_
     pre_pred = automl.predict(pre_dataset)
 
     data = (df
-            [df[code_col] == treat_target][[date_col, code_col, poll_col]]
-            .assign(synthetic=automl.predict(dfp))).set_index(date_col)
+            [df[code_col] == treat_target][['date', code_col, poll_col]]
+            .assign(synthetic=automl.predict(dfp))).set_index('date')
     data['effects'] = data[poll_col] - data['synthetic']
     return data
 
 
-def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=None):
+def mlsc_all(df, poll_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=None):
     """
     Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
     Parameters:
         df (DataFrame): Input DataFrame containing the dataset.
         poll_col (str): Name of the column containing the poll data.
-        date_col (str): Name of the column containing the date data.
         code_col (str): Name of the column containing the code data.
         control_pool (list): List of control pool codes.
         cutoff_date (str): Date for splitting pre- and post-treatment datasets.
@@ -1339,7 +1275,7 @@ def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,
 
     Example Usage:
         # Perform synthetic control using ML regression models in parallel
-        synthetic_all = ml_syn_parallel(df, poll_col='Poll', date_col='Date', code_col='Code',
+        synthetic_all = ml_syn_parallel(df, poll_col='Poll', code_col='Code',
                                         control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=120, n_cores=4)
     """
     # Default logic for cpu cores
@@ -1348,7 +1284,6 @@ def ml_syn_parallel(df, poll_col, date_col, code_col, control_pool, cutoff_date,
     synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
                     df=df,
                     poll_col=poll_col,
-                    date_col=date_col,
                     code_col=code_col,
                     treat_target=code,
                     control_pool=control_pool,

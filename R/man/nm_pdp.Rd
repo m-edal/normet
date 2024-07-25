@@ -7,7 +7,6 @@
 nm_pdp(
   df,
   model,
-  feature_names,
   variables = NULL,
   training_only = TRUE,
   grid.resolution = 20,
@@ -18,8 +17,6 @@ nm_pdp(
 \item{df}{Data frame containing the input data.}
 
 \item{model}{The trained model object.}
-
-\item{feature_names}{The names of the features used for training the model.}
 
 \item{variables}{A vector of feature names for which PDPs are to be generated. Default is NULL (all feature names will be used).}
 
@@ -44,6 +41,6 @@ df <- data.frame(
   feature2 = rnorm(100)
 )
 model <- lm(feature1 ~ feature2, data = df)
-pdp_results <- nm_pdp(df, model, feature_names = c("feature1", "feature2"))
+pdp_results <- nm_pdp(df, model, varibales = c("feature1", "feature2"))
 }
 }

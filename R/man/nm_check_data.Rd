@@ -4,7 +4,7 @@
 \alias{nm_check_data}
 \title{Check Data Validity}
 \usage{
-nm_check_data(df, value)
+nm_check_data(df, feature_names, value)
 }
 \arguments{
 \item{df}{Input data frame.}
