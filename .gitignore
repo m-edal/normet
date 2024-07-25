@@ -1,1 +1,25 @@
+# Ignore all .Rhistory files
+*.Rhistory
+
+# Ignore all .RData files
+*.RData
+
+# Ignore RStudio project files
+.Rproj.user/
+*.Rproj
+
+# Ignore Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore system files
 .DS_Store
+Thumbs.db
