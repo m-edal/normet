@@ -5,42 +5,56 @@
 #'
 #' @param df Data frame containing the input data.
 #' @param poll_col The name of the column containing the pollutant data.
-#' @param date_col The name of the column containing the date data.
 #' @param code_col The name of the column containing the unit codes.
 #' @param treat_target The code of the treatment target.
 #' @param control_pool A vector of codes representing the control units.
-#' @param post_col The name of the column indicating the post-treatment period.
+#' @param cutoff_date The date used to split the data into pre-treatment and post-treatment periods.
 #'
 #' @return A data frame with the actual and synthetic control data, including the treatment effects.
 #'
 #' @examples
 #' \dontrun{
 #' library(dplyr)
+#' library(glmnet)
 #' df <- data.frame(
 #'   date = Sys.time() + seq(1, 100, by = 1),
 #'   pollutant = rnorm(100),
-#'   unit_code = rep(c("A", "B", "C", "D"), each = 25),
-#'   post = rep(c(0, 1), each = 50)
+#'   unit_code = rep(c("A", "B", "C", "D"), each = 25)
 #' )
-#' result <- nm_scm(df, poll_col = "pollutant", date_col = "date",
+#' result <- nm_scm(df, poll_col = "pollutant",
 #'                  code_col = "unit_code", treat_target = "A",
-#'                  control_pool = c("B", "C", "D"), post_col = "post")
+#'                  control_pool = c("B", "C", "D"), cutoff_date = "2020-01-01")
 #' }
 #' @export
-nm_scm <- function(df, poll_col, date_col, code_col, treat_target, control_pool, post_col) {
+nm_scm <- function(df, poll_col, code_col, treat_target, control_pool, cutoff_date) {
+  # Process the date column
+  df <- df %>%
+    nm_process_date()
+
+  df <- df %>%
+    filter(!!sym(code_col) %in% c(control_pool, treat_target))
+
+  # Split data into pre-treatment and post-treatment periods
+  pre_treatment_df <- df %>%
+    filter(date < as.Date(cutoff_date))
+
+  post_treatment_df <- df %>%
+    filter(date >= as.Date(cutoff_date))
+
   # Filtering pre-treatment control data
-  x_pre_control <- df %>%
-    filter(!!sym(code_col) != treat_target & !!sym(code_col) %in% control_pool & !get(post_col)) %>%
-    select(!!sym(date_col), !!sym(code_col), !!sym(poll_col)) %>%
+  x_pre_control <- pre_treatment_df %>%
+    filter(!!sym(code_col) != treat_target & !!sym(code_col) %in% control_pool) %>%
+    select(date, !!sym(code_col), !!sym(poll_col)) %>%
     pivot_wider(names_from = !!sym(code_col), values_from = !!sym(poll_col)) %>%
-    select(-!!sym(date_col)) %>%
+    select(-date) %>%
     as.matrix()
 
   # Extracting target treatment data
-  y_pre_treat <- df %>%
-    filter(!get(post_col) & !!sym(code_col) == treat_target) %>%
-    select(!!sym(poll_col)) %>%
-    as.matrix()
+  y_pre_treat <- pre_treatment_df %>%
+    filter(!!sym(code_col) == treat_target) %>%
+    group_by(date) %>%
+    summarise(mean_poll = mean(!!sym(poll_col))) %>%
+    pull(mean_poll)
 
   # Defining parameter grids
   lambda_grid <- 10^seq(10, -2, length = 100)
@@ -73,19 +87,12 @@ nm_scm <- function(df, poll_col, date_col, code_col, treat_target, control_pool,
   intercept <- coef_ridge_final[1]
   w <- as.vector(coef_ridge_final[-1])
 
-  # Re-filtering and preparing data
-  x_pre_control <- df %>%
-    filter(!!sym(code_col) != treat_target & !!sym(code_col) %in% control_pool & !get(post_col)) %>%
-    select(!!sym(date_col), !!sym(code_col), !!sym(poll_col)) %>%
-    pivot_wider(names_from = !!sym(code_col), values_from = !!sym(poll_col)) %>%
-    select(-!!sym(date_col)) %>%
-    as.matrix()
-
+  # Re-filter the data for synthetic control calculation
   sc <- df %>%
     filter(!!sym(code_col) != treat_target & !!sym(code_col) %in% control_pool) %>%
-    select(!!sym(date_col), !!sym(code_col), !!sym(poll_col)) %>%
+    select(date, !!sym(code_col), !!sym(poll_col)) %>%
     pivot_wider(names_from = !!sym(code_col), values_from = !!sym(poll_col)) %>%
-    select(-!!sym(date_col)) %>%
+    select(-date) %>%
     as.matrix()
 
   # Calculating synthetic control predictions, including intercept
@@ -94,23 +101,26 @@ nm_scm <- function(df, poll_col, date_col, code_col, treat_target, control_pool,
   # Combining synthetic control results with actual data
   data <- df %>%
     filter(!!sym(code_col) == treat_target) %>%
-    select(!!sym(date_col), !!sym(code_col), !!sym(poll_col)) %>%
-    mutate(synthetic = synthetic_control, effects = get(poll_col) - synthetic)
+    select(date, !!sym(code_col), !!sym(poll_col)) %>%
+    mutate(synthetic = synthetic_control) %>%
+    mutate(effects = !!sym(poll_col) - synthetic) %>%
+    select(date, !!sym(code_col), !!sym(poll_col), synthetic, effects) %>%
+    rename(factual = !!sym(poll_col), treat_target = !!sym(code_col)) %>%
+    mutate(pollutant = poll_col)  # Add a new column 'pollutant'
 
   return(data)
 }
 
-#' Main function to perform SCM in parallel
+
+#' Main function to perform SCM for multiple treatment targets.
 #'
-#' \code{nm_scm_parallel} applies the synthetic control method in parallel for multiple treatment targets.
+#' \code{nm_scm_all} applies the synthetic control method in parallel for multiple treatment targets.
 #'
 #' @param df Data frame containing the input data.
 #' @param poll_col The name of the column containing the pollutant data.
-#' @param date_col The name of the column containing the date data.
 #' @param code_col The name of the column containing the unit codes.
 #' @param control_pool A vector of codes representing the control units.
-#' @param post_col The name of the column indicating the post-treatment period.
-#' @param training_split The proportion of the data to be used for training. Default is 0.75.
+#' @param cutoff_date The date used to split the data into pre-treatment and post-treatment periods.
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
 #'
 #' @return A data frame with the actual and synthetic control data for all treatment targets.
@@ -122,34 +132,41 @@ nm_scm <- function(df, poll_col, date_col, code_col, treat_target, control_pool,
 #' df <- data.frame(
 #'   date = Sys.time() + seq(1, 100, by = 1),
 #'   pollutant = rnorm(100),
-#'   unit_code = rep(c("A", "B", "C", "D"), each = 25),
-#'   post = rep(c(0, 1), each = 50)
+#'   unit_code = rep(c("A", "B", "C", "D"), each = 25)
 #' )
-#' result <- nm_scm_parallel(df, poll_col = "pollutant", date_col = "date",
+#' result <- nm_scm_all(df, poll_col = "pollutant",
 #'                           code_col = "unit_code", treat_targets = c("A"),
-#'                           control_pool = c("B", "C", "D"), post_col = "post",
+#'                           control_pool = c("B", "C", "D"), cutoff_date = "2020-01-01",
 #'                           n_cores = 2)
 #' }
 #' @export
-nm_scm_parallel <- function(df, poll_col, date_col, code_col, control_pool, post_col, training_split = 0.75, n_cores = NULL) {
-  if (is.null(n_cores)) {
-    n_cores <- parallel::detectCores() - 1
-  }
-  cl <- makeCluster(n_cores)
-  registerDoParallel(cl)
-
+nm_scm_all <- function(df, poll_col, code_col, control_pool, cutoff_date, n_cores = NULL) {
+  # Create the treatment pool
   treatment_pool <- unique(df[[code_col]])
 
-  results <- foreach(code = treatment_pool, .packages = c("dplyr", "glmnet", "tidyr"), .export = c("nm_scm")) %dopar% {
-    nm_scm(df, poll_col, date_col, code_col, code, control_pool, post_col)
+  # Set up the progress bar
+  pb <- progress_bar$new(total = length(treatment_pool),
+                        format = "  Processing :current/:total [:bar] :percent eta: :eta",
+                        width = 80)
+
+  # Initialize the results list
+  synthetic_all <- list()
+
+  # Loop through each treatment target
+  for (code in treatment_pool) {
+    result <- nm_scm(df, poll_col, code_col, code, control_pool, cutoff_date)
+    if (!is.null(result)) {
+      synthetic_all <- append(synthetic_all, list(result))
+    }
+    pb$tick() # Update the progress bar
   }
 
-  stopCluster(cl)
+  # Combine results into a single data frame
+  synthetic_all <- bind_rows(synthetic_all)
 
-  # Combine all results into a single DataFrame
-  df_results <- bind_rows(results)
-  return(df_results)
+  return(synthetic_all)
 }
+
 
 #' Single treatment target synthetic control with ML models
 #'
@@ -157,7 +174,6 @@ nm_scm_parallel <- function(df, poll_col, date_col, code_col, control_pool, post
 #'
 #' @param df Data frame containing the input data.
 #' @param poll_col The name of the column containing the pollutant data.
-#' @param date_col The name of the column containing the date data.
 #' @param code_col The name of the column containing the unit codes.
 #' @param treat_target The code of the treatment target.
 #' @param control_pool A vector of codes representing the control units.
@@ -176,28 +192,30 @@ nm_scm_parallel <- function(df, poll_col, date_col, code_col, control_pool, post
 #'   pollutant = rnorm(100),
 #'   unit_code = rep(c("A", "B", "C", "D"), each = 25)
 #' )
-#' result <- nm_mlsc(df, poll_col = "pollutant", date_col = "date",
+#' result <- nm_mlsc(df, poll_col = "pollutant",
 #'                   code_col = "unit_code", treat_target = "A",
 #'                   control_pool = c("B", "C", "D"), cutoff_date = "2020-01-01",
 #'                   model_config = list(max_models = 5, time_budget = 600))
 #' }
 #' @export
-nm_mlsc <- function(df, poll_col, date_col, code_col, treat_target, control_pool, cutoff_date, model_config, training_split = 0.75, verbose = TRUE) {
+nm_mlsc <- function(df, poll_col, code_col, treat_target, control_pool, cutoff_date, model_config, training_split = 0.75, verbose = TRUE) {
+  df <- df %>%
+    nm_process_date()
 
   control_pool_with_target <- c(control_pool, treat_target)
 
   # Filter and reshape data
   filtered_df <- df %>%
     filter(!!sym(code_col) %in% control_pool_with_target) %>%
-    select(!!sym(date_col), !!sym(code_col), !!sym(poll_col)) %>%
+    select(date, !!sym(code_col), !!sym(poll_col)) %>%
     pivot_wider(names_from = !!sym(code_col), values_from = !!sym(poll_col))
 
   # Split data into pre-treatment and post-treatment datasets
   pre_dataset <- filtered_df %>%
-    filter(!!sym(date_col) < cutoff_date)
+    filter(date < cutoff_date)
 
   post_dataset <- filtered_df %>%
-    filter(!!sym(date_col) >= cutoff_date)
+    filter(date >= cutoff_date)
 
   # Split pre-treatment dataset
   pre_dataset_split <- nm_split_into_sets(pre_dataset, split_method = 'random', fraction = training_split)
@@ -215,12 +233,13 @@ nm_mlsc <- function(df, poll_col, date_col, code_col, treat_target, control_pool
   # Prepare final dataset
   data <- df %>%
     filter(!!sym(code_col) == treat_target) %>%
-    select(!!sym(date_col), !!sym(code_col), !!sym(poll_col)) %>%
+    select(date, !!sym(code_col), !!sym(poll_col)) %>%
     rename(factual = !!sym(poll_col), treat_target = !!sym(code_col)) %>%
     mutate(synthetic = sc_predicts, effects = factual - synthetic, pollutant = poll_col)
 
   return(list(data, mod_stats, scmodel))
 }
+
 
 #' Apply synthetic control with ML models to all treatment targets
 #'
@@ -228,7 +247,6 @@ nm_mlsc <- function(df, poll_col, date_col, code_col, treat_target, control_pool
 #'
 #' @param df Data frame containing the input data.
 #' @param poll_col The name of the column containing the pollutant data.
-#' @param date_col The name of the column containing the date data.
 #' @param code_col The name of the column containing the unit codes.
 #' @param control_pool A vector of codes representing the control units.
 #' @param cutoff_date The date used to split the data into pre-treatment and post-treatment periods.
@@ -247,12 +265,12 @@ nm_mlsc <- function(df, poll_col, date_col, code_col, treat_target, control_pool
 #'   pollutant = rnorm(100),
 #'   unit_code = rep(c("A", "B", "C", "D"), each = 25)
 #' )
-#' result <- nm_mlsc_all(df, poll_col = "pollutant", date_col = "date",
+#' result <- nm_mlsc_all(df, poll_col = "pollutant",
 #'                       code_col = "unit_code", control_pool = c("B", "C", "D"),
 #'                       cutoff_date = "2020-01-01", model_config = list(max_models = 5, time_budget = 600))
 #' }
 #' @export
-nm_mlsc_all <- function(df, poll_col, date_col, code_col, control_pool, cutoff_date, model_config, training_split = 0.75, n_cores = NULL, verbose = FALSE) {
+nm_mlsc_all <- function(df, poll_col, code_col, control_pool, cutoff_date, model_config, training_split = 0.75, n_cores = NULL, verbose = FALSE) {
 
   # Check if H2O is already initialized and initialize if not
   nm_init_h2o()
@@ -288,7 +306,7 @@ nm_mlsc_all <- function(df, poll_col, date_col, code_col, control_pool, cutoff_d
     while (!success) {
       tryCatch({
         # Call the nm_mlsc function to get synthetic control results
-        res <- nm_mlsc(df, poll_col, date_col, code_col, code, control_pool, cutoff_date, model_config, training_split, verbose = verbose)
+        res <- nm_mlsc(df, poll_col, code_col, code, control_pool, cutoff_date, model_config, training_split, verbose = verbose)
 
         # Extract the synthetic control data, model statistics, and model object
         synthetic_data <- res[[1]]
@@ -323,14 +341,12 @@ nm_mlsc_all <- function(df, poll_col, date_col, code_col, control_pool, cutoff_d
 
   # Combine all synthetic control results into one data frame
   synthetic_all <- bind_rows(df_synthetic_list)
+
   # Combine all model statistics into one data frame
   mod_stats_all <- bind_rows(mod_stats_list)
+
   # Store all models in a list
   models_all <- models_list
-
-  # Shutdown H2O after use
-  # h2o.shutdown(prompt = FALSE)
-  # loginfo('H2O shutdown complete')
 
   # Return the combined results as a list
   return(list(synthetic_all = synthetic_all, mod_stats_all = mod_stats_all, models_all = models_all))

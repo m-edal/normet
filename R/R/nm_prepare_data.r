@@ -1,10 +1,9 @@
 #' Process DataFrame for Model Training
 #'
-#' \code{nm_process_df} processes the input DataFrame by checking for date in row names, identifying
+#' \code{nm_process_date} processes the input DataFrame by checking for date in row names, identifying
 #' the date column, and selecting relevant features.
 #'
 #' @param df Input data frame.
-#' @param variables_col A vector of column names to be selected along with the date column.
 #'
 #' @return Processed data frame with selected columns.
 #'
@@ -15,14 +14,15 @@
 #'   feature2 = rnorm(100),
 #'   date = Sys.time() + seq(1, 100, by = 1)
 #' )
-#' processed_df <- nm_process_df(df, variables_col = c("feature1", "feature2"))
+#' processed_df <- nm_process_date(df)
 #' }
 #' @export
-nm_process_df <- function(df, variables_col) {
+nm_process_date <- function(df) {
 
   # Check if the date is in the row names
   if (inherits(row.names(df), "POSIXct")) {
-    df <- df %>% tibble::rownames_to_column(var = "date")
+    df$date <- row.names(df)
+    row.names(df) <- NULL
   }
 
   # Identify POSIXct date columns
@@ -34,13 +34,7 @@ nm_process_df <- function(df, variables_col) {
     stop("More than one datetime column found.")
   }
 
-  # Select features and the date column
-  selected_columns <- intersect(variables_col, names(df))
-  selected_columns <- c(selected_columns, time_columns[1])
-
-  df <- df %>%
-    select(all_of(selected_columns)) %>%
-    rename(date = !!sym(time_columns[1]))
+  names(df)[names(df) == time_columns[1]] <- "date"
 
   return(df)
 }
@@ -65,14 +59,25 @@ nm_process_df <- function(df, variables_col) {
 #' }
 #'
 #' @export
-nm_check_data <- function(df, value) {
+nm_check_data <- function(df, feature_names, value) {
   if (!value %in% colnames(df)) {
     stop(paste("Target variable", value, "not found in the data frame"))
   }
+
+  # Select features and the date column
+  selected_columns <- intersect(feature_names, colnames(df))
+  selected_columns <- c(selected_columns, 'date', value)
+  df <- df[, selected_columns, drop=FALSE]
+
+   # Rename the target column to 'value'
   df <- df %>% rename(value = !!sym(value))
+
+  # Check if the date column is of type Date or POSIXct
   if (!inherits(df$date, "POSIXct")) {
     stop("`date` variable needs to be a parsed date (Date class).")
   }
+
+  # Check if the date column contains any missing values
   if (any(is.na(df$date))) {
     stop("`date` must not contain missing (NA) values.")
   }
@@ -92,7 +97,6 @@ nm_check_data <- function(df, value) {
 #' @examples
 #' \dontrun{
 #' library(dplyr)
-#' library(tidyr)
 #' df <- data.frame(
 #'   numeric_col = c(1, 2, NA, 4, 5),
 #'   char_col = c("a", "b", NA, "a", "b"),
@@ -106,11 +110,12 @@ nm_check_data <- function(df, value) {
 #' @export
 nm_impute_values <- function(df, na_rm) {
   if (na_rm) {
-    df <- df %>% na.omit()
+    df <- na.omit(df)
   } else {
-    df <- df %>% mutate(across(where(is.numeric), ~replace_na(., median(., na.rm = TRUE))))
-    df <- df %>% mutate(across(where(is.character), ~replace_na(., nm_getmode(.))))
-    df <- df %>% mutate(across(where(is.factor), ~replace_na(., levels(.)[which.max(table(.))])))
+    df <- df %>%
+      mutate(across(where(is.numeric), ~ifelse(is.na(.), median(., na.rm = TRUE), .))) %>%
+      mutate(across(where(is.character), ~ifelse(is.na(.), nm_getmode(.), .))) %>%
+      mutate(across(where(is.factor), ~ifelse(is.na(.), levels(.)[which.max(table(.))], .)))
   }
   return(df)
 }
@@ -134,7 +139,6 @@ nm_impute_values <- function(df, na_rm) {
 #'
 #' @export
 nm_add_date_variables <- function(df, replace) {
-  # Load dplyr and magrittr functions
 
   if (replace) {
     df <- df %>%
@@ -297,8 +301,8 @@ nm_prepare_data <- function(df, value, feature_names, na_rm = TRUE, split_method
 
   # Perform data preparation steps
   df <- df %>%
-    nm_process_df(variables_col = c(feature_names, value)) %>%
-    nm_check_data(value = value) %>%
+    nm_process_date() %>%
+    nm_check_data(feature_names =feature_names, value = value) %>%
     nm_impute_values(na_rm = na_rm) %>%
     nm_add_date_variables(replace = replace) %>%
     nm_convert_ordered_to_factor() %>%

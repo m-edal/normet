@@ -34,7 +34,7 @@ nm_decom_met(
 
 \item{model_config}{A list containing configuration parameters for model training.}
 
-\item{n_samples}{Number of samples to generate for normalization. Default is 300.}
+\item{n_samples}{Number of samples to generate for normalisation. Default is 300.}
 
 \item{seed}{A random seed for reproducibility. Default is 7654321.}
 
@@ -52,6 +52,8 @@ A list containing the decomposed data frame and model statistics.
 }
 \examples{
 \dontrun{
+library(dplyr)
+library(lubridate)
 df <- data.frame(date = Sys.time() + seq(1, 100, by = 1),
                  pollutant = rnorm(100), temp = rnorm(100), humidity = rnorm(100))
 result <- nm_decom_met(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)

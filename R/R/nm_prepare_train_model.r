@@ -16,7 +16,6 @@
 #' @examples
 #' \dontrun{
 #' library(dplyr)
-#' library(magrittr)
 #' df <- data.frame(
 #'   feature1 = rnorm(100),
 #'   feature2 = rnorm(100),

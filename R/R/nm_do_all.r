@@ -1,23 +1,23 @@
-#' Perform All Steps for Meteorological Normalization
+#' Perform All Steps for Meteorological normalisation
 #'
-#' \code{nm_do_all} performs the entire process of training a model, normalizing the data, and collecting model statistics.
+#' \code{nm_do_all} performs the entire process of training a model, normalising the data, and collecting model statistics.
 #'
 #' @param df Data frame containing the input data.
-#' @param model Pre-trained model for normalization. If not provided, a model will be trained.
+#' @param model Pre-trained model for normalisation. If not provided, a model will be trained.
 #' @param value The target variable name as a string.
-#' @param feature_names The names of the features used for training and normalization.
-#' @param variables_resample The names of the variables to be resampled for normalization. Default is NULL (all feature names except date_unix).
+#' @param feature_names The names of the features used for training and normalisation.
+#' @param variables_resample The names of the variables to be resampled for normalisation. Default is NULL (all feature names except date_unix).
 #' @param split_method The method for splitting data into training and testing sets. Default is 'random'.
 #' @param fraction The proportion of the data to be used for training. Default is 0.75.
 #' @param model_config A list containing configuration parameters for model training.
-#' @param n_samples Number of samples to generate for normalization. Default is 300.
+#' @param n_samples Number of samples to generate for normalisation. Default is 300.
 #' @param seed A random seed for reproducibility. Default is 7654321.
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
 #' @param aggregate Logical indicating whether to aggregate the results. Default is TRUE.
 #' @param weather_df Optional data frame containing weather data for resampling.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
-#' @return A list containing the normalized data frame and model statistics.
+#' @return A list containing the normalised data frame and model statistics.
 #'
 #' @examples
 #' \dontrun{
@@ -46,7 +46,7 @@ nm_do_all <- function(df = NULL, model = NULL, value = NULL, feature_names = NUL
   # Collect model statistics
   mod_stats <- nm_modStats(df, model)
 
-  # Normalize the data using weather_df if provided
+  # normalise the data using weather_df if provided
   df_dew <- nm_normalise(df, model, feature_names = feature_names, variables_resample = variables_resample, n_samples = n_samples,
                       aggregate = aggregate, n_cores = n_cores, seed = seed, weather_df = weather_df, verbose = verbose)
 

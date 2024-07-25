@@ -9,7 +9,7 @@
 #' @param split_method The method for splitting data into training and testing sets. Default is 'random'.
 #' @param fraction The proportion of the data to be used for training. Default is 0.75.
 #' @param model_config A list containing configuration parameters for model training.
-#' @param n_samples Number of samples to generate for normalization. Default is 300.
+#' @param n_samples Number of samples to generate for normalisation. Default is 300.
 #' @param seed A random seed for reproducibility. Default is 7654321.
 #' @param importance_ascending Logical indicating whether to sort feature importances in ascending order. Default is FALSE.
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
@@ -19,6 +19,8 @@
 #'
 #' @examples
 #' \dontrun{
+#' library(dplyr)
+#' library(lubridate)
 #' df <- data.frame(date = Sys.time() + seq(1, 100, by = 1),
 #'                  pollutant = rnorm(100), temp = rnorm(100), humidity = rnorm(100))
 #' result <- nm_decom_met(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)
@@ -26,8 +28,7 @@
 #' @export
 nm_decom_met <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, split_method = 'random', fraction = 0.75,
                       model_config = NULL, n_samples = 300, seed = 7654321, importance_ascending = FALSE, n_cores = NULL, verbose = TRUE) {
-  library(dplyr)
-  library(lubridate)
+
   # Check if h2o is already initialized
   nm_init_h2o(n_cores)
 
@@ -79,7 +80,7 @@ nm_decom_met <- function(df = NULL, model = NULL, value = NULL, feature_names = 
                              n_samples = n_samples, n_cores = n_cores, seed = seed, verbose = FALSE)
 
     if (nrow(df_dew_temp) == 0) {
-      stop(paste("Normalization failed for variable:", var_to_exclude))
+      stop(paste("normalisation failed for variable:", var_to_exclude))
     }
 
     df_dew[[var_to_exclude]] <- df_dew_temp$normalised

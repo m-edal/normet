@@ -18,7 +18,7 @@ classifiers=[
 setup(
     name="normet",
     version="0.1.12",
-    description="normet: Normalising meteorology on air quality",
+    description="normet: NORmalising METeorology on air quality",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",
     author="Dr. Congbo Song and other MEDAL group members",
@@ -33,5 +33,5 @@ setup(
     packages=find_packages(),
     package_data={"normet": ["docs/data/*"]},
     zip_safe=False,
-    project_urls={"homepage": "https://github.com/dsncas/normet"}
+    project_urls={"homepage": "https://github.com/m-edal/normet"}
 )

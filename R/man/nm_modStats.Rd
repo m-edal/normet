@@ -26,7 +26,6 @@ A data frame containing the calculated statistics.
 \examples{
 \dontrun{
 library(dplyr)
-library(magrittr)
 df <- data.frame(
   set = rep(c("train", "test"), each = 50),
   value = rnorm(100)

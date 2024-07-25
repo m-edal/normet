@@ -4,14 +4,12 @@
 \alias{nm_scm}
 \title{Function to perform Synthetic Control Method (SCM) for a single treatment target}
 \usage{
-nm_scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col)
+nm_scm(df, poll_col, code_col, treat_target, control_pool, cutoff_date)
 }
 \arguments{
 \item{df}{Data frame containing the input data.}
 
 \item{poll_col}{The name of the column containing the pollutant data.}
-
-\item{date_col}{The name of the column containing the date data.}
 
 \item{code_col}{The name of the column containing the unit codes.}
 
@@ -19,7 +17,7 @@ nm_scm(df, poll_col, date_col, code_col, treat_target, control_pool, post_col)
 
 \item{control_pool}{A vector of codes representing the control units.}
 
-\item{post_col}{The name of the column indicating the post-treatment period.}
+\item{cutoff_date}{The date used to split the data into pre-treatment and post-treatment periods.}
 }
 \value{
 A data frame with the actual and synthetic control data, including the treatment effects.
@@ -31,14 +29,14 @@ for a specified treatment target using control units.
 \examples{
 \dontrun{
 library(dplyr)
+library(glmnet)
 df <- data.frame(
   date = Sys.time() + seq(1, 100, by = 1),
   pollutant = rnorm(100),
-  unit_code = rep(c("A", "B", "C", "D"), each = 25),
-  post = rep(c(0, 1), each = 50)
+  unit_code = rep(c("A", "B", "C", "D"), each = 25)
 )
-result <- nm_scm(df, poll_col = "pollutant", date_col = "date",
+result <- nm_scm(df, poll_col = "pollutant",
                  code_col = "unit_code", treat_target = "A",
-                 control_pool = c("B", "C", "D"), post_col = "post")
+                 control_pool = c("B", "C", "D"), cutoff_date = "2020-01-01")
 }
 }

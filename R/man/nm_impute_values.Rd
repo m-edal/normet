@@ -21,7 +21,6 @@ character columns with mode, and factor columns with the most frequent level.
 \examples{
 \dontrun{
 library(dplyr)
-library(tidyr)
 df <- data.frame(
   numeric_col = c(1, 2, NA, 4, 5),
   char_col = c("a", "b", NA, "a", "b"),

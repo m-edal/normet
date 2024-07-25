@@ -2,7 +2,7 @@
 % Please edit documentation in R/nm_do_all.r
 \name{nm_do_all}
 \alias{nm_do_all}
-\title{Perform All Steps for Meteorological Normalization}
+\title{Perform All Steps for Meteorological normalisation}
 \usage{
 nm_do_all(
   df = NULL,
@@ -24,13 +24,13 @@ nm_do_all(
 \arguments{
 \item{df}{Data frame containing the input data.}
 
-\item{model}{Pre-trained model for normalization. If not provided, a model will be trained.}
+\item{model}{Pre-trained model for normalisation. If not provided, a model will be trained.}
 
 \item{value}{The target variable name as a string.}
 
-\item{feature_names}{The names of the features used for training and normalization.}
+\item{feature_names}{The names of the features used for training and normalisation.}
 
-\item{variables_resample}{The names of the variables to be resampled for normalization. Default is NULL (all feature names except date_unix).}
+\item{variables_resample}{The names of the variables to be resampled for normalisation. Default is NULL (all feature names except date_unix).}
 
 \item{split_method}{The method for splitting data into training and testing sets. Default is 'random'.}
 
@@ -38,7 +38,7 @@ nm_do_all(
 
 \item{model_config}{A list containing configuration parameters for model training.}
 
-\item{n_samples}{Number of samples to generate for normalization. Default is 300.}
+\item{n_samples}{Number of samples to generate for normalisation. Default is 300.}
 
 \item{seed}{A random seed for reproducibility. Default is 7654321.}
 
@@ -51,10 +51,10 @@ nm_do_all(
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }
 \value{
-A list containing the normalized data frame and model statistics.
+A list containing the normalised data frame and model statistics.
 }
 \description{
-\code{nm_do_all} performs the entire process of training a model, normalizing the data, and collecting model statistics.
+\code{nm_do_all} performs the entire process of training a model, normalising the data, and collecting model statistics.
 }
 \examples{
 \dontrun{
