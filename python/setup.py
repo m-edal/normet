@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 required_packages = [
-    "pandas", "numpy", "scipy", "joblib", "flaml",
+    "pandas", "numpy", "scipy", "joblib",
      "scikit-learn>=1.3.0", "statsmodels",
 ]
 
@@ -17,7 +17,7 @@ classifiers=[
 
 setup(
     name="normet",
-    version="0.1.12",
+    version="0.1.14",
     description="normet: NORmalising METeorology on air quality",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",
