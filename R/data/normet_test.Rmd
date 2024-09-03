@@ -1,0 +1,187 @@
+
+
+```{r}
+rm(list = ls())
+```
+
+```{r}
+library(normet)
+library(h2o)
+library(lubridate)
+library(dplyr)
+library(pdp)
+library(lmtest)
+library(stats)
+library(glmnet)
+library(parallel)
+library(foreach)
+library(doSNOW)
+library(progress)
+library(purrr)
+library(tidyr)
+library(readr)
+library(readxl)
+```
+
+
+
+
+```{r}
+
+#data <- read_csv("London_Marylebone_Roadside_MET_fillna.csv", col_types = cols(
+#  date = col_datetime(format = "%Y-%m-%d %H:%M:%S")
+#))
+data <- read_csv("MY1_no2.csv", col_types = cols(
+  date = col_datetime(format = "%d/%m/%Y %H:%M")
+))
+```
+
+
+```{r}
+df1a <- nm_prepare_data(data, value='no2',feature_names=c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), split_method='random',  fraction=0.75, seed=7654321)
+```
+
+```{r}
+#df1b <- head(df1a, 1000)
+df1b <- df1a
+```
+
+
+```{r}
+start_time <- Sys.time()
+model_config<- list(
+  max_models = 10,
+  max_mem_size = '16g'
+)
+automl <- nm_train_model(df1b, variables = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), model_config = model_config)
+end_time <- Sys.time()
+execution_time <- end_time - start_time
+print(execution_time)
+```
+
+
+```{r}
+df1b$value_predictx <- nm_predict(automl@leader,df1b)
+```
+
+
+```{r}
+nm_modStats(df1b, automl@leader)
+```
+
+
+
+
+```{r}
+# Initialize H2O
+start_time <- Sys.time()
+#loaded_model <- load_h2o_model(automl)
+df1bdew <- nm_normalise(df1b, model = automl@leader, feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'),aggregate=TRUE) 
+end_time <- Sys.time()
+execution_time <- end_time - start_time
+print(execution_time)
+```
+
+
+```{r}
+#loaded_model <- load_h2o_model(automl)
+dfdoall <- nm_do_all(df1b,model = automl@leader,feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'))
+
+
+```
+
+
+```{r}
+dfdoall1 <- nm_do_all(df1b,value='value', feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'),seed=254)
+```
+
+```{r}
+doallunc <-nm_do_all_unc(df1b,value='value',feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'),n_samples=100,n_models=5)
+```
+
+
+
+```{r}
+dfrolling <- nm_rolling(df1b, model = automl@leader, value='value', feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), n_samples=100,window_days=14, rolling_every=7)
+```
+
+
+```{r}
+dfdeemi <- nm_decom_emi(df1b, model = automl@leader,feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), n_samples=300)
+```
+
+
+```{r}
+pdp_values <-nm_pdp(df1b,automl@leader, variables = c('ws','blh'))
+```
+
+
+```{r}
+df <- read_excel('AQ_Weekly.xlsx')
+```
+
+```{r}
+
+df <- df %>%
+  filter(date >= as.Date('2015-05-01') & date < as.Date('2016-04-30'))
+control_pool=c("Dongguan", "Zhongshan" , "Foshan", "Beihai"
+               , "Nanning","Nanchang" , "Xiamen", "Taizhou"
+               , "Ningbo","Guangzhou" , "Huizhou", "Hangzhou"
+               , "Liuzhou", "Shantou", "Jiangmen", "Heyuan", "Quanzhou","Haikou" , "Shenzhen", "Wenzhou", "Huzhou"
+               , "Zhuhai", "Fuzhou", "Shaoxing", "Zhaoqing","Zhoushan"
+               , "Quzhou", "Jinhua", "Shaoguan" , "Sanya"
+               , "Jieyang" , "Meizhou", "Shanwei"
+               , "Zhanjiang" , "Chaozhou", "Maoming" , "Yangjiang")
+
+
+```
+
+
+
+```{r}
+xx=nm_scm(df,'SO2wn','ID',treat_target = c('2+26 cities'), control_pool,cutoff_date = c("2015-10-23"))
+```
+
+
+```{r}
+xy=nm_scm_all(df,'SO2wn','ID',control_pool,cutoff_date = c("2015-10-23"))
+```
+
+
+```{r}
+cutoff_date <- '2015-10-23'
+training_split <- 0.75
+treat_target <- '2+26 cities'
+control_pool=c("Dongguan", "Zhongshan" , "Foshan", "Beihai"
+               , "Nanning","Nanchang" , "Xiamen", "Taizhou"
+               , "Ningbo","Guangzhou" , "Huizhou", "Hangzhou"
+               , "Liuzhou", "Shantou", "Jiangmen", "Heyuan", "Quanzhou","Haikou" , "Shenzhen", "Wenzhou", "Huzhou"
+               , "Zhuhai", "Fuzhou", "Shaoxing", "Zhaoqing","Zhoushan"
+               , "Quzhou", "Jinhua", "Shaoguan" , "Sanya"
+               , "Jieyang" , "Meizhou", "Shanwei"
+               , "Zhanjiang" , "Chaozhou", "Maoming" , "Yangjiang")
+model_config <- list(
+  nfolds = 10,
+  max_models = 20
+)
+
+
+```
+
+```{r}
+mlsc=nm_mlsc(df,'SO2wn','ID',"2+26 cities",control_pool,'2015-10-23', model_config, training_split = 0.8)
+```
+
+
+
+```{r}
+model_config <- list(
+  nfolds = 5,
+  max_models = 5
+)
+
+nmpara <- nm_mlsc_all(df,poll_col='SO2wn',code_col='ID', control_pool,cutoff_date='2015-10-23', model_config, training_split = 0.9)
+```
+
+
+

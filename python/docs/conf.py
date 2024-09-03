@@ -4,7 +4,7 @@
 
 project = 'normet'
 author = 'Dr. Congbo Song and other MEDAL group members'
-release = 'v0.1.12'
+release = 'v0.1.14'
 
 # -- General configuration ---------------------------------------------------
 

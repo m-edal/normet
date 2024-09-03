@@ -2,7 +2,7 @@
 % Please edit documentation in R/nm_train_model.r
 \name{nm_train_model}
 \alias{nm_train_model}
-\title{Initialize H2O and train AutoML model}
+\title{Train a model using H2O's AutoML}
 \usage{
 nm_train_model(
   df,
@@ -11,7 +11,8 @@ nm_train_model(
   model_config = NULL,
   seed = 7654321,
   n_cores = NULL,
-  verbose = TRUE
+  verbose = TRUE,
+  max_retries = 3
 )
 }
 \arguments{
@@ -21,14 +22,15 @@ nm_train_model(
 
 \item{variables}{Independent/explanatory variables used for training the model.}
 
-\item{model_config}{A list containing configuration parameters for model training. If not provided,
-defaults will be used.}
+\item{model_config}{A list containing configuration parameters for model training. If not provided, defaults will be used.}
 
 \item{seed}{A random seed for reproducibility. Default is 7654321.}
 
 \item{n_cores}{Number of CPU cores to use for the model training. Default is system's total minus one.}
 
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
+
+\item{max_retries}{Number of times to retry training the model if a connection error occurs. Default is 3.}
 }
 \value{
 The trained AutoML model.
@@ -39,7 +41,6 @@ It initializes H2O, checks for duplicate and missing variables, extracts relevan
 sets up parallel processing, and trains the model using AutoML.
 }
 \examples{
-
 \donttest{
 # Load necessary libraries
 library(h2o)
@@ -61,8 +62,4 @@ model <- nm_train_model(
   model_config = list(max_models = 5, time_budget = 600)
 )
 }
-
-}
-\seealso{
-\code{\link[h2o]{h2o.automl}}, \code{\link{initialize_h2o}}
 }
