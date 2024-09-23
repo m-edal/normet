@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 required_packages = [
     "pandas", "numpy", "scipy", "joblib",
-     "scikit-learn>=1.3.0", "statsmodels",
+     "scikit-learn>=1.3.0", "statsmodels","h2o"
 ]
 
 classifiers=[
