@@ -11,6 +11,8 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
 import os
 import time
+import h2o
+from h2o.automl import H2OAutoML
 
 
 def prepare_data(df, value, feature_names, na_rm=True, split_method='random', replace=False, fraction=0.75, seed=7654321):
@@ -276,7 +278,139 @@ def split_into_sets(df, split_method, fraction, seed):
     return df_split
 
 
-def train_model(df, value='value', variables=None, model_config=None, seed=7654321, verbose=True):
+def nm_init_h2o(n_cores=None, min_mem_size="4G", max_mem_size="16G"):
+    """
+    Initialize the H2O cluster for model training.
+
+    Parameters:
+        n_cores (int, optional): Number of CPU cores to allocate for H2O. Default is all available cores minus one.
+        min_mem_size (str, optional): Minimum memory size for the H2O cluster. Default is "4G".
+        max_mem_size (str, optional): Maximum memory size for the H2O cluster. Default is "16G".
+
+    Returns:
+        None
+    """
+    # Set the number of CPU cores; use all cores minus one if not specified
+    if n_cores is None:
+        n_cores = os.cpu_count() - 1
+
+    try:
+        # Try to retrieve an existing H2O connection
+        h2o_conn = h2o.connection()
+        # Raise an error if the connection is not active
+        if h2o_conn.cluster_is_up() is False:
+            raise RuntimeError("H2O cluster is not up")
+    except Exception as e:
+        # If no existing connection is found, start a new H2O instance
+        print("H2O is not running. Starting H2O...")
+        h2o.init(nthreads=n_cores, min_mem_size=min_mem_size, max_mem_size=max_mem_size)
+        h2o.no_progress()  # Disable progress bars for cleaner output
+
+
+def h2o_train_model(df, value="value", variables=None, model_config=None, seed=7654321, n_cores=None, verbose=True, max_retries=3):
+    """
+    Train an AutoML model using the H2O framework.
+
+    Parameters:
+        df (pandas.DataFrame): The input data for model training.
+        value (str, optional): The name of the target variable. Default is "value".
+        variables (list of str): List of predictor variable names.
+        model_config (dict, optional): Configuration options for the model (e.g., max models, time budget).
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of CPU cores to allocate for training. Default is all cores minus one.
+        verbose (bool, optional): Whether to print progress messages. Default is True.
+        max_retries (int, optional): Maximum number of retries if model training fails. Default is 3.
+
+    Returns:
+        H2OAutoML: The best model trained by H2O AutoML.
+    """
+    # Check if the variables list contains duplicates
+    if len(variables) != len(set(variables)):
+        raise ValueError("`variables` contains duplicate elements.")
+
+    # Ensure that all predictor variables are present in the DataFrame
+    if not all(var in df.columns for var in variables):
+        raise ValueError("`variables` given are not within the input DataFrame.")
+
+    # Select training data if a 'set' column is present, otherwise use the entire DataFrame
+    if 'set' in df.columns:
+        df_train = df[df['set'] == 'training'][[value] + variables]
+    else:
+        df_train = df[[value] + variables]
+
+    # Default configuration for model training
+    default_model_config = {
+        'time_budget': None,           # Time budget for AutoML training (in seconds)
+        'nfolds': 5,                   # Number of cross-validation folds
+        'max_models': 10,              # Maximum number of models to train
+        'max_mem_size': '12g',         # Maximum memory size for H2O
+        'estimator_list': ['GBM'],     # List of algorithms to use in AutoML
+        'verbose': verbose             # Verbose output option
+    }
+
+    # Update the default configuration with any user-provided settings
+    if model_config is not None:
+        default_model_config.update(model_config)
+
+    # Determine the number of CPU cores to use; default is all available cores minus one
+    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
+
+    def train_model():
+        """
+        Inner function to initialize H2O and train the AutoML model.
+        """
+        # Initialize the H2O cluster
+        nm_init_h2o(n_cores=n_cores, max_mem_size=default_model_config['max_mem_size'])
+
+        # Convert the pandas DataFrame to an H2OFrame for model training
+        df_h2o = h2o.H2OFrame(df_train)
+        response = value  # Target column name
+        predictors = [col for col in df_h2o.columns if col != response]  # List of predictor columns
+
+        # Print progress message if verbose is True
+        if verbose:
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Training AutoML...")
+
+        # Train the H2O AutoML model with the specified configuration
+        auto_ml = H2OAutoML(max_models=default_model_config['max_models'],
+                            max_runtime_secs=default_model_config['time_budget'],
+                            include_algos=default_model_config['estimator_list'],
+                            seed=seed)
+        auto_ml.train(x=predictors, y=response, training_frame=df_h2o)
+
+        # Print a message showing the best model obtained
+        if verbose:
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Best model obtained! - {auto_ml.leaderboard[0, 'model_id']}")
+
+        return auto_ml  # Return the AutoML object
+
+    # Retry mechanism in case training fails
+    retry_count = 0
+    auto_ml = None
+
+    # Attempt to train the model, with retries if errors occur
+    while auto_ml is None and retry_count < max_retries:
+        retry_count += 1
+        try:
+            auto_ml = train_model()  # Try to train the model
+        except Exception as e:
+            if verbose:
+                # Print an error message and retry the training process
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Error occurred - {e}")
+                print(f"Retrying... (attempt {retry_count} of {max_retries})")
+            # Shut down the H2O cluster in case of failure and retry
+            h2o.cluster().shutdown()
+            time.sleep(5)  # Wait for a few seconds before retrying
+
+    # If all retries fail, raise an error
+    if auto_ml is None:
+        raise RuntimeError(f"Failed to train the model after {max_retries} attempts.")
+
+    # Return the best model obtained from AutoML
+    return auto_ml.leader
+
+
+def flaml_train_model(df, value='value', variables=None, model_config=None, seed=7654321, verbose=True):
     """
     Trains a machine learning model using the provided dataset and parameters.
 
@@ -339,8 +473,195 @@ def train_model(df, value='value', variables=None, model_config=None, seed=76543
 
     return model
 
+def train_model(df, value="value", automl_pkg="flaml", variables=None, model_config=None, seed=7654321, n_cores=None, verbose=True):
+    """
+    Trains a machine learning model using either FLAML or H2O AutoML.
 
-def prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose=True):
+    Parameters:
+        df (pandas.DataFrame): Input dataset to train the model.
+        value (str): The name of the target column in the dataset. Default is "value".
+        automl_pkg (str): The AutoML package to use ("flaml" or "h2o").
+        variables (list, optional): List of feature variables to use for training.
+        model_config (dict, optional): Configuration settings for the model training.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of CPU cores to use for training. Default is None.
+        verbose (bool, optional): Whether to print detailed logs. Default is True.
+
+    Returns:
+        model: Trained machine learning model with a custom attribute `_model_type` indicating the package used.
+    """
+    if automl_pkg == "flaml":
+        # Train the model using FLAML AutoML
+        model = flaml_train_model(df, value, variables, model_config, seed, verbose)
+        model._model_type = "flaml"  # Set custom attribute to track model type
+    elif automl_pkg == "h2o":
+        # Train the model using H2O AutoML
+        model = h2o_train_model(df, value, variables, model_config, seed, verbose)
+        model._model_type = "h2o"  # Set custom attribute to track model type
+    return model
+
+
+def nm_predict(model, newdata, parallel=True):
+    """
+    Predict using the provided trained model, either H2O or FLAML.
+
+    Parameters:
+        model: The trained machine learning model (H2O or FLAML).
+        newdata (pd.DataFrame): The input data on which predictions will be made.
+        parallel (bool, optional): Whether to use multi-threading during prediction (H2O models only). Default is True.
+
+    Returns:
+        np.ndarray: The predicted values from the model.
+    """
+    try:
+        # Check the model type to determine how to perform the prediction
+        if getattr(model, '_model_type', None) == 'h2o':
+            # For H2O models, convert the new data to H2OFrame and make predictions
+            newdata_h2o = h2o.H2OFrame(newdata)
+            value_predict = model.predict(newdata_h2o).as_data_frame(use_multi_thread=parallel)['predict'].values
+        elif getattr(model, '_model_type', None) == 'flaml':
+            # For FLAML models, directly use the model's predict method
+            value_predict = model.predict(newdata)
+        else:
+            # Raise an error if the model type is unsupported
+            raise TypeError("Unsupported model type. The model must be an H2O or FLAML model.")
+
+    except AttributeError as e:
+        # Handle missing 'predict' method or incorrect data format
+        print("Error: The model does not have a 'predict' method or 'newdata' is not in the correct format.")
+        raise e
+    except Exception as e:
+        # Catch any other unexpected errors during prediction
+        print("An unexpected error occurred during prediction.")
+        raise e
+
+    return value_predict
+
+
+def generate_resampled(index, df, variables_resample, replace, seed, verbose, weather_df=None):
+    """
+    Worker function for parallel data normalization using randomly resampled meteorological parameters.
+
+    Parameters:
+        index (int): Index of the current row in the dataframe.
+        df (pandas.DataFrame): The dataframe to be normalized.
+        variables_resample (list): List of meteorological variables to be resampled.
+        replace (bool): Whether to allow replacement during sampling.
+        seed (int): Random seed for reproducibility.
+        verbose (bool): Whether to print detailed logs during resampling.
+        weather_df (pandas.DataFrame, optional): Optional dataframe of weather data to sample from.
+
+    Returns:
+        pandas.DataFrame: The dataframe with resampled meteorological parameters.
+    """
+    # Print progress message every 5 iterations if verbose is enabled
+    if verbose and index % 5 == 0:
+        message_percent = round((index / len(df)) * 100, 2)
+        print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Processing {index} of {len(df)} rows ({message_percent:.1f}%)...")
+
+    # Set random seed for reproducibility
+    np.random.seed(seed)
+
+    # Check if weather_df has the same length as df, resample meteorological data accordingly
+    if len(weather_df) == len(df):
+        # Sample indices with or without replacement from the dataframe
+        index_rows = np.random.choice(len(df), size=len(df), replace=replace)
+        df.loc[:, variables_resample] = df.loc[index_rows, variables_resample].reset_index(drop=True)
+    else:
+        # Sample from the weather_df if available and resample the specified variables
+        sampled_params = weather_df[variables_resample].sample(n=len(df), replace=replace, random_state=seed).reset_index(drop=True)
+        df.loc[:, variables_resample] = sampled_params
+
+    return df
+
+
+def normalise(df, model, feature_names, variables_resample=None, n_samples=300, replace=True,
+              aggregate=True, seed=7654321, n_cores=None, weather_df=None, verbose=True):
+    """
+    Normalises the dataset by resampling meteorological data and using a machine learning model to make predictions.
+
+    Parameters:
+        df (pandas.DataFrame): The input DataFrame to be normalised.
+        model (object): The trained machine learning model (H2O or FLAML).
+        feature_names (list of str): List of feature names used for the prediction.
+        variables_resample (list of str, optional): List of variables to be resampled. Default is None.
+        n_samples (int, optional): Number of times to resample the data. Default is 300.
+        replace (bool, optional): Whether to sample with replacement. Default is True.
+        aggregate (bool, optional): Whether to aggregate the results across resamples. Default is True.
+        seed (int, optional): Random seed for reproducibility. Default is 7654321.
+        n_cores (int, optional): Number of CPU cores to use for parallel processing. Default is all but one.
+        weather_df (pandas.DataFrame, optional): Optional DataFrame containing meteorological data. Default is None (use df).
+        verbose (bool, optional): Whether to print progress messages. Default is True.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the normalised and observed values, with optional aggregation.
+    """
+    # Initial preprocessing on the dataset, including date processing and data validation
+    df = (df.pipe(process_date)  # Process date columns
+            .pipe(check_data, feature_names, 'value'))  # Check if the data contains necessary columns
+
+    # If no external weather data is provided, use the input dataframe for weather data resampling
+    if weather_df is None:
+        weather_df = df
+
+    # If variables to resample are not specified, select all features except 'date_unix'
+    if variables_resample is None:
+        variables_resample = [var for var in feature_names if var != 'date_unix']
+
+    # Ensure that the weather data contains all the variables that need to be resampled
+    if not all(var in weather_df.columns for var in variables_resample):
+        raise ValueError("The input weather_df does not contain all variables within `variables_resample`.")
+
+    # Prepare random seeds for parallel processing of resampling
+    np.random.seed(seed)
+    random_seeds = np.random.choice(np.arange(1000001), size=n_samples, replace=False)  # Generate unique random seeds
+
+    # Determine the number of CPU cores to use for parallel processing
+    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
+
+    if verbose:
+        print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Normalising the dataset in parallel.")
+
+    # Perform resampling in parallel across n_cores
+    with Parallel(n_jobs=n_cores, backend='threading') as parallel:
+        df_resampled_list = parallel(
+            delayed(generate_resampled)(
+                index=i, df=df.copy().reset_index(drop=True),  # Copy the dataframe for each sample to avoid modification issues
+                variables_resample=variables_resample, replace=replace,  # Resampling parameters
+                seed=random_seeds[i], verbose=False, weather_df=weather_df  # Use unique seed and weather data
+            ) for i in range(n_samples)  # Repeat for the number of samples
+        )
+
+    # If verbose, print the progress of making predictions
+    if verbose:
+        print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Predicting using trained model in batches.")
+
+    # Concatenate all resampled DataFrames into a single DataFrame
+    df_all_resampled = pd.concat(df_resampled_list, ignore_index=True)
+
+    # Use the trained model to make predictions on the resampled data
+    predictions = nm_predict(model, df_all_resampled)
+
+    # Create a DataFrame to store the predictions and the corresponding observed values
+    df_result = pd.DataFrame({
+        'date': pd.concat([df_resampled['date'] for df_resampled in df_resampled_list], ignore_index=True),
+        'observed': pd.concat([df_resampled['value'] for df_resampled in df_resampled_list], ignore_index=True),
+        'normalised': predictions,  # Predicted values from the model
+        'seed': np.repeat(random_seeds, len(df))  # Add the random seed used for each sample
+    })
+
+    # If aggregation is enabled, average the predictions across resamples for each date
+    if aggregate:
+        if verbose:
+            print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Aggregating {n_samples} predictions...")
+
+        # Pivot the table to calculate the mean observed and normalised values for each date
+        df_result = df_result.pivot_table(index='date', aggfunc='mean')[['observed', 'normalised']]
+
+    return df_result  # Return the final normalised DataFrame
+
+
+def prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose=True):
     """
     Prepares the data and trains a machine learning model using the specified configuration.
 
@@ -384,156 +705,11 @@ def prepare_train_model(df, value, feature_names, split_method, fraction, model_
     df = prepare_data(df, value=value, feature_names=vars, split_method=split_method, fraction=fraction, seed=seed)
 
     # Train the model using AutoML
-    model = train_model(df, value='value', variables=feature_names, model_config=model_config, seed=seed, verbose=verbose)
+    model = train_model(df, value='value', automl_pkg= automl_pkg, variables=feature_names, model_config=model_config, seed=seed, verbose=verbose)
 
     return df, model
 
-
-def normalise_worker(index, df, model, variables_resample, replace, seed, verbose, weather_df=None):
-    """
-    Worker function for parallel normalisation of data using randomly resampled meteorological parameters
-    from another weather DataFrame within its date range. If no weather DataFrame is provided,
-    it defaults to using the input DataFrame.
-
-    Parameters:
-        index (int): Index of the worker.
-        df (pandas.DataFrame): Input DataFrame containing the dataset.
-        model (ML): Trained ML model.
-        variables_resample (list of str): List of resampling variables.
-        replace (bool): Whether to sample with replacement.
-        seed (int): Random seed.
-        verbose (bool): Whether to print progress messages.
-        weather_df (pandas.DataFrame, optional): Weather DataFrame containing the meteorological parameters.
-                                             Defaults to None.
-
-    Returns:
-        pd.DataFrame: DataFrame containing normalised predictions.
-    """
-
-    # Print progress message every fifth prediction if verbose is enabled
-    if verbose and index % 5 == 0:
-        # Calculate and format the progress percentage
-        message_percent = round((index / len(df)) * 100, 2)
-        message_percent = "{:.1f} %".format(message_percent)
-        print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
-              ": Predicting", index, "of", len(df), "times (", message_percent, ")...")
-
-    # Set the random seed for reproducibility
-    np.random.seed(seed)
-
-    # If the weather_df is the same length as the input df
-    if len(weather_df) == len(df):
-        # Randomly sample indices from the input DataFrame
-        index_rows = np.random.choice(len(df), size=len(df), replace=replace)
-        # Resample the specified variables using the sampled indices
-        df[variables_resample] = df[variables_resample].iloc[index_rows].reset_index(drop=True)
-    else:
-        # Sample meteorological parameters from the provided weather DataFrame
-        sampled_meteorological_params = weather_df[variables_resample].sample(n=len(weather_df), replace=replace).reset_index(drop=True)
-        # Use the sampled parameters to resample the specified variables in the input DataFrame
-        df[variables_resample] = sampled_meteorological_params.sample(n=len(df), replace=replace).reset_index(drop=True)
-
-    # Predict values using the model
-    value_predict = model.predict(df)
-
-    # Build a DataFrame containing the predictions along with the original dates, observed values, and seed
-    predictions = pd.DataFrame({
-        'date': df['date'],
-        'observed': df['value'],
-        'normalised': value_predict,
-        'seed': seed
-    })
-
-    return predictions
-
-
-def normalise(df, model, feature_names, variables_resample=None, n_samples=300, replace=True,
-              aggregate=True, seed=7654321, n_cores=None, weather_df=None, verbose=True):
-    """
-    Normalises the dataset using the trained model.
-
-    Parameters:
-        df (pandas.DataFrame): Input DataFrame containing the dataset.
-        model (object): Trained ML model.
-        feature_names (list of str): List of feature names.
-        variables_resample (list of str): List of resampling variables.
-        n_samples (int, optional): Number of samples to normalise. Default is 300.
-        replace (bool, optional): Whether to replace existing data. Default is True.
-        aggregate (bool, optional): Whether to aggregate results. Default is True.
-        seed (int, optional): Random seed. Default is 7654321.
-        n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
-        weather_df (pandas.DataFrame, optional): DataFrame containing weather data for resampling. Default is None.
-        verbose (bool, optional): Whether to print progress messages. Default is True.
-
-    Returns:
-        pd.DataFrame: DataFrame containing normalised predictions.
-
-    Example:
-        >>> data = {
-        ...     'date': pd.date_range(start='2020-01-01', periods=5, freq='D'),
-        ...     'feature1': [1, 2, 3, 4, 5],
-        ...     'feature2': [5, 4, 3, 2, 1],
-        ...     'value': [2, 3, 4, 5, 6]
-        ... }
-        >>> df = pd.DataFrame(data)
-        >>> feature_names = ['feature1', 'feature2']
-        >>> model = train_model(df, value='value', variables=feature_names)
-        >>> variables_resample = ['feature1', 'feature2']
-        >>> normalised_df = normalise(df, model, feature_names, variables_resample)
-    """
-
-    # Process input DataFrames
-    df = (df.pipe(process_date)
-            .pipe(check_data, feature_names, 'value'))
-
-    # If no weather_df is provided, use df as the weather data
-    if weather_df is None:
-        weather_df = df
-
-    # Use all variables except the trend term
-    if variables_resample is None:
-        variables_resample = [var for var in feature_names if var != 'date_unix']
-
-    # Check if all variables are in the DataFrame
-    if not all(var in weather_df.columns for var in variables_resample):
-        raise ValueError("The input weather_df does not contain all variables within `variables_resample`.")
-
-    # Generate random seeds for parallel processing
-    np.random.seed(seed)
-    random_seeds = np.random.choice(np.arange(1000001), size=n_samples, replace=False)
-
-    # Determine number of CPU cores to use
-    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
-
-    if verbose:
-        print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Normalising the dataset using the trained model in parallel.")
-
-    # Perform normalisation using parallel processing
-    df_result = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
-            index=i, df=df, model=model, variables_resample=variables_resample, replace=replace,
-            seed=random_seeds[i], verbose=False, weather_df=weather_df) for i in range(n_samples)), axis=0)
-
-    # Aggregate results if needed
-    if aggregate:
-        if verbose:
-            print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Aggregating", n_samples, "predictions...")
-        df_result = df_result.pivot_table(index='date', aggfunc='mean')[['observed', 'normalised']]
-    else:
-        # Pivot table to reshape 'normalised' values by 'seed' and set 'date' as index
-        normalised_pivot = df_result.pivot_table(index='date', columns='seed', values='normalised')
-
-        # Select and drop duplicate rows based on 'date', keeping only 'observed' column
-        observed_unique = df_result[['date', 'observed']].drop_duplicates().set_index('date')
-
-        # Concatenate the pivoted 'normalised' values and unique 'observed' values
-        df_result = pd.concat([observed_unique, normalised_pivot], axis=1)
-        if verbose:
-            print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Concatenated", n_samples, "predictions...")
-
-    return df_result
-
-
-def do_all(df=None, model=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
+def do_all(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
            model_config=None, n_samples=300, seed=7654321, n_cores=None, aggregate=True, weather_df=None, verbose=True):
     """
     Conducts data preparation, model training, and normalisation, returning the transformed dataset and model statistics.
@@ -570,7 +746,7 @@ def do_all(df=None, model=None, value=None, feature_names=None, variables_resamp
     """
     # Train model if not provided
     if model is None:
-        df, model= prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+        df, model= prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose)
 
     # Collect model statistics
     mod_stats = modStats(df, model)
@@ -585,8 +761,9 @@ def do_all(df=None, model=None, value=None, feature_names=None, variables_resamp
     return df_dew, mod_stats
 
 
-def do_all_unc(df=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
-               model_config=None, n_samples=300, n_models=10, confidence_level=0.95, seed=7654321, n_cores=None, weather_df=None, verbose=True):
+def do_all_unc(df=None, value=None, automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random',
+               fraction=0.75, model_config=None, n_samples=300, n_models=10, confidence_level=0.95, seed=7654321,
+               n_cores=None, weather_df=None, verbose=True):
     """
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
 
@@ -624,7 +801,7 @@ def do_all_unc(df=None, value=None, feature_names=None, variables_resample=None,
     start_time = time.time()  # Record start time for ETA calculation
 
     for i, seed in enumerate(random_seeds):
-        df_dew0, mod_stats0 = do_all(df, value=value, feature_names=feature_names,
+        df_dew0, mod_stats0 = do_all(df, value=value, automl_pkg=automl_pkg, feature_names=feature_names,
                                      variables_resample=variables_resample,
                                      split_method=split_method, fraction=fraction,
                                      model_config=model_config,
@@ -684,7 +861,7 @@ def do_all_unc(df=None, value=None, feature_names=None, variables_resample=None,
     return df_dew, mod_stats
 
 
-def decom_emi(df=None, model=None, value=None, feature_names=None, split_method='random', fraction=0.75,
+def decom_emi(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, split_method='random', fraction=0.75,
              model_config=None, n_samples=300, seed=7654321, n_cores=None, verbose=True):
     """
     Decomposes a time series into different components using machine learning models.
@@ -714,7 +891,7 @@ def decom_emi(df=None, model=None, value=None, feature_names=None, split_method=
         >>> df_dewc, mod_stats = decom_emi(df, value, feature_names)
     """
     if model is None:
-        df, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose=True)
+        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose=True)
 
     # Gather model statistics for testing, training, and all data
     mod_stats = modStats(df, model)
@@ -762,7 +939,7 @@ def decom_emi(df=None, model=None, value=None, feature_names=None, split_method=
     return df_dew, mod_stats
 
 
-def decom_met(df=None, model=None, value=None, feature_names=None, split_method='random', fraction=0.75,
+def decom_met(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, split_method='random', fraction=0.75,
                 model_config=None, n_samples=300, seed=7654321, importance_ascending=False, n_cores=None, verbose=True):
     """
     Decomposes a time series into different components using machine learning models with feature importance ranking.
@@ -792,7 +969,7 @@ def decom_met(df=None, model=None, value=None, feature_names=None, split_method=
         >>> df_dewwc, mod_stats = decom_met(df, value, feature_names)
     """
     if model is None:
-        df, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose=True)
+        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose=True)
 
     # Gather model statistics for testing, training, and all data
     mod_stats = modStats(df, model)
@@ -845,7 +1022,7 @@ def decom_met(df=None, model=None, value=None, feature_names=None, split_method=
     return df_dewwc, mod_stats
 
 
-def rolling(df=None, model=None, value=None, feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
+def rolling(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
             model_config=None, n_samples=300, window_days=14, rolling_every=7, seed=7654321, n_cores=None, verbose=True):
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
@@ -854,7 +1031,7 @@ def rolling(df=None, model=None, value=None, feature_names=None, variables_resam
         df (pandas.DataFrame): Input dataframe containing the time series data.
         model (object, optional): Pre-trained model to use for decomposition. If None, a new model will be trained. Default is None.
         value (str): Column name of the target variable.
-        feature_names (list of str): List of feature column names.
+        feature_names (list of str): List of feature column names used as features for the model.
         split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
         fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
         model_config (dict, optional): Configuration dictionary for model training parameters.
@@ -862,65 +1039,70 @@ def rolling(df=None, model=None, value=None, feature_names=None, variables_resam
         window_days (int, optional): Number of days for the rolling window. Default is 14.
         rolling_every (int, optional): Rolling interval in days. Default is 7.
         seed (int, optional): Random seed for reproducibility. Default is 7654321.
-        n_cores (int, optional): Number of cores to be used. Default is total CPU cores minus one.
+        n_cores (int, optional): Number of cores to be used for parallel processing. Default is total CPU cores minus one.
         verbose (bool, optional): Whether to print progress messages. Default is True.
 
     Returns:
-        df_dew (pandas.DataFrame): Dataframe with decomposed components.
+        combined_results (pandas.DataFrame): Dataframe containing observed and rolling normalized results.
         mod_stats (pandas.DataFrame): Dataframe with model statistics.
 
     Example:
         >>> df = pd.read_csv('timeseries_data.csv')
         >>> value = 'target'
         >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dew, mod_stats = rolling(df, value, feature_names, window_days=14, rolling_every=2)
+        >>> df_dew, mod_stats = rolling(df, value, feature_names, window_days=14, rolling_every=7)
     """
-    if model is None:
-        df, model = prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose=True)
 
-    # Gather model statistics for testing, training, and all data
+    # If no model is provided, train a new model on the dataset
+    if model is None:
+        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose=True)
+
+    # Gather model statistics for the training, testing, and overall dataset
     mod_stats = modStats(df, model)
 
-    # Default logic for CPU cores
+    # Default logic to determine the number of CPU cores for parallel computation
     n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
 
-    df['date_d'] =df['date'].dt.date
+    # Convert the date column to datetime (daily precision)
+    df['date_d'] = df['date'].dt.date
 
-    # Define the rolling window range
+    # Define the maximum and minimum date range for the rolling window
     date_max = pd.to_datetime(df['date_d'].max() - pd.DateOffset(days=window_days - 1))
     date_min = pd.to_datetime(df['date_d'].min() + pd.DateOffset(days=window_days - 1))
 
-    rolling_dates = pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rolling_every]
+    # Create a list of dates for each rolling window based on the interval (rolling_every)
+    rolling_dates = pd.to_datetime(df['date_d'][df['date_d'] <= date_max.date()]).unique()[::rolling_every-1]
 
-    # Initialize a list to store the results of each rolling window
-    combined_results = pd.DataFrame()
+    # Initialize a DataFrame to store the results of each rolling window
+    combined_results = df.set_index('date')[['value']].rename(columns={'value': 'observed'})
 
     # Apply the rolling window approach
     for i, ds in enumerate(rolling_dates):
+        # Filter the data for the current rolling window (from start date `ds` to window_days length)
         dfa = df[df['date_d'] >= ds.date()]
-        dfa = dfa[dfa['date_d'] <= (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
+        dfa = dfa[dfa['date_d'] < (dfa['date_d'].min() + pd.DateOffset(days=window_days)).date()]
 
         try:
-            # Normalize the data within the rolling window
-            dfar = normalise(dfa, model, feature_names=feature_names, variables_resample=variables_resample, n_samples=n_samples,
-                             n_cores=n_cores, seed=seed, verbose=False)
+            # Normalize the data for the current rolling window
+            dfar = normalise(dfa, model, feature_names=feature_names, variables_resample=variables_resample,
+                             n_samples=n_samples, n_cores=n_cores, seed=seed, verbose=False)
 
-            # Rename the 'normalised' column to include the rolling window index
+            # Rename the 'normalised' column to indicate the rolling window index
             dfar.rename(columns={'normalised': 'rolling_' + str(i)}, inplace=True)
 
-            # Merge the results of the current rolling window with the overall results
-            if combined_results.empty:
-                combined_results = dfar
-            else:
-                combined_results = pd.concat([combined_results, dfar['rolling_' + str(i)]], axis=1)
+            # Merge the normalized results of the current window with the overall result DataFrame
+            combined_results = pd.concat([combined_results, dfar['rolling_' + str(i)]], axis=1)
 
+            # If verbose is enabled, print progress every 10 rolling windows
             if verbose and (i % 10 == 0):
-                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Rolling window {i} from {dfa['date'].min().strftime('%Y-%m-%d')} to {dfa['date'].max().strftime('%Y-%m-%d')}")
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Rolling window {i} from {dfa['date'].min().strftime('%Y-%m-%d')} to {(dfa['date'].max()).strftime('%Y-%m-%d')}")
 
         except Exception as e:
+            # Handle any errors during the normalization process and continue with the next rolling window
             if verbose:
-                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Error during normalization for rolling window {i} from {dfa['date'].min().strftime('%Y-%m-%d')} to {dfa['date'].max().strftime('%Y-%m-%d')}: {str(e)}")
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}: Error during normalization for rolling window {i} from {dfa['date'].min().strftime('%Y-%m-%d')} to {(dfa['date'].max()).strftime('%Y-%m-%d')}: {str(e)}")
 
+    # Return the final DataFrame containing observed and rolling normalized values, along with model statistics
     return combined_results, mod_stats
 
 
@@ -952,7 +1134,7 @@ def modStats(df, model, set=None, statistic=None):
             else:
                 raise ValueError(f"The DataFrame does not contain the 'set' column but 'set' parameter was provided as '{set_name}'.")
 
-        df = df.assign(value_predict=model.predict(df))
+        df = df.assign(value_predict=nm_predict(model,df))
         df_stats = Stats(df, mod="value_predict", obs="value", statistic=statistic).assign(set=set_name)
         return df_stats
 
@@ -971,7 +1153,6 @@ def modStats(df, model, set=None, statistic=None):
         df_stats = calculate_stats(df, set)
 
     return df_stats
-
 
 def Stats(df, mod, obs,
              statistic = None):
@@ -1036,63 +1217,112 @@ def Stats(df, mod, obs,
 
 def extract_feature_names(model):
     """
-    Extract feature names from the best estimator of a FLAML AutoML model.
+    Extract feature names from the best estimator of an AutoML model, either 'h2o' or 'flaml'.
 
     Parameters:
-        model (AutoML): The trained AutoML model object.
+        model (AutoML): The trained AutoML model object (either from H2O or FLAML framework).
 
     Returns:
-        list: List of feature names.
-    """
+        list: List of feature names used in the model.
 
-    # Check for feature names in various model types
-    if hasattr(model, 'feature_name_'):
-        feature_names = model.feature_name_
-    elif hasattr(model, 'feature_names_in_'):
-        feature_names = model.feature_names_in_
-    else:
-        raise AttributeError("The best estimator does not have identifiable feature names.")
-
-    return list(feature_names)
-
-def pdp(df, model, variables=None, training_only=True, n_cores=None):
-    """
-    Computes partial dependence plots for all specified features.
-
-    Parameters:
-        model: AutoML model object.
-        df (DataFrame): Input DataFrame containing the dataset.
-        feature_names (list): List of feature names to compute partial dependence plots for.
-        variables (list, optional): List of variables to compute partial dependence plots for. If None, defaults to feature_names.
-        training_only (bool, optional): If True, computes partial dependence plots only for the training set. Default is True.
-        n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
-
-    Returns:
-        DataFrame: DataFrame containing the computed partial dependence plots for all specified features.
+    Raises:
+        AttributeError: If the model doesn't have identifiable feature names.
+        TypeError: If the model type is unsupported (not 'h2o' or 'flaml').
 
     Example Usage:
-        # Compute Partial Dependence Plots for All Features
-        df_predict = pdp(model, df, feature_names=['feature1', 'feature2', 'feature3'])
+        # Extract feature names from a trained AutoML model
+        feature_names = extract_feature_names(trained_model)
     """
 
-    # Extract feature names from the best estimator
+    # If the model is from H2O, extract feature names using the varimp function
+    if getattr(model, '_model_type', None) == 'h2o':
+        feature_names = model.varimp(use_pandas=True)['variable']
+
+    # If the model is from FLAML, check for feature names in the model attributes
+    elif getattr(model, '_model_type', None) == 'flaml':
+        # Check if the FLAML model has 'feature_name_' attribute and extract feature names
+        if hasattr(model, 'feature_name_'):
+            feature_names = model.feature_name_
+        # If 'feature_name_' is not available, check for 'feature_names_in_' attribute
+        elif hasattr(model, 'feature_names_in_'):
+            feature_names = model.feature_names_in_
+        # Raise an error if no identifiable feature names are found in the FLAML model
+        else:
+            raise AttributeError("The best estimator does not have identifiable feature names.")
+
+    # Raise an error if the model type is neither 'h2o' nor 'flaml'
+    else:
+        raise TypeError("Unsupported model type. The model must be an H2O or FLAML model.")
+
+    # Return the feature names as a list
+    return list(feature_names)
+
+
+def pdp(df, model, var_list=None, training_only=True, n_cores=None):
+    """
+    Computes partial dependence plots (PDP) for the specified features.
+
+    Parameters:
+        df (DataFrame): The input dataset containing features and labels.
+        model: Trained AutoML model object (either 'flaml' or 'h2o').
+        var_list (list, optional): List of variables to compute partial dependence plots for. If None, all feature names will be used.
+        training_only (bool, optional): If True, computes PDP only for the training set. Default is True.
+        n_cores (int, optional): Number of CPU cores to use for parallel computation. Default is all available cores minus one.
+
+    Returns:
+        DataFrame: A DataFrame containing partial dependence plot (PDP) values for the specified features.
+
+    Example Usage:
+        # Compute Partial Dependence Plots for specified features
+        df_predict = pdp(df, model, var_list=['feature1', 'feature2'])
+    """
+
+    # Extract the names of features used in the model
     feature_names = extract_feature_names(model)
 
-    if variables is None:
-        variables = feature_names
+    # Set the number of CPU cores for parallel processing. Default is all available cores minus one.
+    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
 
+    # If no variables are provided, use all feature names
+    if var_list is None:
+        var_list = feature_names
+
+    # If `training_only` is True, filter the dataset to only include the training set
     if training_only:
         df = df[df["set"] == "training"]
 
-    X_train, y_train = df[feature_names], df['value']
+    # Check if the model is of type 'h2o'
+    if getattr(model, '_model_type', None) == 'h2o':
+        # Convert the DataFrame into an H2OFrame for h2o models
+        df = h2o.H2OFrame(df)
 
-    # Default logic for cpu cores
-    n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
+        # Define a helper function for computing PDP for h2o models
+        def h2opdp(df, model, var):
+            # Get partial dependence plot values from the h2o model
+            pdp_value = model.partial_plot(frame=df, cols=[var], plot=False)[0].as_data_frame()
+            # Rename the column for better readability
+            pdp_value.rename(columns={var: 'value'}, inplace=True)
+            # Add a new column indicating the variable for which the PDP was computed
+            pdp_value["variable"] = [var] * len(pdp_value)
+            return pdp_value
 
-    results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(X_train, model, var) for var in variables)
-    df_predict = pd.concat(results)
-    df_predict.reset_index(drop=True, inplace=True)
-    return df_predict
+        # Compute PDP for each variable in the list and concatenate the results
+        pdp_value_all = pd.concat([h2opdp(df, model, var) for var in var_list])
+
+    # If the model is of type 'flaml'
+    elif getattr(model, '_model_type', None) == 'flaml':
+        # Prepare the feature matrix (X_train) and target variable (y_train)
+        X_train, y_train = df[feature_names], df['value']
+
+        # Use parallel processing to compute PDP for each variable in the list
+        results = Parallel(n_jobs=n_cores)(delayed(pdp_worker)(X_train, model, var) for var in var_list)
+
+        # Concatenate the results and reset the index
+        pdp_value_all = pd.concat(results)
+        pdp_value_all.reset_index(drop=True, inplace=True)
+
+    # Return the final DataFrame containing PDP values for all specified features
+    return pdp_value_all
 
 
 def pdp_worker(X_train, model, variable, training_only=True):
@@ -1215,49 +1445,62 @@ def scm(df, poll_col, code_col, treat_target, control_pool, cutoff_date):
 
     return data
 
-
-def mlsc(df, poll_col, code_col, treat_target, control_pool, cutoff_date, model_config):
+def mlsc(df, poll_col, code_col, treat_target, control_pool, cutoff_date, automl_pkg='flaml', model_config=None,
+         split_method='random', fraction=1, seed=7654321):
     """
-    Performs synthetic control using machine learning regression models.
+    Performs a synthetic control analysis using machine learning models to estimate the treatment effect.
 
     Parameters:
-        df (DataFrame): Input DataFrame containing the dataset.
-        poll_col (str): Name of the column containing the poll data.
-        code_col (str): Name of the column containing the code data.
-        treat_target (str): Code of the treatment target.
-        control_pool (list): List of control pool codes.
-        cutoff_date (str): Date for splitting pre- and post-treatment datasets.
-        training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
+        df (DataFrame): The input dataset containing date, treatment, and control information.
+        poll_col (str): The column name of the target variable (e.g., poll results, sales).
+        code_col (str): The column containing the codes for treatment and control units.
+        treat_target (str): The code for the treatment target (the treated unit).
+        control_pool (list): A list of codes representing the control units.
+        cutoff_date (str): The date that separates pre-treatment and post-treatment periods.
+        automl_pkg (str, optional): The AutoML package to use for training the model. Default is 'flaml'.
+        model_config (dict, optional): Configuration for the machine learning model.
+        split_method (str, optional): How to split the training data (default is 'random').
+        fraction (float, optional): Fraction of the data to use for training (default is 1, meaning use all data).
 
     Returns:
-        DataFrame: DataFrame containing synthetic control results for the specified treatment target.
-
-    Example Usage:
-        # Perform synthetic control using ML regression models
-        synthetic_data = ml_syn(df, poll_col='Poll', code_col='Code',
-                                treat_target='T1', control_pool=['C1', 'C2'], cutoff_date='2020-01-01')
+        DataFrame: A DataFrame containing synthetic control values and estimated treatment effects.
     """
-    from flaml import AutoML
-    automl = AutoML()
+
+    # Preprocess the DataFrame to ensure proper formatting of date columns
     df = process_date(df)
-    dfp = (df[df[code_col].isin(control_pool + [treat_target])]).pivot_table(index='date', columns=code_col, values=poll_col)
+
+    # Combine the control pool with the treatment target to create a union of the units to analyze
+    union_result = list(set(control_pool) | set([treat_target]))
+
+    # Create a pivot table with 'date' as the index, and control and treatment codes as columns, using poll_col as values
+    dfp = df[df[code_col].isin(union_result)].pivot_table(index='date', columns=code_col, values=poll_col)
+
+    # Split the data into pre-treatment and post-treatment datasets based on the cutoff date
     pre_dataset = dfp[dfp.index < cutoff_date]
     post_dataset = dfp[dfp.index >= cutoff_date]
-    # Update default configuration with user-provided config
-    if model_config is not None:
-        default_model_config.update(model_config)
 
-    automl.fit(dataframe=pre_dataset, label=treat_target, **default_model_config)
-    pre_pred = automl.predict(pre_dataset)
+    # Remove the treatment target from the control pool to avoid overlap
+    control_pool_u = list(set(control_pool) - set([treat_target]))
 
-    data = (df
-            [df[code_col] == treat_target][['date', code_col, poll_col]]
-            .assign(synthetic=automl.predict(dfp))).set_index('date')
+    # Prepare the model by training it on pre-treatment data. 'dfx' contains the feature set, and 'model' is the trained model
+    dfx, model = prepare_train_model(df=pre_dataset, value=treat_target, automl_pkg=automl_pkg,
+                                     feature_names=control_pool_u, split_method=split_method,
+                                     fraction=fraction, model_config=model_config, seed=seed)
+
+    # Use the trained model to predict the synthetic control values for the treated unit
+    data = (df[df[code_col] == treat_target][['date', code_col, poll_col]]
+            .assign(synthetic=nm_predict(model, dfp)))  # Assign the predicted synthetic values
+    data = data.set_index('date')  # Set the 'date' column as the index
+
+    # Calculate the treatment effects by subtracting the synthetic values from the actual observed values
     data['effects'] = data[poll_col] - data['synthetic']
+
+    # Return the final DataFrame containing the synthetic control values and estimated treatment effects
     return data
 
 
-def mlsc_all(df, poll_col, code_col, control_pool, cutoff_date, training_time=60, n_cores=None):
+def mlsc_all(df, poll_col, code_col, control_pool, cutoff_date, automl_pkg='flaml', model_config=None,
+         split_method='random', fraction=1, n_cores=None):
     """
     Performs synthetic control using machine learning regression models in parallel for multiple treatment targets.
 
@@ -1267,28 +1510,63 @@ def mlsc_all(df, poll_col, code_col, control_pool, cutoff_date, training_time=60
         code_col (str): Name of the column containing the code data.
         control_pool (list): List of control pool codes.
         cutoff_date (str): Date for splitting pre- and post-treatment datasets.
-        training_time (int, optional): Total running time in seconds for the AutoML model. Default is 60.
-        n_cores (int, optional): Number of CPU cores to use. Default is total CPU cores minus one.
+        automl_pkg (str, optional): AutoML package to use ('flaml' or 'h2o'). Default is 'flaml'.
+        model_config (dict, optional): Model configuration for the AutoML package.
+        split_method (str, optional): Method for splitting training data. Default is 'random'.
+        fraction (float, optional): Fraction of the data to use for training. Default is 1.
+        n_cores (int, optional): Number of CPU cores to use for parallel computation. Default is all cores minus one.
 
     Returns:
-        DataFrame: DataFrame containing synthetic control results for all treatment targets.
+        DataFrame: A DataFrame containing synthetic control results for all treatment targets.
 
     Example Usage:
-        # Perform synthetic control using ML regression models in parallel
-        synthetic_all = ml_syn_parallel(df, poll_col='Poll', code_col='Code',
-                                        control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', training_time=120, n_cores=4)
+        synthetic_all = mlsc_all(df, poll_col='Poll', code_col='Code',
+                                 control_pool=['A', 'B', 'C'], cutoff_date='2020-01-01', n_cores=4)
     """
-    # Default logic for cpu cores
+
+    # Set the number of CPU cores to use for parallel processing. If not provided, use all available cores minus one.
     n_cores = n_cores if n_cores is not None else os.cpu_count() - 1
+
+    # Get the unique treatment targets from the dataset (all unique values in the code_col).
     treatment_pool = df[code_col].unique()
-    synthetic_all = pd.concat(Parallel(n_jobs=n_cores)(delayed(ml_syn)(
-                    df=df,
-                    poll_col=poll_col,
-                    code_col=code_col,
-                    treat_target=code,
-                    control_pool=control_pool,
-                    cutoff_date=cutoff_date,
-                    training_time=training_time) for code in treatment_pool))
+
+    # If the selected AutoML package is 'flaml', use a sequential processing approach.
+    if automl_pkg == 'flaml':
+        # For each treatment target, apply the mlsc function, and concatenate the results into one DataFrame.
+        synthetic_all = pd.concat(
+            [mlsc(
+                df=df,
+                poll_col=poll_col,
+                code_col=code_col,
+                treat_target=code,
+                control_pool=control_pool,
+                cutoff_date=cutoff_date,
+                automl_pkg=automl_pkg,
+                model_config=model_config,
+                split_method=split_method,
+                fraction=fraction
+            ) for code in treatment_pool]
+        )
+
+    # If the selected AutoML package is 'h2o', use parallel processing to speed up the process.
+    elif automl_pkg == 'h2o':
+        # Use Parallel and delayed from joblib to apply the mlsc function to each treatment target in parallel.
+        synthetic_all = pd.concat(
+            Parallel(n_jobs=n_cores)(delayed(mlsc)(
+                df=df,
+                poll_col=poll_col,
+                code_col=code_col,
+                treat_target=code,
+                control_pool=control_pool,
+                cutoff_date=cutoff_date,
+                automl_pkg=automl_pkg,
+                model_config=model_config,
+                split_method=split_method,
+                fraction=fraction
+            ) for code in treatment_pool)
+        )
+
+    # Return the combined DataFrame with synthetic control results for all treatment targets.
     return synthetic_all
 
 
