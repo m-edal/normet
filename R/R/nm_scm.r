@@ -228,7 +228,7 @@ nm_mlsc <- function(df, poll_col, code_col, treat_target, control_pool, cutoff_d
     mutate(pollutant = poll_col, treat_target = treat_target)
 
   # Predict using the trained model
-  sc_predicts <- nm_predict(scmodel@leader, filtered_df)
+  sc_predicts <- nm_predict(scmodel, filtered_df)
 
   # Prepare final dataset
   data <- df %>%

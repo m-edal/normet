@@ -156,7 +156,8 @@ nm_add_date_variables <- function(df, replace) {
       df <- df %>% mutate(day_julian = yday(date))
     }
     if (!"weekday" %in% colnames(df)) {
-      df <- df %>% mutate(weekday = as.factor(wday(date, label = TRUE)))
+      #df <- df %>% mutate(weekday = as.factor(wday(date, label = TRUE)))
+      df <- df %>% mutate(weekday = as.numeric(wday(date, week_start = 1)))
     }
     if (!"hour" %in% colnames(df)) {
       df <- df %>% mutate(hour = lubridate::hour(date))

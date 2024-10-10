@@ -44,13 +44,10 @@ nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NU
 
   # Train model if not provided
   if (is.null(model)) {
-    res <- prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
     df <- res$df
     model <- res$model
   }
-
-  # Gather model statistics for testing, training, and all data
-  mod_stats <- nm_modStats(df, model)
 
   df <- df %>% mutate(date_d = as.Date(date))
 
@@ -75,7 +72,7 @@ nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NU
     ds <- rolling_dates[i]
 
     dfa <- df %>%
-      filter(date_d >= ds & date_d <= (ds + days(window_days - 1)))
+      filter(date_d >= ds & date_d < (ds + days(window_days)))
 
     success <- FALSE
     tryCatch({
@@ -113,5 +110,5 @@ nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NU
   combined_results <- rolling_results %>%
    reduce(left_join, by = "date")
 
-  return(list(df_dew = combined_results, mod_stats = mod_stats))
+  return(combined_results)
 }

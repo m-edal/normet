@@ -9,10 +9,10 @@
 #' @examples
 #' \dontrun{
 #' library(h2o)
-#' nm_init_h2o(n_cores = 4, min_mem_size = "4G", max_mem_size = "16G")
+#' nm_init_h2o(n_cores = 4, max_mem_size = "16G")
 #' }
 #' @export
-nm_init_h2o <- function(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G") {
+nm_init_h2o <- function(n_cores = NULL, max_mem_size = "16G") {
   if (is.null(n_cores)) {
     n_cores <- parallel::detectCores() - 1
   }
@@ -24,7 +24,7 @@ nm_init_h2o <- function(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G
     }
   }, error = function(e) {
     message("H2O is not running. Starting H2O...")
-    h2o::h2o.init(nthreads = n_cores, min_mem_size = min_mem_size, max_mem_size = max_mem_size)
+    h2o::h2o.init(nthreads = n_cores, max_mem_size = max_mem_size)
     h2o::h2o.no_progress()
   })
 }

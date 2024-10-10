@@ -14,7 +14,7 @@
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
-#' @return A list containing the decomposed data frame and model statistics.
+#' @return The decomposed data frame.
 #'
 #' @examples
 #' \dontrun{
@@ -35,13 +35,13 @@ nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = 
 
   # Train model if not provided
   if (is.null(model)) {
-    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
-    df <- res$df
-    model <- res$model
+    df_model <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- df_model$df
+    model <- df_model$model
+  } else if (!"value" %in% colnames(df)) {
+    vars <- setdiff(feature_names, c('date_unix', 'day_julian', 'weekday', 'hour'))
+    df <- nm_prepare_data(df, value, feature_names = vars, split_method = split_method, fraction = fraction, seed = seed)
   }
-
-  # Gather model statistics for testing, training, and all data
-  mod_stats <- nm_modStats(df, model)
 
   # Initialize the dataframe for decomposed components
   df_dew <- df %>% select(date, value) %>% rename(observed = value)
@@ -62,20 +62,46 @@ nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = 
   start_time <- Sys.time()  # Initialize start time before the loop
 
   for (i in seq_along(c('base', 'date_unix', 'day_julian', 'weekday', 'hour'))) {
+
     pb$tick()  # Update progress bar
 
     var_to_exclude <- c('base', 'date_unix', 'day_julian', 'weekday', 'hour')[i]
 
     var_names <- setdiff(var_names, var_to_exclude)
 
-    df_dew_temp <- nm_normalise(df, model, feature_names = feature_names, variables_resample = var_names,
-                             n_samples = n_samples, n_cores = n_cores, seed = seed, verbose = FALSE)
+    success <- FALSE
+    retries <- 3  # Set the number of retries
 
-    df_dew[[var_to_exclude]] <- df_dew_temp$normalised
+    while (!success && retries > 0) {
+      tryCatch({
+        # Normalize the data, excluding the current variable
+        df_dew_temp <- nm_normalise(df, model, feature_names = feature_names,
+                                    variables_resample = var_names, n_samples = n_samples,
+                                    n_cores = n_cores, seed = seed, verbose = FALSE)
+
+        # Store the normalized data for the excluded variable
+        df_dew[[var_to_exclude]] <- df_dew_temp$normalised
+
+        success <- TRUE  # If successful, break the loop
+      }, error = function(e) {
+        cat(sprintf("%s: Error during normalization for variable '%s': %s\n",
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                    var_to_exclude, e$message))
+
+        retries <- retries - 1  # Decrease the retry count
+        if (retries > 0) {
+          cat(sprintf("Retrying... %d attempts left.\n", retries))
+          Sys.sleep(10)  # Wait for 10 seconds before retrying
+        } else {
+          cat("Failed after 3 attempts. Moving to the next variable.\n")
+          df_dew[[var_to_exclude]] <- NULL  # Optionally, set to NULL if failure persists
+        }
+      })
+    }
   }
 
   # Adjust the decomposed components to create deweathered values
-  df_dew <- df_dew %>%
+  result <- df_dew %>%
     mutate(
       deweathered = hour,
       hour = hour - weekday,
@@ -85,5 +111,5 @@ nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = 
       emi_noise = base - mean(base, na.rm = TRUE)
     )
 
-  return(list(df_dew = df_dew, mod_stats = mod_stats))
+  return(result)
 }

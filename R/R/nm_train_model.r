@@ -38,36 +38,37 @@
 #' )
 #' }
 #' @export
-nm_train_model <- function(df, value = "value", variables = NULL, model_config = NULL, seed = 7654321, n_cores = NULL, verbose = TRUE, max_retries = 3) {
+nm_train_model <- function(df, value = "value", variables = NULL, model_config = NULL, seed = 7654321,
+                           n_cores = NULL, verbose = TRUE, max_retries = 3) {
 
   # Check for duplicate variables
   if (length(unique(variables)) != length(variables)) {
     stop("`variables` contains duplicate elements.")
   }
 
-  # Check if all variables are in the DataFrame
+  # Check if all variables exist in the DataFrame
   if (!all(variables %in% colnames(df))) {
-    stop("`variables` given are not within input data frame.")
+    stop("`variables` are not found in the input data frame.")
   }
 
   # Extract relevant data for training
-  if ("set" %in% colnames(df)) {
-    df_train <- df %>%
-      filter(set == "training") %>%
-      select(all_of(c(value, variables)))
+  df_train <- if ("set" %in% colnames(df)) {
+    df %>% dplyr::filter(set == "training") %>% dplyr::select(all_of(c(value, variables)))
   } else {
-    df_train <- df %>%
-      select(all_of(c(value, variables)))
+    df %>% dplyr::select(all_of(c(value, variables)))
   }
 
-  # Default configuration for model training
+  # Default model configuration parameters
   default_model_config <- list(
-    time_budget = NULL,                  # Total running time in seconds
-    nfolds = 5,                          # Number of folds for cross-validation
-    max_models = 10,                     # Maximum number of models to train
-    max_mem_size = "12g",                # Maximum memory size
-    estimator_list = c("GBM"),           # List of algorithms to use in AutoML
-    verbose = verbose                    # Print progress messages
+    max_models = 10,                  # Maximum number of models to train
+    nfolds = 5,                       # Number of cross-validation folds
+    max_mem_size = '12G',             # Maximum memory for H2O
+    include_algos = c('GBM'),         # Algorithms to include (e.g., GBM)
+    save_model = TRUE,                # Whether to save the model
+    model_name = 'automl',            # Name for the saved model
+    model_path = './',                # Path to save the model
+    seed = seed,                      # Random seed for reproducibility
+    verbose = verbose                 # Verbose output for progress
   )
 
   # Update default configuration with user-provided config
@@ -75,60 +76,55 @@ nm_train_model <- function(df, value = "value", variables = NULL, model_config =
     default_model_config <- modifyList(default_model_config, model_config)
   }
 
-  # Set up parallel processing
+  # Set up the number of cores for parallel processing
   n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
 
   # Function to initialize H2O and train the model
   train_model <- function() {
-    # Initialize H2O
     nm_init_h2o(n_cores, max_mem_size = default_model_config$max_mem_size)
-
-    # Convert the training data frame to H2O object
     df_h2o <- h2o::as.h2o(df_train)
     response <- value
     predictors <- setdiff(colnames(df_h2o), response)
 
-    # Print progress message if verbose is TRUE
     if (verbose) {
-      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Training AutoML...", "\n")
+      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Training AutoML...\n")
     }
 
-    # Train AutoML model
+    # Train the AutoML model
     auto_ml <- h2o::h2o.automl(
       x = predictors,
       y = response,
       training_frame = df_h2o,
+      include_algos = default_model_config$include_algos,
       max_models = default_model_config$max_models,
-      max_runtime_secs = default_model_config$time_budget,
-      include_algos = default_model_config$estimator_list,
-      seed = seed
+      nfolds = default_model_config$nfolds,
+      seed = default_model_config$seed
     )
 
-    # Print progress message if verbose is TRUE
     if (verbose) {
-      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Best model obtained! - ", auto_ml@leader@model_id, "\n", sep = "")
+      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Best model obtained - ", auto_ml@leader@model_id, "\n")
     }
 
     return(auto_ml)
   }
 
-  # Try to train the model with retries
+  # Initialize retry count and train the model with retry mechanism
   retry_count <- 0
   auto_ml <- NULL
 
-  # Loop to retry training in case of an error
+  # Loop to retry training if an error occurs
   while (is.null(auto_ml) && retry_count < max_retries) {
     retry_count <- retry_count + 1
     tryCatch({
-      auto_ml <- train_model()  # Attempt to train the model
+      auto_ml <- train_model()
     }, error = function(e) {
-      # If an error occurs, print error message and retry
       if (verbose) {
-        cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Error occurred - ", e$message, "\n", sep = "")
-        cat("Retrying... (attempt ", retry_count, " of ", max_retries, ")\n", sep = "")
+        cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Error occurred - ", e$message, "\n")
+        cat("Retrying... (Attempt ", retry_count, " of ", max_retries, ")\n")
       }
-      h2o::h2o.shutdown(prompt = FALSE) # Shut down the current H2O instance
-      Sys.sleep(5)                      # Wait for a few seconds before retrying
+      # Shut down the H2O instance and retry after a short delay
+      h2o::h2o.shutdown(prompt = FALSE)
+      Sys.sleep(5)
     })
   }
 
@@ -137,5 +133,12 @@ nm_train_model <- function(df, value = "value", variables = NULL, model_config =
     stop("Failed to train the model after ", max_retries, " attempts.")
   }
 
-  return(auto_ml)  # Return the trained model
+  # Save the model if configured to do so
+  if (default_model_config$save_model) {
+    nm_save_h2o(auto_ml@leader, default_model_config$model_path, default_model_config$model_name)
+  }
+
+  model <- auto_ml@leader
+
+  return(model)
 }

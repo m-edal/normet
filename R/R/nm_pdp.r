@@ -24,7 +24,8 @@
 #' }
 #' @export
 nm_pdp <- function(df, model, variables = NULL, training_only = TRUE, grid.resolution = 20, n_cores = NULL) {
-  feature_names <- h2o.varimp(model)$variable
+
+  feature_names <- nm_extract_feature_names(model)
 
   if (is.null(variables)) {
     variables <- feature_names
@@ -41,7 +42,7 @@ nm_pdp <- function(df, model, variables = NULL, training_only = TRUE, grid.resol
     library(h2o)
     library(pdp)
     library(dplyr)
-    nm_init_h2o <- function(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G") {
+    nm_init_h2o <- function(n_cores = NULL, max_mem_size = "16G") {
       if (is.null(n_cores)) {
         n_cores <- parallel::detectCores() - 1
       }
@@ -53,7 +54,7 @@ nm_pdp <- function(df, model, variables = NULL, training_only = TRUE, grid.resol
         }
       }, error = function(e) {
         message("H2O is not running. Starting H2O...")
-        h2o::h2o.init(nthreads = n_cores, min_mem_size = min_mem_size, max_mem_size = max_mem_size)
+        h2o::h2o.init(nthreads = n_cores, max_mem_size = max_mem_size)
         h2o::h2o.no_progress()
       })
     }
