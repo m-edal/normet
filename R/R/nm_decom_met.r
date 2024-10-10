@@ -15,7 +15,7 @@
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
-#' @return A list containing the decomposed data frame and model statistics.
+#' @return A data frame with decomposed components.
 #'
 #' @examples
 #' \dontrun{
@@ -36,25 +36,24 @@ nm_decom_met <- function(df = NULL, model = NULL, value = NULL, feature_names = 
 
   # Train model if not provided
   if (is.null(model)) {
-    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
-    df <- res$df
-    model <- res$model
+    df_model <- prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- df_model$df
+    model <- df_model$model
+  } else if (!"value" %in% colnames(df)) {
+    vars <- setdiff(feature_names, c('date_unix', 'day_julian', 'weekday', 'hour'))
+    df <- nm_prepare_data(df, value, feature_names = vars, split_method = split_method, fraction = fraction, seed = seed)
   }
 
-  # Gather model statistics for testing, training, and all data
-  mod_stats <- nm_modStats(df, model)
-
-  # Determine feature importances and sort them
-  feature_importances <- as.data.frame(h2o::h2o.varimp(model)) %>%
-    select(variable, relative_importance) %>%
-    arrange(ifelse(importance_ascending, relative_importance, -relative_importance))
+  # Extract and sort feature importance
+  feature_names_sorted <- nm_extract_feature_names(model, importance_ascending = importance_ascending)
 
   # Initialize the dataframe for decomposed components
   df_dew <- df %>% select(date, value) %>% rename(observed = value)
 
-  # Create a list of features to be excluded
-  met_list <- c('deweathered', feature_importances$variable[!feature_importances$variable %in% c('hour', 'weekday', 'day_julian', 'date_unix')])
-  var_names <- feature_importances$variable[!feature_importances$variable %in% c('hour', 'weekday', 'day_julian', 'date_unix')]
+  # Create feature exclusion list
+  met_list <- c('deweathered', feature_names_sorted[!feature_names_sorted %in% c('hour', 'weekday', 'day_julian', 'date_unix')])
+
+  var_names <- feature_names_sorted[!feature_names_sorted %in% c('hour', 'weekday', 'day_julian', 'date_unix')]
 
   # Default logic for CPU cores
   n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
@@ -71,39 +70,67 @@ nm_decom_met <- function(df = NULL, model = NULL, value = NULL, feature_names = 
   start_time <- Sys.time()  # Initialize start time before the loop
 
   for (i in seq_along(met_list)) {
-    var_to_exclude <- met_list[i]
+
+    var_to_exclude <- met_list[i]  # Get the current variable to exclude
     pb$tick()  # Update progress bar
 
-    var_names <- setdiff(var_names, var_to_exclude)
+    var_names <- setdiff(var_names, var_to_exclude)  # Exclude the current variable from the variable names
 
-    df_dew_temp <- nm_normalise(df, model, feature_names = feature_names, variables_resample = var_names,
-                             n_samples = n_samples, n_cores = n_cores, seed = seed, verbose = FALSE)
+    success <- FALSE
+    retries <- 3  # Set the number of retries
 
-    if (nrow(df_dew_temp) == 0) {
-      stop(paste("normalisation failed for variable:", var_to_exclude))
+    while (!success && retries > 0) {
+      tryCatch({
+        # Normalize the data, excluding the current variable
+        df_dew_temp <- nm_normalise(df, model, feature_names = feature_names,
+                                    variables_resample = var_names, n_samples = n_samples,
+                                    n_cores = n_cores, seed = seed, verbose = FALSE)
+
+        # Check if the normalization produced any results
+        if (nrow(df_dew_temp) == 0) {
+          stop(paste("Normalization failed for variable:", var_to_exclude))  # Stop with an error message if no rows
+        }
+
+        # Store the normalized results
+        df_dew[[var_to_exclude]] <- df_dew_temp$normalised
+
+        success <- TRUE  # Set success to TRUE to exit the retry loop
+
+      }, error = function(e) {
+        # Print an error message if normalization fails
+        cat(sprintf("%s: Error during normalization for variable '%s': %s\n",
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                    var_to_exclude, e$message))
+
+        retries <- retries - 1  # Decrease the retry count
+        if (retries > 0) {
+          cat(sprintf("Retrying... %d attempts left.\n", retries))  # Indicate remaining attempts
+          Sys.sleep(10)  # Wait for 10 seconds before retrying
+        } else {
+          cat("Failed after 3 attempts. Moving to the next variable.\n")  # Indicate failure after retries
+          df_dew[[var_to_exclude]] <- NULL  # Optionally set to NULL if all attempts fail
+        }
+      })
     }
-
-    df_dew[[var_to_exclude]] <- df_dew_temp$normalised
   }
 
-  # Initialize df_dewwc with the original data frame
-  df_dewwc <- df_dew
-
-  # Extract the relevant feature names excluding specified ones
-  relevant_features <- feature_importances$variable[!feature_importances$variable %in% c('hour', 'weekday', 'day_julian', 'date_unix')]
+  # Initialize result with the original data frame
+  result <- df_dew
 
   # Loop through the relevant features and compute the adjusted values
-  for (i in seq_along(relevant_features)) {
-    param <- relevant_features[i]
-    if (i > 1) {
-      df_dewwc[[param]] <- df_dew[[param]] - df_dew[[met_list[i - 1]]]
-    } else {
-      df_dewwc[[param]] <- df_dew[[param]] - df_dew[['deweathered']]
+  for (i in seq_along(feature_names_sorted)) {
+    param <- feature_names_sorted[i]
+    if (!param %in% c('hour', 'weekday', 'day_julian', 'date_unix')) {
+      if (i > 1) {
+        result[[param]] <- df_dew[[param]] - df_dew[[met_list[i - 1]]]
+      } else {
+        result[[param]] <- df_dew[[param]] - df_dew[['deweathered']]
+      }
     }
   }
 
   # Compute 'met_noise' column
-  df_dewwc[['met_noise']] <- df_dew[['observed']] - df_dew[[met_list[length(met_list)]]]
+  result[['met_noise']] <- df_dew[['observed']] - df_dew[[met_list[length(met_list)]]]
 
-  return(list(df_dewwc = df_dewwc, mod_stats = mod_stats))
+  return(result)
 }

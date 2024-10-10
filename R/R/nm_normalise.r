@@ -2,7 +2,7 @@
 #'
 #' \code{nm_generate_resampled} resamples specified variables in the input DataFrame.
 #'
-#' @param df_batch Input data frame batch.
+#' @param df Input data frame batch.
 #' @param variables_resample A vector of variables to be resampled.
 #' @param replace Logical indicating whether to sample with replacement.
 #' @param seed A random seed for reproducibility.
@@ -18,30 +18,24 @@
 #' }
 #'
 #' @export
-nm_generate_resampled <- function(df_batch, variables_resample, replace, seed, weather_df=NULL) {
-    # Set the random seed for reproducibility
+nm_generate_resampled <- function(df, variables_resample, replace, seed, verbose, weather_df = NULL) {
+
+    # Set random seed for reproducibility
     set.seed(seed)
 
-    # Resample variables
-    if (!is.null(weather_df) && nrow(weather_df) == nrow(df_batch)) {
-        # Randomly sample indices from the input DataFrame
-        index_rows <- sample(nrow(df_batch), size=nrow(df_batch), replace=replace)
-        # Resample the specified variables using the sampled indices
-        df_batch[variables_resample] <- df_batch[variables_resample][index_rows, ]
+    # Resample the specified meteorological variables with or without replacement
+    if (!is.null(weather_df)) {
+        df[variables_resample] <- weather_df[variables_resample] %>%
+            dplyr::sample_n(nrow(df), replace = replace)
     } else {
-        # Sample meteorological parameters from the provided weather DataFrame
-        sampled_meteorological_params <- weather_df[variables_resample] %>%
-            dplyr::sample_n(nrow(weather_df), replace=replace)
-        # Use the sampled parameters to resample the specified variables in the input DataFrame
-        df_batch[variables_resample] <- sampled_meteorological_params %>%
-            dplyr::sample_n(nrow(df_batch), replace=replace)
+        # If no weather_df is provided, resample from df itself
+        df[variables_resample] <- df[variables_resample] %>%
+            dplyr::sample_n(nrow(df), replace = replace)
     }
 
-    # Add seed column to the batch
-    df_batch$seed <- seed
-
-    return(df_batch)
+    return(df)
 }
+
 
 #' normalise the Dataset Using the Trained Model
 #'

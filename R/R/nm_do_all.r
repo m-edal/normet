@@ -3,7 +3,6 @@
 #' \code{nm_do_all} performs the entire process of training a model, normalising the data, and collecting model statistics.
 #'
 #' @param df Data frame containing the input data.
-#' @param model Pre-trained model for normalisation. If not provided, a model will be trained.
 #' @param value The target variable name as a string.
 #' @param feature_names The names of the features used for training and normalisation.
 #' @param variables_resample The names of the variables to be resampled for normalisation. Default is NULL (all feature names except date_unix).
@@ -27,7 +26,7 @@
 #' result <- nm_do_all(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)
 #' }
 #' @export
-nm_do_all <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
+nm_do_all <- function(df = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
                    model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, aggregate = TRUE, weather_df = NULL, verbose = TRUE) {
   set.seed(seed)
   # Default logic for CPU cores
@@ -37,11 +36,9 @@ nm_do_all <- function(df = NULL, model = NULL, value = NULL, feature_names = NUL
   nm_init_h2o(n_cores)
 
   # Train model if not provided
-  if (is.null(model)) {
-    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
-    df <- res$df
-    model <- res$model
-  }
+  res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+  df <- res$df
+  model <- res$model
 
   # Collect model statistics
   mod_stats <- nm_modStats(df, model)

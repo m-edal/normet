@@ -46,6 +46,185 @@ df1a <- nm_prepare_data(data, value='no2',feature_names=c('ws', 'wd', 'air_temp'
 df1b <- df1a
 ```
 
+```{r}
+#' Train a model using H2O's AutoML
+#'
+#' \code{nm_train_model} is a function to train a model using H2O's AutoML.
+#' It initializes H2O, checks for duplicate and missing variables, extracts relevant data for training,
+#' sets up parallel processing, and trains the model using AutoML.
+#'
+#' @param df Input data frame containing the data to be used for training.
+#' @param value The target variable name as a string. Default is "value".
+#' @param variables Independent/explanatory variables used for training the model.
+#' @param model_config A list containing configuration parameters for model training. If not provided, defaults will be used.
+#' @param seed A random seed for reproducibility. Default is 7654321.
+#' @param n_cores Number of CPU cores to use for the model training. Default is system's total minus one.
+#' @param verbose Should the function print progress messages? Default is TRUE.
+#' @param max_retries Number of times to retry training the model if a connection error occurs. Default is 3.
+#'
+#' @return The trained AutoML model.
+#'
+#' @examples
+#' \donttest{
+#' # Load necessary libraries
+#' library(h2o)
+#' library(dplyr)
+#'
+#' # Prepare example data
+#' data_example <- data.frame(
+#'   value = rnorm(100),
+#'   var1 = rnorm(100),
+#'   var2 = rnorm(100),
+#'   set = rep(c("training", "testing"), 50)
+#' )
+#'
+#' # Train AutoML model using the example data
+#' model <- nm_train_model(
+#'   df = data_example,
+#'   value = "value",
+#'   variables = c("var1", "var2"),
+#'   model_config = list(max_models = 5, time_budget = 600)
+#' )
+#' }
+#' @export
+nm_train_model <- function(df, value = "value", variables = NULL, model_config = NULL, seed = 7654321,
+                           n_cores = NULL, verbose = TRUE, max_retries = 3) {
+
+  # Check for duplicate variables
+  if (length(unique(variables)) != length(variables)) {
+    stop("`variables` contains duplicate elements.")
+  }
+
+  # Check if all variables exist in the DataFrame
+  if (!all(variables %in% colnames(df))) {
+    stop("`variables` are not found in the input data frame.")
+  }
+
+  # Extract relevant data for training
+  df_train <- if ("set" %in% colnames(df)) {
+    df %>% dplyr::filter(set == "training") %>% dplyr::select(all_of(c(value, variables)))
+  } else {
+    df %>% dplyr::select(all_of(c(value, variables)))
+  }
+
+  # Default model configuration parameters
+  default_model_config <- list(
+    max_models = 10,                  # Maximum number of models to train
+    nfolds = 5,                       # Number of cross-validation folds
+    max_mem_size = '12G',             # Maximum memory for H2O
+    include_algos = c('GBM'),         # Algorithms to include (e.g., GBM)
+    save_model = TRUE,                # Whether to save the model
+    model_name = 'automl',            # Name for the saved model
+    model_path = './',                # Path to save the model
+    seed = seed,                      # Random seed for reproducibility
+    verbose = verbose                 # Verbose output for progress
+  )
+
+  # Update default configuration with user-provided config
+  if (!is.null(model_config)) {
+    default_model_config <- modifyList(default_model_config, model_config)
+  }
+
+  # Set up the number of cores for parallel processing
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Function to initialize H2O and train the model
+  train_model <- function() {
+    nm_init_h2o(n_cores, max_mem_size = default_model_config$max_mem_size)
+    df_h2o <- h2o::as.h2o(df_train)
+    response <- value
+    predictors <- setdiff(colnames(df_h2o), response)
+
+    if (verbose) {
+      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Training AutoML...\n")
+    }
+
+    # Train the AutoML model
+    auto_ml <- h2o::h2o.automl(
+      x = predictors,
+      y = response,
+      training_frame = df_h2o,
+      include_algos = default_model_config$include_algos,
+      max_models = default_model_config$max_models,
+      nfolds = default_model_config$nfolds,
+      seed = default_model_config$seed
+    )
+
+    if (verbose) {
+      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Best model obtained - ", auto_ml@leader@model_id, "\n")
+    }
+
+    return(auto_ml)
+  }
+
+  # Initialize retry count and train the model with retry mechanism
+  retry_count <- 0
+  auto_ml <- NULL
+
+  # Loop to retry training if an error occurs
+  while (is.null(auto_ml) && retry_count < max_retries) {
+    retry_count <- retry_count + 1
+    tryCatch({
+      auto_ml <- train_model()
+    }, error = function(e) {
+      if (verbose) {
+        cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Error occurred - ", e$message, "\n")
+        cat("Retrying... (Attempt ", retry_count, " of ", max_retries, ")\n")
+      }
+      # Shut down the H2O instance and retry after a short delay
+      h2o::h2o.shutdown(prompt = FALSE)
+      Sys.sleep(5)
+    })
+  }
+
+  # If all retries fail, stop the function and report failure
+  if (is.null(auto_ml)) {
+    stop("Failed to train the model after ", max_retries, " attempts.")
+  }
+
+  # Save the model if configured to do so
+  if (default_model_config$save_model) {
+    nm_save_h2o(auto_ml@leader, default_model_config$model_path, default_model_config$model_name)
+  }
+
+  model <- auto_ml@leader
+
+  return(model)
+}
+
+# Helper function to save the model
+nm_save_h2o <- function(model, path = './', filename = 'automl') {
+  # Ensure the output directory exists
+  if (!dir.exists(path)) {
+    dir.create(path, recursive = TRUE)
+  }
+
+  # Save the model to the specified directory
+  model_path <- h2o::h2o.saveModel(model, path = path, force = TRUE)
+  new_model_path <- file.path(path, filename)
+
+  # Rename the model file to the desired filename
+  file.rename(model_path, new_model_path)
+
+  return(new_model_path)
+}
+
+nm_load_h2o <- function(path = './', filename = 'automl') {
+  # Construct the full path to the model file
+  model_path <- file.path(path, filename)
+
+  # Load the H2O model
+  model <- h2o.loadModel(model_path)
+
+  return(model)  # Return the loaded model
+}
+
+```
+
+```{r}
+model1<- nm_load_h2o()
+```
+
 
 ```{r}
 start_time <- Sys.time()
@@ -69,6 +248,9 @@ df1b$value_predictx <- nm_predict(automl@leader,df1b)
 nm_modStats(df1b, automl@leader)
 ```
 
+```{r}
+df1b <- head(df1a, 10000)
+```
 
 
 
@@ -83,12 +265,7 @@ print(execution_time)
 ```
 
 
-```{r}
-#loaded_model <- load_h2o_model(automl)
-dfdoall <- nm_do_all(df1b,model = automl@leader,feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'))
 
-
-```
 
 
 ```{r}
@@ -101,18 +278,928 @@ doallunc <-nm_do_all_unc(df1b,value='value',feature_names = c('ws', 'wd', 'air_t
 
 
 
+
 ```{r}
-dfrolling <- nm_rolling(df1b, model = automl@leader, value='value', feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), n_samples=100,window_days=14, rolling_every=7)
+dfrolling <- nm_rolling1(df1b, model = automl@leader, value='value', feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), n_samples=100,window_days=14, rolling_every=7)
 ```
 
 
 ```{r}
-dfdeemi <- nm_decom_emi(df1b, model = automl@leader,feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), n_samples=300)
+nm_rolling1 <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
+                       model_config = NULL, n_samples = 300, window_days = 14, rolling_every = 7, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+  set.seed(seed)
+
+  # Default logic for CPU cores
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Initialize H2O
+  nm_init_h2o(n_cores)
+
+  # Train model if not provided
+  if (is.null(model)) {
+    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- res$df
+    model <- res$model
+  }
+
+  df$date_d <- as.Date(df$date)
+
+  # Define the rolling window range
+  date_max <- as.Date(max(df$date_d)) - window_days + 1
+  rolling_dates <- unique(df$date_d[df$date_d <= date_max])[seq(1, length(unique(df$date_d[df$date_d <= date_max])), by = rolling_every)]
+
+  # Initialize the progress bar
+  pb <- progress_bar$new(
+    format = "  Rolling window :current/:total [:bar] :percent :elapsedfull ETA: :eta",
+    total = length(rolling_dates),
+    clear = FALSE,
+    width = 80
+  )
+
+  # Initialize a list to store the results of each rolling window
+  rolling_results <- list()
+
+  # Apply the rolling window approach directly on df_dew
+  start_time <- Sys.time()
+  for (i in seq_along(rolling_dates)) {
+    ds <- rolling_dates[i]
+
+    dfa <- df %>%
+      filter(date_d >= ds & date_d < (ds + days(window_days)))
+
+    success <- FALSE
+    tryCatch({
+      # Normalize the data within the rolling window
+      dfar <- nm_normalise(dfa, model, feature_names, variables_resample, n_samples, replace=TRUE, aggregate=TRUE, seed=seed, n_cores=n_cores, verbose=FALSE)
+
+      # Rename the 'normalised' column to include the rolling window index
+      dfar <- dfar %>%
+        select(date, normalised) %>%
+        rename(!!paste0('rolling_', i) := normalised)
+
+      # Store the results of the current rolling window
+      rolling_results[[i]] <- dfar
+
+      # Update the progress bar
+      pb$tick()
+
+      success <- TRUE
+    }, error = function(e) {
+      cat(sprintf("%s: Error during normalization for rolling window %d from %s to %s: %s",
+                  format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                  i, min(dfa$date), max(dfa$date), e$message))
+      rolling_results[[i]] <- NULL  # Ensure the list has the same length
+    })
+
+    if (!success) {
+      Sys.sleep(10)
+    }
+  }
+
+  # Filter out NULL results
+  rolling_results <- rolling_results[!sapply(rolling_results, is.null)]
+
+  # Merge all rolling window results by 'date'
+  combined_results <- rolling_results %>%
+   reduce(left_join, by = "date")
+
+  return(combined_results)
+}
+
+```
+
+```{r}
+dfrolling <- nm_rolling1(df1b, value='value', feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), n_samples=100,window_days=14, rolling_every=7)
+```
+
+```{r}
+nm_prepare_train_model <- function(df, value, feature_names, split_method, fraction, model_config, seed, verbose=TRUE) {
+
+    vars <- setdiff(feature_names, c('date_unix', 'day_julian', 'weekday', 'hour'))
+
+    # Prepare the data
+    df <- nm_prepare_data(df, value=value, feature_names=vars, split_method=split_method, fraction=fraction, seed=seed)
+
+    # Train the model using AutoML
+    auto_ml <- nm_train_model(df, value='value', variables=feature_names, model_config=model_config, seed=seed, verbose=verbose)
+
+    return(list(df = df, model = auto_ml))
+}
+
+```
+
+```{r}
+nm_train_model <- function(df, value = "value", variables = NULL, model_config = NULL, seed = 7654321,
+                           n_cores = NULL, verbose = TRUE, max_retries = 3) {
+
+  # Check for duplicate variables
+  if (length(unique(variables)) != length(variables)) {
+    stop("`variables` contains duplicate elements.")
+  }
+
+  # Check if all variables exist in the DataFrame
+  if (!all(variables %in% colnames(df))) {
+    stop("`variables` are not found in the input data frame.")
+  }
+
+  # Extract relevant data for training
+  df_train <- if ("set" %in% colnames(df)) {
+    df %>% dplyr::filter(set == "training") %>% dplyr::select(all_of(c(value, variables)))
+  } else {
+    df %>% dplyr::select(all_of(c(value, variables)))
+  }
+
+  # Default model configuration parameters
+  default_model_config <- list(
+    max_models = 10,                  # Maximum number of models to train
+    nfolds = 5,                       # Number of cross-validation folds
+    max_mem_size = '12G',             # Maximum memory for H2O
+    include_algos = c('GBM'),         # Algorithms to include (e.g., GBM)
+    save_model = TRUE,                # Whether to save the model
+    model_name = 'automl',            # Name for the saved model
+    model_path = './',                # Path to save the model
+    seed = seed,                      # Random seed for reproducibility
+    verbose = verbose                 # Verbose output for progress
+  )
+
+  # Update default configuration with user-provided config
+  if (!is.null(model_config)) {
+    default_model_config <- modifyList(default_model_config, model_config)
+  }
+
+  # Set up the number of cores for parallel processing
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Function to initialize H2O and train the model
+  train_model <- function() {
+    nm_init_h2o(n_cores, max_mem_size = default_model_config$max_mem_size)
+    df_h2o <- h2o::as.h2o(df_train)
+    response <- value
+    predictors <- setdiff(colnames(df_h2o), response)
+
+    if (verbose) {
+      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Training AutoML...\n")
+    }
+
+    # Train the AutoML model
+    auto_ml <- h2o::h2o.automl(
+      x = predictors,
+      y = response,
+      training_frame = df_h2o,
+      include_algos = default_model_config$include_algos,
+      max_models = default_model_config$max_models,
+      nfolds = default_model_config$nfolds,
+      seed = default_model_config$seed
+    )
+
+    if (verbose) {
+      cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Best model obtained - ", auto_ml@leader@model_id, "\n")
+    }
+
+    return(auto_ml)
+  }
+
+  # Initialize retry count and train the model with retry mechanism
+  retry_count <- 0
+  auto_ml <- NULL
+
+  # Loop to retry training if an error occurs
+  while (is.null(auto_ml) && retry_count < max_retries) {
+    retry_count <- retry_count + 1
+    tryCatch({
+      auto_ml <- train_model()
+    }, error = function(e) {
+      if (verbose) {
+        cat(format(Sys.time(), "%Y-%m-%d %H:%M:%OS"), ": Error occurred - ", e$message, "\n")
+        cat("Retrying... (Attempt ", retry_count, " of ", max_retries, ")\n")
+      }
+      # Shut down the H2O instance and retry after a short delay
+      h2o::h2o.shutdown(prompt = FALSE)
+      Sys.sleep(5)
+    })
+  }
+
+  # If all retries fail, stop the function and report failure
+  if (is.null(auto_ml)) {
+    stop("Failed to train the model after ", max_retries, " attempts.")
+  }
+
+  # Save the model if configured to do so
+  if (default_model_config$save_model) {
+    nm_save_h2o(auto_ml@leader, default_model_config$model_path, default_model_config$model_name)
+  }
+
+  return(auto_ml@leader)
+}
+
+# Helper function to save the model
+nm_save_h2o <- function(model, path, filename) {
+  # Ensure the output directory exists
+  if (!dir.exists(path)) {
+    dir.create(path, recursive = TRUE)
+  }
+
+  # Save the model to the specified directory
+  model_path <- h2o::h2o.saveModel(model, path = path, force = TRUE)
+  new_model_path <- file.path(path, filename)
+
+  # Rename the model file to the desired filename
+  file.rename(model_path, new_model_path)
+
+  return(new_model_path)
+}
+```
+
+```{r}
+
 ```
 
 
 ```{r}
-pdp_values <-nm_pdp(df1b,automl@leader, variables = c('ws','blh'))
+nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
+                       model_config = NULL, n_samples = 300, window_days = 14, rolling_every = 7, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+  set.seed(seed)
+
+  # Default logic for CPU cores
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Initialize H2O
+  nm_init_h2o(n_cores)
+
+  # Train model if not provided
+  if (is.null(model)) {
+    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- res$df
+    model <- res$model
+  }
+
+  # Gather model statistics for testing, training, and all data
+  mod_stats <- nm_modStats(df, model)
+
+  df <- df %>% mutate(date_d = as.Date(date))
+
+  # Define the rolling window range
+  date_max <- max(df$date_d, na.rm = TRUE) - days(window_days - 1)
+  rolling_dates <- unique(df$date_d[df$date_d <= date_max])[seq(1, length(unique(df$date_d[df$date_d <= date_max])), by = rolling_every)]
+
+  # Initialize the progress bar
+  pb <- progress_bar$new(
+    format = "  Rolling window :current/:total [:bar] :percent :elapsedfull ETA: :eta",
+    total = length(rolling_dates),
+    clear = FALSE,
+    width = 80
+  )
+
+  # Initialize a list to store the results of each rolling window
+  rolling_results <- list()
+
+  # Apply the rolling window approach directly on df_dew
+  start_time <- Sys.time()
+  for (i in seq_along(rolling_dates)) {
+    ds <- rolling_dates[i]
+
+    dfa <- df %>%
+      filter(date_d >= ds & date_d <= (ds + days(window_days - 1)))
+
+    success <- FALSE
+    tryCatch({
+      # Normalize the data within the rolling window
+      dfar <- nm_normalise(dfa, model, feature_names, variables_resample, n_samples, replace=TRUE, aggregate=TRUE, seed=seed, n_cores=n_cores, verbose=FALSE)
+
+      # Rename the 'normalised' column to include the rolling window index
+      dfar <- dfar %>%
+        select(date, normalised) %>%
+        rename(!!paste0('rolling_', i) := normalised)
+
+      # Store the results of the current rolling window
+      rolling_results[[i]] <- dfar
+
+      # Update the progress bar
+      pb$tick()
+
+      success <- TRUE
+    }, error = function(e) {
+      cat(sprintf("%s: Error during normalization for rolling window %d from %s to %s: %s",
+                  format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                  i, min(dfa$date), max(dfa$date), e$message))
+      rolling_results[[i]] <- NULL  # Ensure the list has the same length
+    })
+
+    if (!success) {
+      Sys.sleep(10)
+    }
+  }
+
+  # Filter out NULL results
+  rolling_results <- rolling_results[!sapply(rolling_results, is.null)]
+
+  # Merge all rolling window results by 'date'
+  combined_results <- rolling_results %>%
+   reduce(left_join, by = "date")
+
+  return(list(df_dew = combined_results, mod_stats = mod_stats))
+}
+
+```
+
+
+```{r}
+dfrolling <- nm_rolling(df1b, value='value', feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), n_samples=100,window_days=14, rolling_every=7)
+```
+
+
+```{r}
+start_time <- Sys.time()
+model_config<- list(
+  max_models = 10,
+  max_mem_size = '16g'
+)
+automl <- nm_train_model(df1b, variables = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), model_config = model_config)
+end_time <- Sys.time()
+execution_time <- end_time - start_time
+print(execution_time)
+```
+
+
+```{r}
+dfrolling1 <- nm_rolling(df1b,  model=automl, feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), variables_resample = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp'), n_samples=100,window_days=14, rolling_every=7)
+```
+
+```{r}
+nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, split_method = 'random', fraction = 0.75,
+                      model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+
+  # Check if h2o is already initialized
+  nm_init_h2o(n_cores)
+
+  set.seed(seed)
+
+  # Train model if not provided
+  if (is.null(model)) {
+    res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- res$df
+    model <- res$model
+  }
+
+  # Initialize the dataframe for decomposed components
+  df_dew <- df %>% select(date, value) %>% rename(observed = value)
+
+  # Default logic for CPU cores
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Initialize progress bar
+  pb <- progress_bar$new(
+    format = "  Iterative subtracting :current/:total [:bar] :percent :elapsedfull ETA: :eta",
+    total = length(c('base', 'date_unix', 'day_julian', 'weekday', 'hour')),
+    clear = FALSE,
+    width = 80
+  )
+
+  # Decompose the time series by excluding different features
+  var_names <- feature_names
+  start_time <- Sys.time()  # Initialize start time before the loop
+
+  for (i in seq_along(c('base', 'date_unix', 'day_julian', 'weekday', 'hour'))) {
+
+    pb$tick()  # Update progress bar
+
+    var_to_exclude <- c('base', 'date_unix', 'day_julian', 'weekday', 'hour')[i]
+
+    var_names <- setdiff(var_names, var_to_exclude)
+
+    success <- FALSE
+    retries <- 3  # Set the number of retries
+
+    while (!success && retries > 0) {
+      tryCatch({
+        # Normalize the data, excluding the current variable
+        df_dew_temp <- nm_normalise(df, model, feature_names = feature_names,
+                                    variables_resample = var_names, n_samples = n_samples,
+                                    n_cores = n_cores, seed = seed, verbose = FALSE)
+
+        # Store the normalized data for the excluded variable
+        df_dew[[var_to_exclude]] <- df_dew_temp$normalised
+
+        success <- TRUE  # If successful, break the loop
+      }, error = function(e) {
+        cat(sprintf("%s: Error during normalization for variable '%s': %s\n",
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                    var_to_exclude, e$message))
+
+        retries <- retries - 1  # Decrease the retry count
+        if (retries > 0) {
+          cat(sprintf("Retrying... %d attempts left.\n", retries))
+          Sys.sleep(10)  # Wait for 10 seconds before retrying
+        } else {
+          cat("Failed after 3 attempts. Moving to the next variable.\n")
+          df_dew[[var_to_exclude]] <- NULL  # Optionally, set to NULL if failure persists
+        }
+      })
+    }
+  }
+
+  # Adjust the decomposed components to create deweathered values
+  result <- df_dew %>%
+    mutate(
+      deweathered = hour,
+      hour = hour - weekday,
+      weekday = weekday - day_julian,
+      day_julian = day_julian - date_unix,
+      date_unix = date_unix - base + mean(base, na.rm = TRUE),
+      emi_noise = base - mean(base, na.rm = TRUE)
+    )
+
+  return(result)
+}
+
+
+```
+
+```{r}
+#' Extract and Sort Feature Names by Importance
+#'
+#' \code{extract_feature_names} extracts feature names from an H2O model and sorts them by their importance.
+#'
+#' This function uses H2O's \code{varimp} function to extract feature importance from the model and
+#' returns the feature names sorted by their relative importance. You can control whether the
+#' sorting is in ascending or descending order using the \code{importance_ascending} argument.
+#'
+#' @param model The trained H2O model object.
+#' @param importance_ascending A logical value indicating whether to sort feature names in ascending order
+#' of importance. Default is \code{FALSE} (descending order).
+#'
+#' @return A vector of sorted feature names based on their importance.
+#'
+#' @examples
+#' \dontrun{
+#' library(h2o)
+#' h2o.init()
+#' df <- as.h2o(iris)
+#' model <- h2o.gbm(x = 1:4, y = 5, training_frame = df)
+#' feature_names <- extract_feature_names(model, importance_ascending = TRUE)
+#' print(feature_names)
+#' }
+#' @export
+nm_extract_feature_names <- function(model, importance_ascending = FALSE) {
+  # Extract variable importance using H2O's varimp function
+  varimp_df <- as.data.frame(h2o.varimp(model))
+
+  # Check if variable importance data is available
+  if (nrow(varimp_df) == 0) {
+    stop("The H2O model does not have variable importance information.")
+  }
+
+  # Extract feature names and sort by relative importance
+  feature_names <- varimp_df$variable
+  feature_names <- feature_names[order(varimp_df$relative_importance, decreasing = !importance_ascending)]
+
+  # Return the sorted feature names
+  return(feature_names)
+}
+
+```
+
+
+```{r}
+#' Decompose Emissions Influences
+#'
+#' \code{nm_decom_emi} performs decomposition of emissions influences on a time series using a trained model.
+#'
+#' @param df Data frame containing the input data.
+#' @param model Pre-trained model for decomposition. If not provided, a model will be trained.
+#' @param value The target variable name as a string.
+#' @param feature_names The names of the features used for training and decomposition.
+#' @param split_method The method for splitting data into training and testing sets. Default is 'random'.
+#' @param fraction The proportion of the data to be used for training. Default is 0.75.
+#' @param model_config A list containing configuration parameters for model training.
+#' @param n_samples Number of samples to generate for normalisation. Default is 300.
+#' @param seed A random seed for reproducibility. Default is 7654321.
+#' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
+#' @param verbose Should the function print progress messages? Default is TRUE.
+#'
+#' @return The decomposed data frame.
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' library(lubridate)
+#' df <- data.frame(date = Sys.time() + seq(1, 100, by = 1),
+#'                  pollutant = rnorm(100), temp = rnorm(100), humidity = rnorm(100))
+#' result <- nm_decom_emi(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)
+#' }
+#' @export
+nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, split_method = 'random', fraction = 0.75,
+                      model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+
+  # Check if h2o is already initialized
+  nm_init_h2o(n_cores)
+
+  set.seed(seed)
+
+  # Train model if not provided
+  if (is.null(model)) {
+    df_model <- prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- df_model$df
+    model <- df_model$model
+  } else if (!"value" %in% colnames(df)) {
+    vars <- setdiff(feature_names, c('date_unix', 'day_julian', 'weekday', 'hour'))
+    df <- nm_prepare_data(df, value, feature_names = vars, split_method = split_method, fraction = fraction, seed = seed)
+  }
+
+  # Initialize the dataframe for decomposed components
+  df_dew <- df %>% select(date, value) %>% rename(observed = value)
+
+  # Default logic for CPU cores
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Initialize progress bar
+  pb <- progress_bar$new(
+    format = "  Iterative subtracting :current/:total [:bar] :percent :elapsedfull ETA: :eta",
+    total = length(c('base', 'date_unix', 'day_julian', 'weekday', 'hour')),
+    clear = FALSE,
+    width = 80
+  )
+
+  # Decompose the time series by excluding different features
+  var_names <- feature_names
+  start_time <- Sys.time()  # Initialize start time before the loop
+
+  for (i in seq_along(c('base', 'date_unix', 'day_julian', 'weekday', 'hour'))) {
+
+    pb$tick()  # Update progress bar
+
+    var_to_exclude <- c('base', 'date_unix', 'day_julian', 'weekday', 'hour')[i]
+
+    var_names <- setdiff(var_names, var_to_exclude)
+
+    success <- FALSE
+    retries <- 3  # Set the number of retries
+
+    while (!success && retries > 0) {
+      tryCatch({
+        # Normalize the data, excluding the current variable
+        df_dew_temp <- nm_normalise(df, model, feature_names = feature_names,
+                                    variables_resample = var_names, n_samples = n_samples,
+                                    n_cores = n_cores, seed = seed, verbose = FALSE)
+
+        # Store the normalized data for the excluded variable
+        df_dew[[var_to_exclude]] <- df_dew_temp$normalised
+
+        success <- TRUE  # If successful, break the loop
+      }, error = function(e) {
+        cat(sprintf("%s: Error during normalization for variable '%s': %s\n",
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                    var_to_exclude, e$message))
+
+        retries <- retries - 1  # Decrease the retry count
+        if (retries > 0) {
+          cat(sprintf("Retrying... %d attempts left.\n", retries))
+          Sys.sleep(10)  # Wait for 10 seconds before retrying
+        } else {
+          cat("Failed after 3 attempts. Moving to the next variable.\n")
+          df_dew[[var_to_exclude]] <- NULL  # Optionally, set to NULL if failure persists
+        }
+      })
+    }
+  }
+
+  # Adjust the decomposed components to create deweathered values
+  result <- df_dew %>%
+    mutate(
+      deweathered = hour,
+      hour = hour - weekday,
+      weekday = weekday - day_julian,
+      day_julian = day_julian - date_unix,
+      date_unix = date_unix - base + mean(base, na.rm = TRUE),
+      emi_noise = base - mean(base, na.rm = TRUE)
+    )
+
+  return(result)
+}
+
+```
+
+```{r}
+#' Prepare and Train Model
+#'
+#' \code{nm_prepare_train_model} prepares the data and trains a model using AutoML.
+#'
+#' @param df Data frame containing the input data.
+#' @param value The target variable name as a string.
+#' @param feature_names The names of the features used for training.
+#' @param split_method The method for splitting data into training and testing sets.
+#' @param fraction The proportion of the data to be used for training.
+#' @param model_config A list containing configuration parameters for model training.
+#' @param seed A random seed for reproducibility.
+#' @param verbose Should the function print progress messages? Default is TRUE.
+#'
+#' @return The trained leader model from AutoML.
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' df <- data.frame(
+#'   feature1 = rnorm(100),
+#'   feature2 = rnorm(100),
+#'   target = rnorm(100)
+#' )
+#' res <- nm_prepare_train_model(df, value = "target", feature_names = c("feature1", "feature2"))
+#' }
+#' @export
+nm_prepare_train_model <- function(df, value, feature_names, split_method, fraction, model_config, seed, verbose=TRUE) {
+
+    vars <- setdiff(feature_names, c('date_unix', 'day_julian', 'weekday', 'hour'))
+
+    # Prepare the data
+    df <- nm_prepare_data(df, value=value, feature_names=vars, split_method=split_method, fraction=fraction, seed=seed)
+
+    # Train the model using AutoML
+    auto_ml <- nm_train_model(df, value='value', variables=feature_names, model_config=model_config, seed=seed, verbose=verbose)
+
+    return(list(df = df, model = auto_ml))
+}
+
+```
+
+
+```{r}
+#' Decompose Emissions Influences
+#'
+#' \code{nm_decom_emi} performs decomposition of emissions influences on a time series using a trained model.
+#'
+#' @param df Data frame containing the input data.
+#' @param model Pre-trained model for decomposition. If not provided, a model will be trained.
+#' @param value The target variable name as a string.
+#' @param feature_names The names of the features used for training and decomposition.
+#' @param split_method The method for splitting data into training and testing sets. Default is 'random'.
+#' @param fraction The proportion of the data to be used for training. Default is 0.75.
+#' @param model_config A list containing configuration parameters for model training.
+#' @param n_samples Number of samples to generate for normalisation. Default is 300.
+#' @param seed A random seed for reproducibility. Default is 7654321.
+#' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
+#' @param verbose Should the function print progress messages? Default is TRUE.
+#'
+#' @return The decomposed data frame.
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' library(lubridate)
+#' df <- data.frame(date = Sys.time() + seq(1, 100, by = 1),
+#'                  pollutant = rnorm(100), temp = rnorm(100), humidity = rnorm(100))
+#' result <- nm_decom_emi(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)
+#' }
+#' @export
+nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, split_method = 'random', fraction = 0.75,
+                      model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+
+  # Check if h2o is already initialized
+  nm_init_h2o(n_cores)
+
+  set.seed(seed)
+
+  # Train model if not provided
+  if (is.null(model)) {
+    df_model <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+    df <- df_model$df
+    model <- df_model$model
+  } else if (!"value" %in% colnames(df)) {
+    vars <- setdiff(feature_names, c('date_unix', 'day_julian', 'weekday', 'hour'))
+    df <- nm_prepare_data(df, value, feature_names = vars, split_method = split_method, fraction = fraction, seed = seed)
+  }
+
+  # Initialize the dataframe for decomposed components
+  df_dew <- df %>% select(date, value) %>% rename(observed = value)
+
+  # Default logic for CPU cores
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # Initialize progress bar
+  pb <- progress_bar$new(
+    format = "  Iterative subtracting :current/:total [:bar] :percent :elapsedfull ETA: :eta",
+    total = length(c('base', 'date_unix', 'day_julian', 'weekday', 'hour')),
+    clear = FALSE,
+    width = 80
+  )
+
+  # Decompose the time series by excluding different features
+  var_names <- feature_names
+  start_time <- Sys.time()  # Initialize start time before the loop
+
+  for (i in seq_along(c('base', 'date_unix', 'day_julian', 'weekday', 'hour'))) {
+
+    pb$tick()  # Update progress bar
+
+    var_to_exclude <- c('base', 'date_unix', 'day_julian', 'weekday', 'hour')[i]
+
+    var_names <- setdiff(var_names, var_to_exclude)
+
+    success <- FALSE
+    retries <- 3  # Set the number of retries
+
+    while (!success && retries > 0) {
+      tryCatch({
+        # Normalize the data, excluding the current variable
+        df_dew_temp <- nm_normalise(df, model, feature_names = feature_names,
+                                    variables_resample = var_names, n_samples = n_samples,
+                                    n_cores = n_cores, seed = seed, verbose = FALSE)
+
+        # Store the normalized data for the excluded variable
+        df_dew[[var_to_exclude]] <- df_dew_temp$normalised
+
+        success <- TRUE  # If successful, break the loop
+      }, error = function(e) {
+        cat(sprintf("%s: Error during normalization for variable '%s': %s\n",
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                    var_to_exclude, e$message))
+
+        retries <- retries - 1  # Decrease the retry count
+        if (retries > 0) {
+          cat(sprintf("Retrying... %d attempts left.\n", retries))
+          Sys.sleep(10)  # Wait for 10 seconds before retrying
+        } else {
+          cat("Failed after 3 attempts. Moving to the next variable.\n")
+          df_dew[[var_to_exclude]] <- NULL  # Optionally, set to NULL if failure persists
+        }
+      })
+    }
+  }
+
+  # Adjust the decomposed components to create deweathered values
+  result <- df_dew %>%
+    mutate(
+      deweathered = hour,
+      hour = hour - weekday,
+      weekday = weekday - day_julian,
+      day_julian = day_julian - date_unix,
+      date_unix = date_unix - base + mean(base, na.rm = TRUE),
+      emi_noise = base - mean(base, na.rm = TRUE)
+    )
+
+  return(result)
+}
+
+```
+
+
+```{r}
+dfdeemi <- nm_decom_emi(df1b, model = automl,feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), n_samples=100)
+```
+
+```{r}
+dfdeemi <- nm_decom_emi(df1b, value='value',feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), n_samples=100)
+```
+
+
+
+
+```{r}
+df_dewcbmet<-nm_decom_met(df1b, model=automl,feature_names = c('ws', 'wd', 'air_temp', 'tcc','blh', 'atmos_pres', 'ssrd', 'rh', 'tp', 'date_unix','day_julian','weekday','hour'), n_samples=100)
+```
+
+```{r}
+#' Generate Partial Dependence Plots (PDP)
+#'
+#' \code{nm_pdp} generates partial dependence plots for specified features using a trained model.
+#'
+#' @param df Data frame containing the input data.
+#' @param model The trained model object.
+#' @param variables A vector of feature names for which PDPs are to be generated. Default is NULL (all feature names will be used).
+#' @param training_only Logical indicating whether to use only training data for generating PDPs. Default is TRUE.
+#' @param grid.resolution The number of points to evaluate on the grid for each feature. Default is 20.
+#' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
+#'
+#' @return A data frame containing the partial dependence values.
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' df <- data.frame(
+#'   set = rep(c("train", "test"), each = 50),
+#'   feature1 = rnorm(100),
+#'   feature2 = rnorm(100)
+#' )
+#' model <- lm(feature1 ~ feature2, data = df)
+#' pdp_results <- nm_pdp(df, model, varibales = c("feature1", "feature2"))
+#' }
+#' @export
+nm_pdp <- function(df, model, variables = NULL, training_only = TRUE, grid.resolution = 20, n_cores = NULL) {
+
+  feature_names <- nm_extract_feature_names(model)
+
+  if (is.null(variables)) {
+    variables <- feature_names
+  }
+
+  if (training_only) {
+    df <- df %>% filter(set == "training")
+  }
+
+  n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  cl <- makeCluster(n_cores, type = "SOCK")
+  clusterEvalQ(cl, {
+    library(h2o)
+    library(pdp)
+    library(dplyr)
+    nm_init_h2o <- function(n_cores = NULL, max_mem_size = "16G") {
+      if (is.null(n_cores)) {
+        n_cores <- parallel::detectCores() - 1
+      }
+
+      tryCatch({
+        conn <- h2o.getConnection()
+        if (!h2o.clusterIsUp()) {
+          stop("H2O cluster is not up")
+        }
+      }, error = function(e) {
+        message("H2O is not running. Starting H2O...")
+        h2o::h2o.init(nthreads = n_cores, max_mem_size = max_mem_size)
+        h2o::h2o.no_progress()
+      })
+    }
+    nm_init_h2o()
+  })
+  doSNOW::registerDoSNOW(cl)
+
+  # Create a progress bar
+  pb <- progress_bar$new(
+    format = "  Processing [:bar] :percent eta: :eta",
+    total = length(variables),
+    width = 80
+  )
+
+  # Progress function
+  progress <- function(n) pb$tick()
+  opts <- list(progress = progress)
+
+  results <- foreach(var = variables, .packages = c('pdp', 'h2o', 'dplyr'), .export = c("nm_pdp_worker", "nm_predict", "nm_init_h2o"), .options.snow = opts) %dopar% {
+    nm_init_h2o()
+    nm_pdp_worker(model, df, var, grid.resolution)
+  }
+
+  # Ensure all data frames in results have the same type for var_value
+  results <- lapply(results, function(df) {
+    df$var_value <- as.numeric(as.character(df$var_value))  # Convert factors to numeric
+    return(df)
+  })
+
+  snow::stopCluster(cl)
+
+  df_predict <- bind_rows(results)
+  return(df_predict)
+}
+
+
+#' Worker function for generating PDP
+#'
+#' \code{nm_pdp_worker} is a worker function that generates partial dependence values for a specific feature.
+#'
+#' @param model The trained model object.
+#' @param df Data frame containing the input data.
+#' @param variable The feature name for which PDP is to be generated.
+#' @param grid.resolution The number of points to evaluate on the grid for the feature.
+#'
+#' @return A data frame containing the partial dependence values for the specified feature.
+#'
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' library(pdp)
+#' df <- data.frame(
+#'   set = rep(c("train", "test"), each = 50),
+#'   feature1 = rnorm(100),
+#'   feature2 = rnorm(100)
+#' )
+#' model <- lm(feature1 ~ feature2, data = df)
+#' pdp_result <- nm_pdp_worker(df, model, feature = "feature2")
+#' }
+#' @export
+nm_pdp_worker <- function(model, df, variable, grid.resolution) {
+  nm_init_h2o()
+  pd_results <- pdp::partial(object = model, pred.var = variable, train = df, pred.fun = nm_predict, grid.resolution = grid.resolution)
+  pd_results$var <- variable
+
+  df_predict <- data.frame(
+    var = variable,
+    id = pd_results$yhat.id,
+    var_value = pd_results[[variable]],
+    pdp_value = pd_results$yhat
+  )
+
+  return(df_predict)
+}
+
+
+```
+
+
+```{r}
+pdp_values <-nm_pdp(df1b,automl, variables = c('ws','blh','wd'))
+```
+
+```{r}
+pdp_values_all <-nm_pdp(df1b,automl,variables = xz[1:5])
 ```
 
 
@@ -168,10 +1255,10 @@ model_config <- list(
 
 ```
 
+
 ```{r}
 mlsc=nm_mlsc(df,'SO2wn','ID',"2+26 cities",control_pool,'2015-10-23', model_config, training_split = 0.8)
 ```
-
 
 
 ```{r}
@@ -182,6 +1269,10 @@ model_config <- list(
 
 nmpara <- nm_mlsc_all(df,poll_col='SO2wn',code_col='ID', control_pool,cutoff_date='2015-10-23', model_config, training_split = 0.9)
 ```
+
+
+
+
 
 
 

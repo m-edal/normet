@@ -17,7 +17,7 @@ classifiers=[
 
 setup(
     name="normet",
-    version="0.1.14",
+    version="0.1.15",
     description="normet: NORmalising METeorology on air quality",
     long_description=open("README.rst", "r", encoding="utf-8").read(),
     long_description_content_type="text/x-rst",

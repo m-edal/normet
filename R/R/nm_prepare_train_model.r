@@ -21,7 +21,7 @@
 #'   feature2 = rnorm(100),
 #'   target = rnorm(100)
 #' )
-#' res <- nm_prepare_train_model(df, value = "target", feature_names = c("feature1", "feature2"), model_type = "lm")
+#' res <- nm_prepare_train_model(df, value = "target", feature_names = c("feature1", "feature2"))
 #' }
 #' @export
 nm_prepare_train_model <- function(df, value, feature_names, split_method, fraction, model_config, seed, verbose=TRUE) {
@@ -34,5 +34,5 @@ nm_prepare_train_model <- function(df, value, feature_names, split_method, fract
     # Train the model using AutoML
     auto_ml <- nm_train_model(df, value='value', variables=feature_names, model_config=model_config, seed=seed, verbose=verbose)
 
-    return(list(df = df, model = auto_ml@leader))
+    return(list(df = df, model = auto_ml))
 }
