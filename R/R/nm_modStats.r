@@ -21,7 +21,7 @@
 #' stats <- nm_modStats(df, model, obs = "value")
 #' }
 #' @export
-nm_modStats <- function(df, model, obs = "value", set = NULL, statistic = NULL) {
+nm_modStats <- function(df, model, obs = 'value', set = NULL, statistic = NULL) {
   # Set default statistics if not provided
   if (is.null(statistic)) {
     statistic <- c("n", "FAC2", "MB", "MGE", "NMB", "NMGE", "RMSE", "r", "COE", "IOA", "R2")

@@ -15,7 +15,7 @@ import h2o
 from h2o.automl import H2OAutoML
 import pickle
 
-def prepare_data(df, value, feature_names, na_rm=True, split_method='random', replace=False, fraction=0.75, seed=7654321):
+def prepare_data(df, value, feature_names, na_rm=True, split_method='random', fraction=0.75, seed=7654321):
     """
     Prepares the input DataFrame by performing data cleaning, imputation, and splitting.
 
@@ -25,20 +25,18 @@ def prepare_data(df, value, feature_names, na_rm=True, split_method='random', re
         feature_names (list): List of feature names.
         na_rm (bool, optional): Whether to remove missing values. Default is True.
         split_method (str, optional): Method for splitting data ('random' or 'time_series'). Default is 'random'.
-        replace (bool, optional): Whether to replace existing date variables. Default is False.
         fraction (float, optional): Fraction of the dataset to be used for training. Default is 0.75.
         seed (int, optional): Seed for random operations. Default is 7654321.
 
     Returns:
         DataFrame: Prepared DataFrame with cleaned data and split into training and testing sets.
     """
-
     # Perform the data preparation steps
     df = (df
             .pipe(process_date)
             .pipe(check_data, feature_names = feature_names, value = value)
             .pipe(impute_values, na_rm = na_rm)
-            .pipe(add_date_variables, replace = replace)
+            .pipe(add_date_variables)
             .pipe(split_into_sets, split_method = split_method, fraction = fraction, seed = seed)
             .reset_index(drop = True))
 
@@ -167,35 +165,21 @@ def impute_values(df, na_rm):
     return df
 
 
-def add_date_variables(df, replace):
+def add_date_variables(df):
     """
     Adds date-related variables to the DataFrame.
 
     Parameters:
         df (pandas.DataFrame):: Input DataFrame containing the dataset.
-        replace (bool): Whether to replace existing date variables.
 
     Returns:
         DataFrame: DataFrame with added date-related variables.
     """
-    if replace:
-        # Replace existing date-related variables if they exist
-        df['date_unix'] = df['date'].astype(np.int64) // 10**9
-        df['day_julian'] = pd.DatetimeIndex(df['date']).dayofyear
-        df['weekday'] = pd.DatetimeIndex(df['date']).weekday + 1
-        df['weekday'] = df['weekday'].astype("category")
-        df['hour'] = pd.DatetimeIndex(df['date']).hour
-    else:
-        # Add date-related variables only if they don't already exist
-        if 'date_unix' not in df.columns:
-            df['date_unix'] = df['date'].apply(lambda x: x.timestamp())
-        if 'day_julian' not in df.columns:
-            df['day_julian'] = df['date'].apply(lambda x: x.timetuple().tm_yday)
-        if 'weekday' not in df.columns:
-            df['weekday'] = df['date'].apply(lambda x: x.weekday() + 1)
-            #df['weekday'] = df['weekday'].astype("category")
-        if 'hour' not in df.columns:
-            df['hour'] = df['date'].apply(lambda x: x.hour)
+    df.loc[:,'date_unix'] = df['date'].astype(np.int64) // 10**9
+    df.loc[:,'day_julian'] = pd.DatetimeIndex(df['date']).dayofyear
+    df.loc[:,'weekday'] = pd.DatetimeIndex(df['date']).weekday + 1
+    df.loc[:,'weekday'] = df['weekday'].astype("category")
+    df.loc[:,'hour'] = pd.DatetimeIndex(df['date']).hour
 
     return df
 
@@ -429,8 +413,9 @@ def h2o_train_model(df, value="value", variables=None, model_config=None, seed=7
     default_model_config = {
         'max_models': 10,              # Maximum number of models to train
         'nfolds': 5,                   # Number of cross-validation folds
-        'max_mem_size': '12G',         # Maximum memory allocation for H2O
-        'include_algos': ['GBM'],      # List of algorithms to include: 'GBM', 'DRF', 'GLM', etc.
+        'max_mem_size': '16G',         # Maximum memory allocation for H2O
+        'include_algos': ['GBM'],      # List of algorithms to include: "GBM", "GLM", "DeepLearning", "DRF", "StackedEnsemble".
+        'sort_metric' : "rmse",        # For regression choose between "deviance", "RMSE", "MSE", "MAE", "RMLSE".
         'save_model': True,            # Whether to save the trained model
         'model_name': 'automl',        # Name of the saved model
         'model_path': './',            # Path to save the model
@@ -547,7 +532,7 @@ def flaml_train_model(df, value='value', variables=None, model_config=None, seed
     # Default model configuration for FLAML
     default_model_config = {
         'time_budget': 90,                     # Total running time in seconds
-        'metric': 'r2',                        # Performance metric (e.g., 'r2', 'mae', 'mse','rmse')
+        'metric': 'rmse',                        # Performance metric (e.g., 'r2', 'mae', 'mse','rmse')
         'estimator_list': ["lgbm"],            # List of estimators: 'lgbm', 'xgboost', 'xgb_limitdepth', 'rf', 'extra_tree'etc.
         'task': 'regression',                  # Task type (e.g., regression or classification)
         'eval_method': 'auto',                 # Evaluation method (e.g., 'auto', 'cv', 'holdout')
@@ -762,7 +747,7 @@ def nm_predict(model, newdata, parallel=True):
     return value_predict
 
 
-def generate_resampled(df, variables_resample, replace, seed, verbose, weather_df=None):
+def generate_resampled(df, variables_resample, replace, seed, verbose, weather_df):
     """
     Resamples specified meteorological variables from a weather DataFrame.
 
@@ -785,174 +770,102 @@ def generate_resampled(df, variables_resample, replace, seed, verbose, weather_d
     # Set random seed for reproducibility
     np.random.seed(seed)
 
-    if weather_df is not None:
-        df[variables_resample] = weather_df[variables_resample].sample(n=len(df), replace=replace).reset_index(drop=True)
-    else:
-        df[variables_resample] = df[variables_resample].sample(n=len(df), replace=replace).reset_index(drop=True)
+    df[variables_resample] = weather_df[variables_resample].sample(n=len(df), replace=replace).reset_index(drop=True)
+    df['seed'] = seed
 
     return df
 
 
-def normalise_worker(df, model, variables_resample, replace, seed, verbose, weather_df=None):
-    """
-    Worker function for performing normalisation in parallel using resampled meteorological data.
-
-    This function is used to apply random resampling on specific meteorological variables in the dataset,
-    and then use a pre-trained model to predict normalised values based on the resampled data.
-    Each worker processes a different subset of the data in parallel to improve efficiency.
-
-    Parameters:
-        df (pandas.DataFrame): The input DataFrame containing the original dataset.
-        model (ML): A pre-trained machine learning model (e.g., FLAML or H2O) that will be used for predictions.
-        variables_resample (list of str): List of meteorological variables to be resampled.
-        replace (bool): Whether to sample with replacement. If True, resampling allows for duplicate selections.
-        seed (int): Random seed for reproducibility of the resampling process.
-        verbose (bool): Whether to print detailed progress messages during the normalisation process.
-        weather_df (pandas.DataFrame, optional): Optional DataFrame containing external weather data for resampling. Defaults to None (uses the input `df`).
-
-    Returns:
-        pandas.DataFrame: A DataFrame containing normalised predictions along with the original dates, observed values, and the random seed used.
-    """
-
-    # Resample the meteorological variables in the dataset
-    df = generate_resampled(df, variables_resample, replace, seed, verbose, weather_df)
-
-    # Predict the normalised values using the pre-trained model
-    value_predict = nm_predict(model, df)
-
-    # Build a new DataFrame containing the original 'date', 'observed' (true values), 'normalised' (predicted values), and the seed used
-    result = pd.DataFrame({
-        'date': df['date'],          # Original date of the data
-        'observed': df['value'],     # Observed (actual) values in the dataset
-        'normalised': value_predict, # Predicted (normalised) values from the model
-        'seed': seed                 # The random seed used for this resampling iteration
-    })
-
-    return result
-
-
 def normalise(df, model, feature_names, variables_resample=None, n_samples=300, replace=True,
-              aggregate=True, seed=7654321, n_cores=None, weather_df=None, verbose=True):
+              aggregate=True, seed=7654321, n_cores=None, weather_df=None, memory_save=False, verbose=True):
     """
-    Normalises a dataset using a trained machine learning model and a parallel rolling window approach.
-
-    This function performs normalization of the input dataset by resampling specified features and generating
-    predictions from a pre-trained model. It supports both FLAML and H2O models, and can aggregate results
-    across multiple resampled datasets.
+    Normalises a dataset using a pre-trained machine learning model with parallel resampling.
 
     Parameters:
-        df (pandas.DataFrame): The input DataFrame containing the time series data.
-        model (object): A pre-trained model (FLAML or H2O) used for predictions.
-        feature_names (list of str): List of column names in `df` to be used as features.
-        variables_resample (list of str, optional): List of features to be resampled. Defaults to all features except 'date_unix'.
-        n_samples (int, optional): Number of resampling iterations to perform. Default is 300.
-        replace (bool, optional): Whether to sample with replacement during resampling. Default is True.
-        aggregate (bool, optional): Whether to aggregate results across resampled datasets. Default is True.
-        seed (int, optional): Random seed for reproducibility. Default is 7654321.
-        n_cores (int, optional): Number of CPU cores to use for parallel processing. Default is all cores minus one.
-        weather_df (pandas.DataFrame, optional): DataFrame for external weather data resampling. Default is None (uses `df`).
-        verbose (bool, optional): Whether to print progress messages. Default is True.
+        df (pandas.DataFrame): Input time series data.
+        model (object): Pre-trained model (FLAML or H2O).
+        feature_names (list of str): List of features to be used for predictions.
+        variables_resample (list of str, optional): Features for resampling. Defaults to all features except 'date_unix'.
+        n_samples (int, optional): Number of resampling iterations. Default is 300.
+        replace (bool, optional): Sample with replacement. Default is True.
+        aggregate (bool, optional): Aggregate results across resamples. Default is True.
+        seed (int, optional): Random seed. Default is 7654321.
+        n_cores (int, optional): CPU cores for parallel processing. Default is all cores minus one.
+        weather_df (pandas.DataFrame, optional): External weather data for resampling. Default is None (uses `df`).
+        memory_save (bool, optional): Use memory-efficient approach. Default is FALSE.
+        verbose (bool, optional): Print progress messages. Default is True.
 
     Returns:
-        pandas.DataFrame: DataFrame containing normalized predictions and optionally aggregated results.
-
-    Example:
-        >>> df_normalised = normalise(df, model, feature_names)
+        pandas.DataFrame: Normalised predictions with optional aggregation.
     """
+    # Preprocess input data
+    df = process_date(df).pipe(check_data, feature_names, 'value')
+    weather_df = weather_df or df
+    variables_resample = variables_resample or [var for var in feature_names if var != 'date_unix']
 
-    # Initial preprocessing on the dataset, including date processing and data validation
-    df = (df.pipe(process_date)  # Process date columns
-            .pipe(check_data, feature_names, 'value'))  # Check if the data contains necessary columns
-
-    # If no external weather data is provided, use the input dataframe for weather data resampling
-    if weather_df is None:
-        weather_df = df
-
-    # If variables to resample are not specified, select all features except 'date_unix'
-    if variables_resample is None:
-        variables_resample = [var for var in feature_names if var != 'date_unix']
-
-    # Ensure that the weather data contains all the variables that need to be resampled
+    # Validate input data
     if not all(var in weather_df.columns for var in variables_resample):
-        raise ValueError("The input weather_df does not contain all variables within `variables_resample`.")
+        raise ValueError("The weather_df does not contain all variables in `variables_resample`.")
 
-    # Prepare random seeds for parallel processing of resampling
+    # Set up seeds and cores
     np.random.seed(seed)
-    random_seeds = np.random.choice(np.arange(1000001), size=n_samples, replace=False)  # Generate unique random seeds
+    random_seeds = np.random.choice(np.arange(1000001), size=n_samples, replace=False)
+    n_cores = n_cores or (os.cpu_count() - 1)
 
-    # Determine the number of CPU cores to use for parallel processing
-    n_cores = n_cores or os.cpu_count() - 1
-
-    # Display a message if verbose is enabled
     if verbose:
         print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Normalising the dataset in parallel.")
 
-    # FLAML model processing
-    if model._model_type == "flaml":
-        # Perform normalisation using parallel processing
-        df_result = pd.concat(Parallel(n_jobs=n_cores)(delayed(normalise_worker)(
-            df=df, model=model, variables_resample=variables_resample, replace=replace,
-            seed=random_seeds[i], verbose=False, weather_df=weather_df) for i in range(n_samples)), axis=0)
+    def process_sample(i):
+        try:
+            df_resampled = generate_resampled(df, variables_resample, replace, random_seeds[i], verbose, weather_df)
+            predictions = nm_predict(model, df_resampled)
+            return pd.DataFrame({
+                'date': df_resampled['date'],
+                'observed': df_resampled['value'],
+                'normalised': predictions,
+                'seed': random_seeds[i]
+            })
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return None
 
-        # Aggregate results if needed
-        if aggregate:
-            if verbose:
-                print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Aggregating", n_samples, "predictions...")
-            # Calculate the mean observed and normalized values for each date
-            df_result = df_result.pivot_table(index='date', aggfunc='mean')[['observed', 'normalised']]
-        else:
-            # Pivot table to reshape 'normalised' values by 'seed' and set 'date' as index
-            normalised_pivot = df_result.pivot_table(index='date', columns='seed', values='normalised')
-            # Select and drop duplicate rows based on 'date', keeping only 'observed' column
-            observed_unique = df_result[['date', 'observed']].drop_duplicates().set_index('date')
-            # Concatenate the pivoted 'normalised' values and unique 'observed' values
-            df_result = pd.concat([observed_unique, normalised_pivot], axis=1)
-            if verbose:
-                print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), ": Concatenated", n_samples, "predictions...")
-
-    # H2O model processing
-    elif model._model_type == "h2o":
-        # Perform resampling in parallel across n_cores
-        with Parallel(n_jobs=n_cores, backend='threading') as parallel:
-            df_resampled_list = parallel(
-                delayed(generate_resampled)(
-                    df=df,  # Copy the dataframe for each sample to avoid modification issues
-                    variables_resample=variables_resample, replace=replace,  # Resampling parameters
-                    seed=random_seeds[i], verbose=False, weather_df=weather_df  # Use unique seed and weather data
-                ) for i in range(n_samples)  # Repeat for the number of samples
-            )
-
-        # If verbose, print the progress of making predictions
-        if verbose:
-            print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Predicting using trained model in batches.")
-
-        # Concatenate all resampled DataFrames into a single DataFrame
+    # Choose the memory-saving method or process all resamples at once
+    if memory_save:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=n_cores) as executor:
+            generated_dfs = [f.result() for f in concurrent.futures.as_completed(
+                [executor.submit(process_sample, i) for i in range(n_samples)])]
+        df_result = pd.concat([df for df in generated_dfs if df is not None])
+    else:
+        df_resampled_list = Parallel(n_jobs=n_cores)(delayed(generate_resampled)(
+            df, variables_resample, replace, random_seeds[i], False, weather_df) for i in range(n_samples))
         df_all_resampled = pd.concat(df_resampled_list, ignore_index=True)
-
-        # Use the trained model to make predictions on the resampled data
         predictions = nm_predict(model, df_all_resampled)
-
-        # Create a DataFrame to store the predictions and the corresponding observed values
         df_result = pd.DataFrame({
-            'date': pd.concat([df_resampled['date'] for df_resampled in df_resampled_list], ignore_index=True),
-            'observed': pd.concat([df_resampled['value'] for df_resampled in df_resampled_list], ignore_index=True),
-            'normalised': predictions,  # Predicted values from the model
-            'seed': np.repeat(random_seeds, len(df))  # Add the random seed used for each sample
+            'date': df_all_resampled['date'],
+            'observed': df_all_resampled['value'],
+            'normalised': predictions,
+            'seed': df_all_resampled['seed']
         })
 
-        # If aggregation is enabled, average the predictions across resamples for each date
-        if aggregate:
-            if verbose:
-                print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Aggregating {n_samples} predictions...")
+    # Aggregate or pivot results
+    if aggregate:
+        if verbose:
+            print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Aggregating {n_samples} predictions.")
+        df_result = df_result.groupby('date').mean()[['observed', 'normalised']]
+    else:
+        df_result = pd.concat([
+            df_result.drop_duplicates(subset=['date']).set_index('date')[['observed']],
+            df_result.pivot(index='date', columns='seed', values='normalised')
+        ], axis=1)
 
-            # Pivot the table to calculate the mean observed and normalised values for each date
-            df_result = df_result.pivot_table(index='date', aggfunc='mean')[['observed', 'normalised']]
+    if verbose:
+        print(f"{pd.Timestamp.now():%Y-%m-%d %H:%M:%S}: Finished processing {n_samples} predictions.")
 
     return df_result
 
 
 def do_all(df=None, value=None, automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
-           model_config=None, n_samples=300, seed=7654321, n_cores=None, aggregate=True, weather_df=None, verbose=True):
+           model_config=None, n_samples=300, seed=7654321, n_cores=None, aggregate=True, weather_df=None, memory_save=False, verbose=True):
     """
     Conducts data preparation, model training, and normalisation, returning the transformed dataset and model statistics.
 
@@ -977,6 +890,7 @@ def do_all(df=None, value=None, automl_pkg='flaml', feature_names=None, variable
         n_cores (int, optional): Number of CPU cores to use for parallel processing. If None, it uses all available cores minus one. Default is None.
         aggregate (bool, optional): Whether to aggregate the results across all samples. Default is True.
         weather_df (pandas.DataFrame, optional): A DataFrame containing weather data or external features for resampling. If None, the input `df` is used. Default is None.
+        memory_save (bool, optional): Use memory-efficient approach. Default is FALSE.
         verbose (bool, optional): Whether to print progress messages during the process. Default is True.
 
     Returns:
@@ -1006,7 +920,7 @@ def do_all(df=None, value=None, automl_pkg='flaml', feature_names=None, variable
     result = normalise(
         df=df, model=model, feature_names=feature_names, variables_resample=variables_resample,
         n_samples=n_samples, aggregate=aggregate, n_cores=n_cores, seed=seed,
-        weather_df=weather_df, verbose=verbose
+        weather_df=weather_df, memory_save=memory_save, verbose=verbose
     )
 
     # Step 4: Compute and return model statistics, such as accuracy or error metrics, based on the test set.
@@ -1018,7 +932,7 @@ def do_all(df=None, value=None, automl_pkg='flaml', feature_names=None, variable
 
 def do_all_unc(df=None, value=None, automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random',
                fraction=0.75, model_config=None, n_samples=300, n_models=10, confidence_level=0.95, seed=7654321,
-               n_cores=None, weather_df=None, verbose=True):
+               n_cores=None, weather_df=None, memory_save=False, verbose=True):
     """
     Performs uncertainty quantification by training multiple models with different random seeds and calculates statistical metrics.
 
@@ -1043,6 +957,7 @@ def do_all_unc(df=None, value=None, automl_pkg='flaml', feature_names=None, vari
         seed (int, optional): Random seed for reproducibility. Default is 7654321.
         n_cores (int, optional): Number of CPU cores to use for parallel processing. If not specified, defaults to total CPU cores minus one.
         weather_df (pandas.DataFrame, optional): DataFrame containing weather data for resampling. If None, the input `df` is used. Default is None.
+        memory_save (bool, optional): Use memory-efficient approach. Default is FALSE.
         verbose (bool, optional): Whether to print progress messages during the process. Default is True.
 
     Returns:
@@ -1088,7 +1003,7 @@ def do_all_unc(df=None, value=None, automl_pkg='flaml', feature_names=None, vari
                                      split_method=split_method, fraction=fraction,
                                      model_config=model_config,
                                      n_samples=n_samples, seed=seed, n_cores=n_cores,
-                                     weather_df=weather_df, verbose=False)
+                                     weather_df=weather_df, memory_save=memory_save, verbose=False)
 
         # Rename columns to reflect the current random seed
         df_dew0.rename(columns={'normalised': f'normalised_{seed}'}, inplace=True)
@@ -1142,65 +1057,60 @@ def do_all_unc(df=None, value=None, automl_pkg='flaml', feature_names=None, vari
     return df_dew, mod_stats
 
 
-def decom_emi(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, split_method='random', fraction=0.75,
-              model_config=None, n_samples=300, seed=7654321, n_cores=None, verbose=True):
+def decom_emi(df=None, model=None, value='value', automl_pkg='flaml', feature_names=None, split_method='random', fraction=0.75,
+              model_config=None, n_samples=300, seed=7654321, n_cores=None, memory_save= False, verbose=True):
     """
     Decomposes a time series into different components using machine learning models.
-
-    This function decomposes a time series by iteratively removing certain features, such as base trends, seasonal effects
-    (weekday, day of year), and time-related features (hour, date). The resulting decomposition helps in understanding
-    the contribution of different features to the overall time series. The user can either use a pre-trained model or train
-    a new model to perform the decomposition.
 
     Parameters:
         df (pandas.DataFrame): Input dataframe containing the time series data.
         model (object, optional): Pre-trained model to use for decomposition. If None, a new model will be trained. Default is None.
-        value (str): Column name of the target variable.
+        value (str): Column name of the target variable. Default is 'value'.
         feature_names (list of str): List of feature column names used for modeling and decomposition.
         split_method (str, optional): Method to split the data ('random' or other methods). Default is 'random'.
         fraction (float, optional): Fraction of data to be used for training. Default is 0.75.
         model_config (dict, optional): Configuration dictionary for model training parameters.
-        n_samples (int, optional): Number of samples for normalisation. Default is 300.
+        n_samples (int, optional): Number of samples for normalization. Default is 300.
         seed (int, optional): Random seed for reproducibility. Default is 7654321.
         n_cores (int, optional): Number of cores to be used. Default is total CPU cores minus one.
+        memory_save (bool, optional): Use memory-efficient approach. Default is FALSE.
         verbose (bool, optional): Whether to print progress messages. Default is True.
 
     Returns:
-        df_dewc (pandas.DataFrame): Dataframe with decomposed components.
-
-    Example:
-        >>> df = pd.read_csv('timeseries_data.csv')
-        >>> value = 'target'
-        >>> feature_names = ['feature1', 'feature2', 'feature3']
-        >>> df_dewc = decom_emi(df, value, feature_names)
+        result (pandas.DataFrame): Dataframe with decomposed components.
     """
-    # If no model is provided, train a new model using the prepare_train_model function
+
+    # If no model is provided, train a new model
     if model is None:
-        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose=True)
-    elif 'value' not in df.columns:
-        # Prepare the data for training
+        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose)
+
+    # If the model is provided, ensure that the 'value' column exists in the dataframe; otherwise, prepare the data
+    elif value not in df.columns:
+        # Prepare the data if the value column is not in the dataframe
         vars = list(set(feature_names) - set(['date_unix', 'day_julian', 'weekday', 'hour']))
         df = prepare_data(df, value, feature_names=vars, split_method=split_method, fraction=fraction, seed=seed)
 
     # Initialize the dataframe for storing decomposed components
-    df_dew = df[['date', 'value']].set_index('date').rename(columns={'value': 'observed'})
+    df_dew = df[['date', 'value']].set_index('date').rename(columns={value: 'observed'})
 
-    # Default logic for CPU cores if not specified
+    # Set default number of CPU cores if not specified
     n_cores = n_cores or os.cpu_count() - 1
 
-    # Start the decomposition by iterating over specific time-related and base features
-    var_names = feature_names
-    start_time = time.time()  # Initialize start time before the loop
+    # Initialize a list to store variables to exclude
+    vars_to_exclude = ['date_unix', 'day_julian', 'weekday', 'hour']
+    vars_intersect = sorted(set(vars_to_exclude).intersection(feature_names), key=vars_to_exclude.index)
 
-    # Loop over features to exclude, decomposing one by one
-    for i, var_to_exclude in enumerate(['base', 'date_unix', 'day_julian', 'weekday', 'hour']):
+    # Start decomposing the time series by iterating over the excluded features
+    start_time = time.time()
+
+    for i, var_to_exclude in enumerate(['base']+vars_intersect):
         if verbose:
             if i == 0:
                 print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), f": Subtracting {var_to_exclude}...")
             else:
                 # Estimate remaining time for the decomposition process
                 elapsed_time = time.time() - start_time
-                remaining_time = elapsed_time / i * (len(['base', 'date_unix', 'day_julian', 'weekday', 'hour']) - i)
+                remaining_time = elapsed_time / i * (len(vars_intersect) - i)
                 if remaining_time < 60:
                     eta_str = "ETA: {:.2f} seconds".format(remaining_time)
                 elif remaining_time < 3600:
@@ -1209,31 +1119,46 @@ def decom_emi(df=None, model=None, value=None, automl_pkg='flaml', feature_names
                     eta_str = "ETA: {:.2f} hours".format(remaining_time / 3600)
                 print(pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'), f": Subtracting {var_to_exclude}... {eta_str}")
 
-        # Exclude the current feature from the list
-        var_names = list(set(var_names) - set([var_to_exclude]))
+        # Exclude the current variable from feature_names
+        var_names = list(set(feature_names) - {var_to_exclude})
 
-        # Normalise the dataframe after excluding the current feature
-        df_dew_temp = normalise(df, model, feature_names=feature_names, variables_resample=var_names,
-                                n_samples=n_samples, n_cores=n_cores, seed=seed, verbose=False)
+        # Normalize the data excluding the current variable
+        success = False
+        retries = 3
+        while not success and retries > 0:
+            try:
+                df_dew_temp = normalise(df, model, feature_names=feature_names, variables_resample=var_names,
+                                        n_samples=n_samples, n_cores=n_cores, seed=seed, memory_save=memory_save, verbose=False)
+                df_dew[var_to_exclude] = df_dew_temp['normalised']
+                success = True
+            except Exception as e:
+                print(f"Error during normalization for variable '{var_to_exclude}': {e}")
+                retries -= 1
+                if retries > 0:
+                    print(f"Retrying... {retries} attempts left.")
+                    time.sleep(10)
+                else:
+                    print("Failed after 3 attempts. Moving to the next variable.")
+                    df_dew[var_to_exclude] = np.nan
 
-        # Add the normalised component to the decomposition dataframe
-        df_dew[var_to_exclude] = df_dew_temp['normalised']
+    result = df_dew.copy()
+    for i, var_current in enumerate(vars_intersect):
+        if i == 0:
+            result[var_current] = df_dew[var_current] - df_dew['base'] + df_dew['base'].mean()
+        else:
+            var_previous = vars_intersect[i - 1]
+            result[var_current] = df_dew[var_current] - df_dew[var_previous]
 
-    # Adjust the decomposed components in sequence to calculate the deweathered values
-    df_dew['deweathered'] = df_dew['hour']
-    df_dew['hour'] = df_dew['hour'] - df_dew['weekday']
-    df_dew['weekday'] = df_dew['weekday'] - df_dew['day_julian']
-    df_dew['day_julian'] = df_dew['day_julian'] - df_dew['date_unix']
-    df_dew['date_unix'] = df_dew['date_unix'] - df_dew['base'] + df_dew['base'].mean()
+    if vars_intersect:
+        result['deweathered'] = df_dew[vars_intersect[-1]]
 
-    # The remaining part after subtracting the base is considered noise
-    df_dew['emi_noise'] = df_dew['base'] - df_dew['base'].mean()
+    result['emi_noise'] = df_dew['base'] - df_dew['base'].mean()
 
-    return df_dew
+    return result
 
 
-def decom_met(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, split_method='random', fraction=0.75,
-              model_config=None, n_samples=300, seed=7654321, importance_ascending=False, n_cores=None, verbose=True):
+def decom_met(df=None, model=None, value='value', automl_pkg='flaml', feature_names=None, split_method='random', fraction=0.75,
+              model_config=None, n_samples=300, seed=7654321, importance_ascending=False, n_cores=None, memory_save=False, verbose=True):
     """
     Decomposes a time series into different components using machine learning models with feature importance ranking.
 
@@ -1249,6 +1174,7 @@ def decom_met(df=None, model=None, value=None, automl_pkg='flaml', feature_names
         seed (int, optional): Random seed for reproducibility. Default is 7654321.
         importance_ascending (bool, optional): Sort order for feature importances. Default is False.
         n_cores (int, optional): Number of cores to be used. Default is total CPU cores minus one.
+        memory_save (bool, optional): Use memory-efficient approach. Default is FALSE.
         verbose (bool, optional): Whether to print progress messages. Default is True.
 
     Returns:
@@ -1298,7 +1224,7 @@ def decom_met(df=None, model=None, value=None, automl_pkg='flaml', feature_names
 
         # Normalize the data by excluding the current variable from the resampling process
         df_dew_temp = normalise(df, model, feature_names=feature_names, variables_resample=var_names,
-                                n_samples=n_samples, n_cores=n_cores, seed=seed, verbose=False)
+                                n_samples=n_samples, n_cores=n_cores, seed=seed, memory_save=memory_save, verbose=False)
 
         # Add the normalized data to the dataframe as a new decomposed component
         df_dew[var_to_exclude] = df_dew_temp['normalised']
@@ -1322,8 +1248,8 @@ def decom_met(df=None, model=None, value=None, automl_pkg='flaml', feature_names
     return result
 
 
-def rolling(df=None, model=None, value=None, automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
-            model_config=None, n_samples=300, window_days=14, rolling_every=7, seed=7654321, n_cores=None, verbose=True):
+def rolling(df=None, model=None, value='value', automl_pkg='flaml', feature_names=None, variables_resample=None, split_method='random', fraction=0.75,
+            model_config=None, n_samples=300, window_days=14, rolling_every=7, seed=7654321, n_cores=None, memory_save=False, verbose=True):
     """
     Applies a rolling window approach to decompose the time series into different components using machine learning models.
 
@@ -1340,15 +1266,23 @@ def rolling(df=None, model=None, value=None, automl_pkg='flaml', feature_names=N
         rolling_every (int, optional): Rolling interval in days. Default is 7.
         seed (int, optional): Random seed for reproducibility. Default is 7654321.
         n_cores (int, optional): Number of cores to be used for parallel processing. Default is total CPU cores minus one.
+        memory_save (bool, optional): Use memory-efficient approach. Default is FALSE.
         verbose (bool, optional): Whether to print progress messages. Default is True.
 
     Returns:
         combined_results (pandas.DataFrame): Dataframe containing observed and rolling normalized results.
         mod_stats (pandas.DataFrame): Dataframe with model statistics.
     """
-    # If no model is provided, train a new model on the dataset
+
+    # If no model is provided, train a new model
     if model is None:
-        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose=True)
+        df, model = prepare_train_model(df, value, automl_pkg, feature_names, split_method, fraction, model_config, seed, verbose)
+
+    # If the model is provided, ensure that the 'value' column exists in the dataframe; otherwise, prepare the data
+    elif value not in df.columns:
+        # Prepare the data if the value column is not in the dataframe
+        vars = list(set(feature_names) - set(['date_unix', 'day_julian', 'weekday', 'hour']))
+        df = prepare_data(df, value, feature_names=vars, split_method=split_method, fraction=fraction, seed=seed)
 
     # Default logic to determine the number of CPU cores for parallel computation
     n_cores = n_cores or os.cpu_count() - 1
@@ -1377,7 +1311,7 @@ def rolling(df=None, model=None, value=None, automl_pkg='flaml', feature_names=N
 
                 # Normalize the data for the current rolling window
                 dfar = normalise(dfa, model, feature_names=feature_names, variables_resample=variables_resample,
-                                 n_samples=n_samples, n_cores=n_cores, seed=seed, verbose=False)
+                                 n_samples=n_samples, n_cores=n_cores, seed=seed, memory_save=memory_save, verbose=False)
 
                 # Rename the 'normalised' column to indicate the rolling window index
                 dfar.rename(columns={'normalised': 'rolling_' + str(i)}, inplace=True)

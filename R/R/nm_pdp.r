@@ -114,12 +114,17 @@ nm_pdp_worker <- function(model, df, variable, grid.resolution) {
   pd_results <- pdp::partial(object = model, pred.var = variable, train = df, pred.fun = nm_predict, grid.resolution = grid.resolution)
   pd_results$var <- variable
 
+
   df_predict <- data.frame(
     var = variable,
     id = pd_results$yhat.id,
     var_value = pd_results[[variable]],
     pdp_value = pd_results$yhat
   )
+
+  if (is.factor(df_predict$var_value)) {
+    df_predict$var_value <- as.numeric(as.character(df_predict$var_value))
+    }
 
   return(df_predict)
 }

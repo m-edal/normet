@@ -125,7 +125,6 @@ nm_impute_values <- function(df, na_rm) {
 #' \code{nm_add_date_variables} adds date-related variables to the data frame.
 #'
 #' @param df Input data frame.
-#' @param replace Logical indicating whether to replace existing columns.
 #'
 #' @return Data frame with added date variables.
 #'
@@ -134,35 +133,20 @@ nm_impute_values <- function(df, na_rm) {
 #' library(dplyr)
 #' library(lubridate)
 #' df <- data.frame(date = Sys.time() + seq(1, 1000, by = 100))
-#' date_added_df <- nm_add_date_variables(df, replace = FALSE)
+#' date_added_df <- nm_add_date_variables(df)
 #' }
 #'
 #' @export
-nm_add_date_variables <- function(df, replace) {
+nm_add_date_variables <- function(df) {
 
-  if (replace) {
-    df <- df %>%
-      mutate(
-        date_unix = as.numeric(as.POSIXct(date)),
-        day_julian = yday(date),
-        weekday = as.factor(wday(date, label = TRUE)),
-        hour = hour(date)
-      )
-  } else {
-    if (!"date_unix" %in% colnames(df)) {
-      df <- df %>% mutate(date_unix = as.numeric(as.POSIXct(date)))
-    }
-    if (!"day_julian" %in% colnames(df)) {
-      df <- df %>% mutate(day_julian = yday(date))
-    }
-    if (!"weekday" %in% colnames(df)) {
-      #df <- df %>% mutate(weekday = as.factor(wday(date, label = TRUE)))
-      df <- df %>% mutate(weekday = as.numeric(wday(date, week_start = 1)))
-    }
-    if (!"hour" %in% colnames(df)) {
-      df <- df %>% mutate(hour = lubridate::hour(date))
-    }
-  }
+  df <- df %>%
+    mutate(
+      date_unix = as.numeric(as.POSIXct(date)),
+      day_julian = yday(date),
+      weekday = as.factor(wday(date, label = TRUE)),
+      hour = hour(date)
+    )
+
   return(df)
 }
 
@@ -298,14 +282,14 @@ nm_split_into_sets <- function(df, split_method, fraction = 0.75, seed = 7654321
 #' prepared_df <- nm_prepare_data(df, value = "target", feature_names = c("feature1", "feature2"))
 #' }
 #' @export
-nm_prepare_data <- function(df, value, feature_names, na_rm = TRUE, split_method = 'random', replace = FALSE, fraction = 0.75, seed = 7654321) {
+nm_prepare_data <- function(df, value, feature_names, na_rm = TRUE, split_method = 'random', fraction = 0.75, seed = 7654321) {
 
   # Perform data preparation steps
   df <- df %>%
     nm_process_date() %>%
     nm_check_data(feature_names =feature_names, value = value) %>%
     nm_impute_values(na_rm = na_rm) %>%
-    nm_add_date_variables(replace = replace) %>%
+    nm_add_date_variables() %>%
     nm_convert_ordered_to_factor() %>%
     nm_split_into_sets(split_method = split_method, fraction = fraction, seed = seed) %>%
     arrange(date)

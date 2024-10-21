@@ -6,7 +6,7 @@
 \usage{
 nm_do_all_unc(
   df = NULL,
-  value = NULL,
+  value = "value",
   feature_names = NULL,
   variables_resample = NULL,
   split_method = "random",
@@ -18,6 +18,7 @@ nm_do_all_unc(
   seed = 7654321,
   n_cores = NULL,
   weather_df = NULL,
+  memory_save = FALSE,
   verbose = TRUE
 )
 }
@@ -47,6 +48,10 @@ nm_do_all_unc(
 \item{n_cores}{Number of CPU cores to use for parallel processing. Default is system's total minus one.}
 
 \item{weather_df}{Optional data frame containing weather data for resampling.}
+
+\item{memory_save}{Logical indicating whether to save memory by processing each sample independently.
+If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+are generated and processed at once, which uses more memory. Default is FALSE.}
 
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }

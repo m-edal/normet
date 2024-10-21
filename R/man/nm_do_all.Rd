@@ -6,8 +6,7 @@
 \usage{
 nm_do_all(
   df = NULL,
-  model = NULL,
-  value = NULL,
+  value = "value",
   feature_names = NULL,
   variables_resample = NULL,
   split_method = "random",
@@ -18,13 +17,12 @@ nm_do_all(
   n_cores = NULL,
   aggregate = TRUE,
   weather_df = NULL,
+  memory_save = FALSE,
   verbose = TRUE
 )
 }
 \arguments{
 \item{df}{Data frame containing the input data.}
-
-\item{model}{Pre-trained model for normalisation. If not provided, a model will be trained.}
 
 \item{value}{The target variable name as a string.}
 
@@ -47,6 +45,10 @@ nm_do_all(
 \item{aggregate}{Logical indicating whether to aggregate the results. Default is TRUE.}
 
 \item{weather_df}{Optional data frame containing weather data for resampling.}
+
+\item{memory_save}{Logical indicating whether to save memory by processing each sample independently.
+If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+are generated and processed at once, which uses more memory. Default is FALSE.}
 
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }

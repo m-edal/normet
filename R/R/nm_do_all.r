@@ -14,6 +14,9 @@
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
 #' @param aggregate Logical indicating whether to aggregate the results. Default is TRUE.
 #' @param weather_df Optional data frame containing weather data for resampling.
+#' @param memory_save Logical indicating whether to save memory by processing each sample independently.
+#'   If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+#'   are generated and processed at once, which uses more memory. Default is FALSE.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
 #' @return A list containing the normalised data frame and model statistics.
@@ -26,8 +29,8 @@
 #' result <- nm_do_all(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)
 #' }
 #' @export
-nm_do_all <- function(df = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
-                   model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, aggregate = TRUE, weather_df = NULL, verbose = TRUE) {
+nm_do_all <- function(df = NULL, value = 'value', feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
+                   model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, aggregate = TRUE, weather_df = NULL, memory_save = FALSE, verbose = TRUE) {
   set.seed(seed)
   # Default logic for CPU cores
   n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
@@ -36,7 +39,8 @@ nm_do_all <- function(df = NULL, value = NULL, feature_names = NULL, variables_r
   nm_init_h2o(n_cores)
 
   # Train model if not provided
-  res <- nm_prepare_train_model(df, value, feature_names, split_method, fraction, model_config, seed, verbose)
+  res <- nm_prepare_train_model(df = df, value = value, feature_names = feature_names, split_method = split_method, fraction = fraction,
+                            model_config = model_config, seed = seed, verbose = verbose)
   df <- res$df
   model <- res$model
 
@@ -45,7 +49,7 @@ nm_do_all <- function(df = NULL, value = NULL, feature_names = NULL, variables_r
 
   # normalise the data using weather_df if provided
   df_dew <- nm_normalise(df, model, feature_names = feature_names, variables_resample = variables_resample, n_samples = n_samples,
-                      aggregate = aggregate, n_cores = n_cores, seed = seed, weather_df = weather_df, verbose = verbose)
+                      aggregate = aggregate, n_cores = n_cores, seed = seed, weather_df = weather_df, memory_save = memory_save, verbose = verbose)
 
   return(list(df_dew = df_dew, mod_stats = mod_stats))
 }

@@ -14,6 +14,9 @@
 #' @param rolling_every The interval at which the rolling window is applied in days. Default is 7.
 #' @param seed A random seed for reproducibility. Default is 7654321.
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
+#' @param memory_save Logical indicating whether to save memory by processing each sample independently.
+#'   If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+#'   are generated and processed at once, which uses more memory. Default is FALSE.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
 #' @return A list containing the normalised data frame and model statistics.
@@ -32,8 +35,8 @@
 #' result <- nm_rolling(df, value = "target", feature_names = c("feature1", "feature2"), variables_resample = c("feature1"), window_size = 10, model_type = "h2o.gbm", seed = 12345)
 #' }
 #' @export
-nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
-                       model_config = NULL, n_samples = 300, window_days = 14, rolling_every = 7, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+nm_rolling <- function(df = NULL, model = NULL, value = 'value', feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
+                       model_config = NULL, n_samples = 300, window_days = 14, rolling_every = 7, seed = 7654321, n_cores = NULL, memory_save = FALSE, verbose = TRUE) {
   set.seed(seed)
 
   # Default logic for CPU cores
@@ -77,7 +80,8 @@ nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NU
     success <- FALSE
     tryCatch({
       # Normalize the data within the rolling window
-      dfar <- nm_normalise(dfa, model, feature_names, variables_resample, n_samples, replace=TRUE, aggregate=TRUE, seed=seed, n_cores=n_cores, verbose=FALSE)
+      dfar <- nm_normalise(dfa, model, feature_names, variables_resample, n_samples, replace=TRUE, aggregate=TRUE, seed=seed, n_cores=n_cores,
+        memory_save=memory_save, verbose=FALSE)
 
       # Rename the 'normalised' column to include the rolling window index
       dfar <- dfar %>%
@@ -108,7 +112,7 @@ nm_rolling <- function(df = NULL, model = NULL, value = NULL, feature_names = NU
 
   # Merge all rolling window results by 'date'
   combined_results <- rolling_results %>%
-   reduce(left_join, by = "date")
+   reduce(full_join, by = "date")
 
   return(combined_results)
 }

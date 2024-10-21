@@ -20,12 +20,12 @@
 #'   feature1 = rnorm(10),
 #'   feature2 = rnorm(10)
 #' )
-#' predictions <- nm_predict(trained_model, newdata = new_data)
+#' predictions <- nm_predict(trained_model, df = new_data)
 #' }
 #' @export
-nm_predict <- function(object, newdata) {
+nm_predict <- function(model, df) {
   # Predict values using the model
-  value_predict <- as.vector(h2o::h2o.predict(object, h2o::as.h2o(newdata))$predict)
+  value_predict <- as.vector(h2o::h2o.predict(model, h2o::as.h2o(df))$predict)
 
   return(value_predict)
 }

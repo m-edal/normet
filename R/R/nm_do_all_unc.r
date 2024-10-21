@@ -15,6 +15,9 @@
 #' @param seed A random seed for reproducibility. Default is 7654321.
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
 #' @param weather_df Optional data frame containing weather data for resampling.
+#' @param memory_save Logical indicating whether to save memory by processing each sample independently.
+#'   If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+#'   are generated and processed at once, which uses more memory. Default is FALSE.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
 #' @return A list containing the normalised data frame with uncertainty estimation and model statistics.
@@ -30,8 +33,9 @@
 #' result <- nm_do_all_unc(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, n_models = 10, seed = 12345)
 #' }
 #' @export
-nm_do_all_unc <- function(df = NULL, value = NULL, feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
-                          model_config = NULL, n_samples = 300, n_models = 10, confidence_level = 0.95, seed = 7654321, n_cores = NULL, weather_df = NULL, verbose = TRUE) {
+nm_do_all_unc <- function(df = NULL, value = 'value', feature_names = NULL, variables_resample = NULL, split_method = 'random', fraction = 0.75,
+                          model_config = NULL, n_samples = 300, n_models = 10, confidence_level = 0.95, seed = 7654321, n_cores = NULL, weather_df = NULL,
+                          memory_save = FALSE, verbose = TRUE) {
 
   # Check if h2o is already initialized
   nm_init_h2o(n_cores)
@@ -44,6 +48,16 @@ nm_do_all_unc <- function(df = NULL, value = NULL, feature_names = NULL, variabl
 
   # Determine number of CPU cores to use
   n_cores <- ifelse(is.null(n_cores), parallel::detectCores() - 1, n_cores)
+
+  # If default_model_config is NULL, create a new configuration list
+  if (is.null(model_config)) {
+    model_config <- list(
+      save_model = FALSE            # Whether to save the model
+    )
+  } else {
+    # If default_model_config already exists
+    model_config$save_model <- FALSE
+  }
 
   start_time <- Sys.time()
 
@@ -65,7 +79,7 @@ nm_do_all_unc <- function(df = NULL, value = NULL, feature_names = NULL, variabl
                        split_method = split_method, fraction = fraction,
                        model_config = model_config,
                        n_samples = n_samples, seed = seed, n_cores = n_cores,
-                       weather_df = weather_df, verbose = FALSE)
+                       weather_df = weather_df, memory_save = memory_save, verbose = FALSE)
 
       if (!is.null(res$df_dew)) {
         df_dew0 <- res$df_dew %>%

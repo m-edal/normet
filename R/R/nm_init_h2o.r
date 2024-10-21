@@ -9,10 +9,10 @@
 #' @examples
 #' \dontrun{
 #' library(h2o)
-#' nm_init_h2o(n_cores = 4, max_mem_size = "16G")
+#' nm_init_h2o(n_cores = 4, max_mem_size = '16G')
 #' }
 #' @export
-nm_init_h2o <- function(n_cores = NULL, max_mem_size = "16G") {
+nm_init_h2o <- function(n_cores = NULL, max_mem_size = '16G') {
   if (is.null(n_cores)) {
     n_cores <- parallel::detectCores() - 1
   }

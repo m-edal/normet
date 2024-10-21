@@ -7,7 +7,7 @@
 nm_decom_emi(
   df = NULL,
   model = NULL,
-  value = NULL,
+  value = "value",
   feature_names = NULL,
   split_method = "random",
   fraction = 0.75,
@@ -15,6 +15,7 @@ nm_decom_emi(
   n_samples = 300,
   seed = 7654321,
   n_cores = NULL,
+  memory_save = FALSE,
   verbose = TRUE
 )
 }
@@ -39,10 +40,14 @@ nm_decom_emi(
 
 \item{n_cores}{Number of CPU cores to use for parallel processing. Default is system's total minus one.}
 
+\item{memory_save}{Logical indicating whether to save memory by processing each sample independently.
+If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+are generated and processed at once, which uses more memory. Default is FALSE.}
+
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }
 \value{
-A list containing the decomposed data frame and model statistics.
+The decomposed data frame.
 }
 \description{
 \code{nm_decom_emi} performs decomposition of emissions influences on a time series using a trained model.

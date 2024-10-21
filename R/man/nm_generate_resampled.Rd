@@ -4,16 +4,10 @@
 \alias{nm_generate_resampled}
 \title{Generate Resampled Data}
 \usage{
-nm_generate_resampled(
-  df_batch,
-  variables_resample,
-  replace,
-  seed,
-  weather_df = NULL
-)
+nm_generate_resampled(df, variables_resample, replace, seed, weather_df)
 }
 \arguments{
-\item{df_batch}{Input data frame batch.}
+\item{df}{Input data frame batch.}
 
 \item{variables_resample}{A vector of variables to be resampled.}
 

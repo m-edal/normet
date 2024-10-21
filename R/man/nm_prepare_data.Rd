@@ -10,7 +10,6 @@ nm_prepare_data(
   feature_names,
   na_rm = TRUE,
   split_method = "random",
-  replace = FALSE,
   fraction = 0.75,
   seed = 7654321
 )
@@ -26,11 +25,11 @@ nm_prepare_data(
 
 \item{split_method}{The method for splitting data into training and testing sets. Default is 'random'.}
 
-\item{replace}{Logical indicating whether to replace existing date variables.}
-
 \item{fraction}{The proportion of the data to be used for training. Default is 0.75.}
 
 \item{seed}{Random seed for reproducibility. Default is 7654321.}
+
+\item{replace}{Logical indicating whether to replace existing date variables.}
 }
 \value{
 Prepared data frame.
