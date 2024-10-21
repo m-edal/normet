@@ -4,14 +4,14 @@
 \alias{nm_init_h2o}
 \title{Initialize H2O}
 \usage{
-nm_init_h2o(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G")
+nm_init_h2o(n_cores = NULL, max_mem_size = "16G")
 }
 \arguments{
 \item{n_cores}{The number of CPU cores to use. Default is system's total minus one.}
 
-\item{min_mem_size}{The minimum memory size for H2O. Default is "4G".}
-
 \item{max_mem_size}{The maximum memory size for H2O. Default is "16G".}
+
+\item{min_mem_size}{The minimum memory size for H2O. Default is "4G".}
 }
 \description{
 \code{nm_init_h2o} initializes the H2O cluster with specified settings.
@@ -19,6 +19,6 @@ nm_init_h2o(n_cores = NULL, min_mem_size = "4G", max_mem_size = "16G")
 \examples{
 \dontrun{
 library(h2o)
-nm_init_h2o(n_cores = 4, min_mem_size = "4G", max_mem_size = "16G")
+nm_init_h2o(n_cores = 4, max_mem_size = '16G')
 }
 }

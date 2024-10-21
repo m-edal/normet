@@ -4,7 +4,7 @@
 \alias{nm_predict}
 \title{Predict Using Trained Model}
 \usage{
-nm_predict(object, newdata)
+nm_predict(model, df)
 }
 \arguments{
 \item{object}{The trained model object.}
@@ -30,6 +30,6 @@ new_data <- data.frame(
   feature1 = rnorm(10),
   feature2 = rnorm(10)
 )
-predictions <- nm_predict(trained_model, newdata = new_data)
+predictions <- nm_predict(trained_model, df = new_data)
 }
 }

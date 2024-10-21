@@ -12,6 +12,9 @@
 #' @param n_samples Number of samples to generate for normalisation. Default is 300.
 #' @param seed A random seed for reproducibility. Default is 7654321.
 #' @param n_cores Number of CPU cores to use for parallel processing. Default is system's total minus one.
+#' @param memory_save Logical indicating whether to save memory by processing each sample independently.
+#'   If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+#'   are generated and processed at once, which uses more memory. Default is FALSE.
 #' @param verbose Should the function print progress messages? Default is TRUE.
 #'
 #' @return The decomposed data frame.
@@ -25,8 +28,8 @@
 #' result <- nm_decom_emi(df, value = "pollutant", feature_names = c("temp", "humidity"), n_samples = 300, seed = 12345)
 #' }
 #' @export
-nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = NULL, split_method = 'random', fraction = 0.75,
-                      model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, verbose = TRUE) {
+nm_decom_emi <- function(df = NULL, model = NULL, value = 'value', feature_names = NULL, split_method = 'random', fraction = 0.75,
+                      model_config = NULL, n_samples = 300, seed = 7654321, n_cores = NULL, memory_save = FALSE, verbose = TRUE) {
 
   # Check if h2o is already initialized
   nm_init_h2o(n_cores)
@@ -61,12 +64,17 @@ nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = 
   var_names <- feature_names
   start_time <- Sys.time()  # Initialize start time before the loop
 
-  for (i in seq_along(c('base', 'date_unix', 'day_julian', 'weekday', 'hour'))) {
+  # Define the variables to exclude
+  vars_to_exclude <- c('date_unix', 'day_julian', 'weekday', 'hour')
+
+  # Find the intersection between var_names and vars_to_exclude
+  vars_intersect <- intersect(var_names, vars_to_exclude)
+
+  for (var_to_exclude in c('base', vars_intersect)) {
 
     pb$tick()  # Update progress bar
 
-    var_to_exclude <- c('base', 'date_unix', 'day_julian', 'weekday', 'hour')[i]
-
+    # Remove the current variable from var_names
     var_names <- setdiff(var_names, var_to_exclude)
 
     success <- FALSE
@@ -77,7 +85,7 @@ nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = 
         # Normalize the data, excluding the current variable
         df_dew_temp <- nm_normalise(df, model, feature_names = feature_names,
                                     variables_resample = var_names, n_samples = n_samples,
-                                    n_cores = n_cores, seed = seed, verbose = FALSE)
+                                    n_cores = n_cores, seed = seed, memory_save = memory_save, verbose = FALSE)
 
         # Store the normalized data for the excluded variable
         df_dew[[var_to_exclude]] <- df_dew_temp$normalised
@@ -101,15 +109,30 @@ nm_decom_emi <- function(df = NULL, model = NULL, value = NULL, feature_names = 
   }
 
   # Adjust the decomposed components to create deweathered values
-  result <- df_dew %>%
-    mutate(
-      deweathered = hour,
-      hour = hour - weekday,
-      weekday = weekday - day_julian,
-      day_julian = day_julian - date_unix,
-      date_unix = date_unix - base + mean(base, na.rm = TRUE),
-      emi_noise = base - mean(base, na.rm = TRUE)
-    )
+  result <- df_dew
 
+  # Loop over the sorted time variables and adjust the components
+  for (i in seq_along(vars_intersect)) {
+    var_current <- vars_intersect[i]
+
+    if (i == 1) {
+      # For the first variable, subtract 'base' and add the mean of 'base'
+      result[[var_current]] <- df_dew[[var_current]] - df_dew$base + mean(df_dew$base, na.rm = TRUE)
+    } else {
+      # For the rest, subtract the previous variable in the list
+      var_previous <- vars_intersect[i - 1]
+      result[[var_current]] <- df_dew[[var_current]] - df_dew[[var_previous]]
+    }
+  }
+
+  # Set the last variable in vars_intersect as 'deweathered'
+  if (length(vars_intersect) > 0) {
+    result$deweathered <- df_dew[[vars_intersect[length(vars_intersect)]]]
+  }
+
+  # Calculate 'emi_noise' based on 'base'
+  result$emi_noise <- df_dew$base - mean(df_dew$base, na.rm = TRUE)
+
+  # Return the result with adjusted decomposed components
   return(result)
 }

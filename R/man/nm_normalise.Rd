@@ -2,7 +2,7 @@
 % Please edit documentation in R/nm_normalise.r
 \name{nm_normalise}
 \alias{nm_normalise}
-\title{normalise the Dataset Using the Trained Model}
+\title{Normalise the Dataset Using the Trained Model}
 \usage{
 nm_normalise(
   df = NULL,
@@ -15,49 +15,68 @@ nm_normalise(
   seed = 7654321,
   n_cores = NULL,
   weather_df = NULL,
+  memory_save = FALSE,
   verbose = TRUE
 )
 }
 \arguments{
-\item{df}{Input data frame.}
+\item{df}{Input data frame containing the data to be normalised.}
 
-\item{model}{The trained model object.}
+\item{model}{The trained model object (e.g., H2O model).}
 
-\item{feature_names}{The names of the features used for normalisation.}
+\item{feature_names}{A character vector of feature names used for normalisation.}
 
-\item{variables_resample}{The names of the variables to be resampled for normalisation.}
+\item{variables_resample}{A character vector of variable names to be resampled for normalisation.
+Defaults to all features except 'date_unix'.}
 
-\item{n_samples}{Number of samples to generate. Default is 300.}
+\item{n_samples}{Integer specifying the number of samples to generate. Default is 300.}
 
-\item{replace}{Logical indicating whether to sample with replacement. Default is TRUE.}
+\item{replace}{Logical indicating whether to sample with replacement during resampling. Default is TRUE.}
 
-\item{aggregate}{Logical indicating whether to aggregate the results. Default is TRUE.}
+\item{aggregate}{Logical indicating whether to aggregate the results across resamples. Default is TRUE.}
 
-\item{seed}{A random seed for reproducibility. Default is 7654321.}
+\item{seed}{An integer seed for random number generation to ensure reproducibility. Default is 7654321.}
 
-\item{n_cores}{Number of CPU cores to use for parallel processing. Default is system's total minus one.}
+\item{n_cores}{Integer specifying the number of CPU cores to use for parallel processing. Default is all cores minus one.}
 
-\item{weather_df}{Optional data frame containing weather data for resampling.}
+\item{weather_df}{Optional data frame containing weather data for resampling. If \code{NULL}, the input \code{df} is used.}
 
-\item{verbose}{Should the function print progress messages? Default is TRUE.}
+\item{memory_save}{Logical indicating whether to save memory by processing each sample independently.
+If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+are generated and processed at once, which uses more memory. Default is FALSE.}
+
+\item{verbose}{Logical indicating whether to print progress messages. Default is TRUE.}
 }
 \value{
-A data frame containing the normalised data.
+A data frame containing normalised predictions. If \code{aggregate} is TRUE, the output includes the mean
+  of observed and normalised values for each date. Otherwise, the output includes a wide data frame with
+  normalised predictions for each resample.
 }
 \description{
 \code{nm_normalise} normalises the dataset using the trained model and generates resampled data in parallel.
+It supports memory-efficient processing with the \code{memory_save} option.
 }
 \examples{
 \dontrun{
 library(dplyr)
 library(lubridate)
-library(progress)
+library(h2o)
+
 df <- data.frame(
   date = Sys.time() + seq(1, 100, by = 1),
   temp = rnorm(100),
   humidity = rnorm(100)
 )
-model <- lm(temp ~ humidity, data = df)
-normalised_df <- nm_normalise(df, model, feature_names = c("temp", "humidity"), n_samples = 300, replace = TRUE, seed = 12345)
+
+# Example: Train a simple model using H2O
+h2o.init()
+h2o_df <- as.h2o(df)
+model <- h2o.glm(x = c("humidity"), y = "temp", training_frame = h2o_df)
+
+# Normalise the dataset using the trained model
+normalised_df <- nm_normalise(
+  df, model, feature_names = c("temp", "humidity"),
+  n_samples = 300, replace = TRUE, seed = 12345, memory_save = TRUE
+)
 }
 }

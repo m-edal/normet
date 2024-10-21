@@ -46,6 +46,6 @@ df <- data.frame(
   feature2 = rnorm(100),
   target = rnorm(100)
 )
-res <- nm_prepare_train_model(df, value = "target", feature_names = c("feature1", "feature2"), model_type = "lm")
+res <- nm_prepare_train_model(df, value = "target", feature_names = c("feature1", "feature2"))
 }
 }

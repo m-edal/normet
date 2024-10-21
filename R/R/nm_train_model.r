@@ -38,7 +38,7 @@
 #' )
 #' }
 #' @export
-nm_train_model <- function(df, value = "value", variables = NULL, model_config = NULL, seed = 7654321,
+nm_train_model <- function(df, value = 'value', variables = NULL, model_config = NULL, seed = 7654321,
                            n_cores = NULL, verbose = TRUE, max_retries = 3) {
 
   # Check for duplicate variables
@@ -62,11 +62,13 @@ nm_train_model <- function(df, value = "value", variables = NULL, model_config =
   default_model_config <- list(
     max_models = 10,                  # Maximum number of models to train
     nfolds = 5,                       # Number of cross-validation folds
-    max_mem_size = '12G',             # Maximum memory for H2O
-    include_algos = c('GBM'),         # Algorithms to include (e.g., GBM)
-    save_model = TRUE,                # Whether to save the model
+    max_mem_size = '16G',             # Maximum memory for H2O
+    include_algos = c('GBM'),         # Algorithms to include (e.g., "GBM", "GLM", "DeepLearning", "DRF", "StackedEnsemble")
+    sort_metric = 'RMSE',             # For regression choose between "deviance", "RMSE", "MSE", "MAE", "RMLSE".
+    save_model = FALSE,               # Whether to save the model
     model_name = 'automl',            # Name for the saved model
     model_path = './',                # Path to save the model
+    predata_name = 'data_prepared',
     seed = seed,                      # Random seed for reproducibility
     verbose = verbose                 # Verbose output for progress
   )

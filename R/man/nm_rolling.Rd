@@ -7,7 +7,7 @@
 nm_rolling(
   df = NULL,
   model = NULL,
-  value = NULL,
+  value = "value",
   feature_names = NULL,
   variables_resample = NULL,
   split_method = "random",
@@ -18,6 +18,7 @@ nm_rolling(
   rolling_every = 7,
   seed = 7654321,
   n_cores = NULL,
+  memory_save = FALSE,
   verbose = TRUE
 )
 }
@@ -45,6 +46,10 @@ nm_rolling(
 \item{seed}{A random seed for reproducibility. Default is 7654321.}
 
 \item{n_cores}{Number of CPU cores to use for parallel processing. Default is system's total minus one.}
+
+\item{memory_save}{Logical indicating whether to save memory by processing each sample independently.
+If \code{TRUE}, resampling and prediction are done in memory-efficient batches. If \code{FALSE}, all samples
+are generated and processed at once, which uses more memory. Default is FALSE.}
 
 \item{verbose}{Should the function print progress messages? Default is TRUE.}
 }

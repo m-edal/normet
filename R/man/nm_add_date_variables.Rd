@@ -4,12 +4,10 @@
 \alias{nm_add_date_variables}
 \title{Add Date Variables}
 \usage{
-nm_add_date_variables(df, replace)
+nm_add_date_variables(df)
 }
 \arguments{
 \item{df}{Input data frame.}
-
-\item{replace}{Logical indicating whether to replace existing columns.}
 }
 \value{
 Data frame with added date variables.
@@ -22,7 +20,7 @@ Data frame with added date variables.
 library(dplyr)
 library(lubridate)
 df <- data.frame(date = Sys.time() + seq(1, 1000, by = 100))
-date_added_df <- nm_add_date_variables(df, replace = FALSE)
+date_added_df <- nm_add_date_variables(df)
 }
 
 }
